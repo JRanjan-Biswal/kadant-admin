@@ -1,0 +1,390 @@
+"use client";
+
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
+import { useEffect, useState } from "react";
+import { TbEdit, TbLink, TbTrash } from "react-icons/tb";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Client } from "@/types/client";
+import { ClientMachine } from "@/types/machine";
+import { Product } from "@/types/product";
+import { format } from "date-fns";
+import { FaPlus } from "react-icons/fa6";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+
+interface EditClientDetailsProps {
+    client: Client;
+    machines: ClientMachine[];
+}
+
+interface MachineRow {
+    id: string;
+    productId: string;
+    serialNumber: string;
+    installationDate: string;
+    _id?: string;
+}
+
+export default function EditClientDetails({ client, machines = [] }: EditClientDetailsProps) {
+    const router = useRouter();
+    const [clientDetails, setClientDetails] = useState<Client>(client);
+    const [machineRows, setMachineRows] = useState<MachineRow[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const { data: session } = useSession();
+    const [isReadOnly, setIsReadOnly] = useState(false);
+
+    useEffect(() => {
+        setIsReadOnly(session?.user?.isReadOnly || false);
+    }, [session]);
+
+    const handleClientDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+
+        if (name === 'owner') {
+            setClientDetails(prev => ({
+                ...prev,
+                clientOwnership: { ...prev.clientOwnership, name: value }
+            }));
+        } else if (name === 'location') {
+            setClientDetails(prev => ({
+                ...prev,
+                location: { ...prev.location, address: value }
+            }));
+        } else if (name === 'powerCost.value') {
+            setClientDetails(prev => ({
+                ...prev,
+                powerCost: { ...prev.powerCost, value: Number(value) }
+            }));
+        } else if (name === 'fiberCost.value') {
+            setClientDetails(prev => ({
+                ...prev,
+                fiberCost: { ...prev.fiberCost, value: Number(value) }
+            }));
+        } else {
+            setClientDetails(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleMachineChange = (id: string, field: keyof MachineRow, value: string) => {
+        setMachineRows(prev => prev.map(machine =>
+            machine.id === id ? { ...machine, [field]: value } : machine
+        ));
+    };
+
+    const addMachineRow = () => {
+        const newMachine: MachineRow = {
+            id: `new_${Date.now()}`,
+            productId: '',
+            serialNumber: '',
+            installationDate: ''
+        };
+        setMachineRows(prev => [...prev, newMachine]);
+    };
+
+    const deleteMachineRow = (id: string) => {
+        setMachineRows(prev => prev.filter(machine => machine.id !== id));
+    };
+
+    const getProducts = async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch(`/api/products`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setProducts(data);
+        } catch (error) {
+            console.error("Error fetching products:", error);
+            toast.error("Failed to fetch products");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const initialMachines: MachineRow[] = machines.map((machine, index) => ({
+            id: machine._id || `existing_${index}`,
+            productId: machine.machine._id || '',
+            serialNumber: machine.serialNumber || '',
+            installationDate: machine.installationDate ? format(new Date(machine.installationDate), 'yyyy-MM-dd') : '',
+            _id: machine._id
+        }));
+
+        setMachineRows(initialMachines);
+    }, [machines]);
+
+    useEffect(() => {
+        getProducts();
+    }, []);
+
+    const handleSubmit = async () => {
+        const updatedData = {
+            capacity: clientDetails.capacity,
+            endProduct: clientDetails.endProduct,
+            name: clientDetails.name,
+            powerCost: {
+                value: clientDetails.powerCost.value,
+                priceUnit: clientDetails.powerCost.priceUnit,
+                perUnit: clientDetails.powerCost.perUnit
+            },
+            fiberCost: {
+                value: clientDetails.fiberCost.value,
+                priceUnit: clientDetails.fiberCost.priceUnit,
+                perUnit: clientDetails.fiberCost.perUnit
+            },
+            location: clientDetails.location,
+            machines: machineRows.map(machine => ({
+                _id: machine._id,
+                productId: machine.productId,
+                serialNumber: machine.serialNumber,
+                installationDate: machine.installationDate
+            }))
+        }
+
+        try {
+            setIsLoading(true);
+
+            const response = await fetch(`/api/clients/${clientDetails._id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(updatedData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            await response.json();
+            toast.success("Client details updated successfully");
+            setIsOpen(false); // Close the dialog after successful update
+            router.refresh(); // Refresh the page data
+        } catch (error) {
+            console.error("Error submitting data:", error);
+            toast.error("Failed to update the client details");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button disabled={isReadOnly} variant="ghost" className="text-base-4 cursor-pointer"><TbEdit className="ml-2" /> Edit Details</Button>
+            </DialogTrigger>
+            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%]" showCloseButton={true}>
+                <DialogHeader>
+                    <DialogTitle>Edit Client & Machine Details</DialogTitle>
+                </DialogHeader>
+
+                <div className="grid grid-cols-5 gap-4 mt-[20px]">
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">Company Name</Label>
+                        <Input
+                            type="text"
+                            name="name"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.name || ''}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="Company Name"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">End Product</Label>
+                        <Input
+                            type="text"
+                            name="endProduct"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.endProduct || ''}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="End Product"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">Capacity (TPD)</Label>
+                        <Input
+                            type="number"
+                            name="capacity"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.capacity || ''}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="Capacity (TPD)"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">Power Cost</Label>
+                        <Input
+                            type="number"
+                            name="powerCost.value"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.powerCost?.value || 0}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="Power Cost"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">Fiber Cost</Label>
+                        <Input
+                            type="number"
+                            name="fiberCost.value"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.fiberCost?.value || 0}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="Fiber Cost"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px]">Owner</Label>
+                        <Input
+                            disabled={true}
+                            type="text"
+                            name="owner"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.clientOwnership?.name || ''}
+                            className="h-12 rounded-sm border-base-2 border cursor-not-allowed"
+                            placeholder="Owner"
+                        />
+                    </div>
+                    <div className="col-span-3">
+                        <Label className="text-base-4 mb-[10px]">Location</Label>
+                        <Input
+                            type="text"
+                            name="location"
+                            onChange={handleClientDetailsChange}
+                            value={clientDetails?.location?.address || ''}
+                            className="h-12 rounded-sm border-base-2 border"
+                            placeholder="Location"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                        <Label className="text-base-4 mb-[10px] opacity-0">Paste Link</Label>
+                        <Button className="w-full bg-base-1 hover:bg-base-1 border border-dashed border-base-2 text-base-3 h-12 cursor-not-allowed">
+                            <TbLink />
+                            Paste address link
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="block mt-4">
+                    <h2 className="text-lg font-semibold text-base-4">Total Machines</h2>
+                    <div className="max-h-[200px] overflow-y-auto border-base-2 border-b">
+                        <Table className="border-[#96A5BA] border mt-4">
+                            <TableHeader className="bg-base-1 text-base-4">
+                                <TableRow>
+                                    <TableHead className="border-[#96A5BA] border font-semibold">Machine Name</TableHead>
+                                    <TableHead className="text-center border-[#96A5BA] border font-semibold">Serial Number</TableHead>
+                                    <TableHead className="text-center border-[#96A5BA] border font-semibold">Installation Date</TableHead>
+                                    <TableHead className="text-center border-[#96A5BA] border font-semibold w-16">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {machineRows.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center text-base-3 py-8">
+                                            No machines added yet. Click &quot;Add Machine&quot; to get started.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    machineRows.map((machine) => (
+                                        <TableRow key={machine.id}>
+                                            <TableCell className="font-medium border-[#96A5BA] border">
+                                                <Select
+                                                    value={machine.productId}
+                                                    onValueChange={(value) => handleMachineChange(machine.id, 'productId', value)}
+                                                >
+                                                    <SelectTrigger size="lg" className="w-full border-base-2 border">
+                                                        <SelectValue placeholder="Select Machine" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {products?.map((product: Product) => (
+                                                            <SelectItem key={product._id} value={product._id}>
+                                                                {product?.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="text-center border-[#96A5BA] border">
+                                                <Input
+                                                    type="text"
+                                                    value={machine.serialNumber}
+                                                    onChange={(e) => handleMachineChange(machine.id, 'serialNumber', e.target.value)}
+                                                    className="h-12 rounded-sm border-base-2 border"
+                                                    placeholder="Serial Number"
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center border-[#96A5BA] border">
+                                                <Input
+                                                    type="date"
+                                                    value={machine.installationDate}
+                                                    onChange={(e) => handleMachineChange(machine.id, 'installationDate', e.target.value)}
+                                                    className="h-12 rounded-sm border-base-2 border"
+                                                    placeholder="Installation Date"
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center border-[#96A5BA] border">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => deleteMachineRow(machine.id)}
+                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    <TbTrash className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+
+                <div className="flex justify-start">
+                    <Button
+                        onClick={addMachineRow}
+                        className="cursor-pointer bg-base-1 hover:bg-base-2 hover:text-base-4 text-base-3"
+                    >
+                        <FaPlus className="mr-2" /> Add Machine
+                    </Button>
+                </div>
+
+                <DialogFooter>
+                    <div className="flex justify-end">
+                        <Button
+                            size="lg"
+                            onClick={handleSubmit}
+                            className="w-full bg-base-4 text-white uppercase font-semibold cursor-pointer w-[250px]"
+                        >
+                            {isLoading ? <Loader2 className="animate-spin" /> : "Submit"}
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
