@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 import { useEffect, useState } from "react";
-import { TbEdit, TbLink, TbTrash } from "react-icons/tb";
+import { TbEdit, TbLink, TbTrash, TbUpload, TbX } from "react-icons/tb";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,6 +47,8 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
     const [isOpen, setIsOpen] = useState(false);
     const { data: session } = useSession();
     const [isReadOnly, setIsReadOnly] = useState(false);
+    const [facilityImage, setFacilityImage] = useState<string | null>(client?.facilityImage || null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     useEffect(() => {
         setIsReadOnly(session?.user?.isReadOnly || false);
@@ -98,6 +100,52 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
     const deleteMachineRow = (id: string) => {
         setMachineRows(prev => prev.filter(machine => machine.id !== id));
+    };
+
+    const handleFacilityImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('File size must be less than 10MB');
+            return;
+        }
+
+        try {
+            setIsUploadingImage(true);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upload image');
+            }
+
+            const data = await response.json();
+            setFacilityImage(data.url);
+            toast.success('Facility image uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading facility image:', error);
+            toast.error('Failed to upload facility image');
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
+    const removeFacilityImage = () => {
+        setFacilityImage(null);
     };
 
     const getProducts = async () => {
@@ -156,6 +204,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                 perUnit: clientDetails.fiberCost.perUnit
             },
             location: clientDetails.location,
+            facilityImage: facilityImage,
             machines: machineRows.map(machine => ({
                 _id: machine._id,
                 productId: machine.productId,
@@ -286,6 +335,72 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             <TbLink />
                             Paste address link
                         </Button>
+                    </div>
+                </div>
+
+                {/* Facility Image Upload Section */}
+                <div className="grid grid-cols-5 gap-4 mt-4">
+                    <div className="col-span-2">
+                        <Label className="text-base-4 mb-[10px]">Facility Image</Label>
+                        <div className="flex items-center gap-4">
+                            {facilityImage ? (
+                                <div className="relative">
+                                    <div className="w-40 h-24 border border-base-2 rounded-md overflow-hidden">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={facilityImage.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '')}${facilityImage}` : facilityImage}
+                                            alt="Facility"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={removeFacilityImage}
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                                    >
+                                        <TbX size={14} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-base-2 rounded-md cursor-pointer hover:border-base-3 transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                                        onChange={handleFacilityImageUpload}
+                                        className="hidden"
+                                        disabled={isUploadingImage}
+                                    />
+                                    {isUploadingImage ? (
+                                        <Loader2 className="animate-spin text-base-3" />
+                                    ) : (
+                                        <>
+                                            <TbUpload className="text-base-3 text-xl mb-1" />
+                                            <span className="text-xs text-base-3">Upload Image</span>
+                                        </>
+                                    )}
+                                </label>
+                            )}
+                            {facilityImage && (
+                                <label className="flex items-center gap-2 px-3 py-2 bg-base-1 hover:bg-base-2 border border-dashed border-base-2 text-base-3 rounded-md cursor-pointer transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                                        onChange={handleFacilityImageUpload}
+                                        className="hidden"
+                                        disabled={isUploadingImage}
+                                    />
+                                    {isUploadingImage ? (
+                                        <Loader2 className="animate-spin" size={16} />
+                                    ) : (
+                                        <>
+                                            <TbUpload size={16} />
+                                            <span className="text-sm">Change</span>
+                                        </>
+                                    )}
+                                </label>
+                            )}
+                        </div>
+                        <p className="text-xs text-base-2 mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
                     </div>
                 </div>
 

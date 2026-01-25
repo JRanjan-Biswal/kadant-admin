@@ -106,6 +106,23 @@ export default async function ClientOverview({ params }: PageProps) {
                                     : "NA"}
                             </td>
                         </tr>
+                        <tr>
+                            <td className="py-4 text-sm font-semibold text-base-4">Facility Image</td>
+                            <td className="py-4 text-sm font-medium text-base-3">
+                                {clientDetails?.facilityImage ? (
+                                    <div className="w-48 h-32 border border-base-2 rounded-md overflow-hidden">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={clientDetails.facilityImage.startsWith('/') 
+                                                ? `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '')}${clientDetails.facilityImage}` 
+                                                : clientDetails.facilityImage}
+                                            alt="Facility"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ) : "No image uploaded"}
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

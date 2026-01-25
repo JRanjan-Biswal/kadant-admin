@@ -21,6 +21,7 @@ export interface Client {
         priceUnit: string;
         perUnit: string;
     }
+    facilityImage?: string;
     createdAt: string;
     updatedAt: string;
 }
