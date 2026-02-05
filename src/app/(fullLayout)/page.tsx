@@ -45,7 +45,7 @@ export default function Home() {
     if (response?.error) {
       toast.error("Invalid credentials");
     } else {
-      router.push("/dashboard");
+      router.push("/client-management");
     }
   };
 
@@ -54,7 +54,7 @@ export default function Home() {
       <div className="relative h-screen w-full">
         <Image
           alt="login-bg"
-          src="/login-bg-1.png"
+          src="/login-bg.png"
           width={1000}
           height={1000}
           className="object-cover object-top h-[100svh]"

@@ -24,10 +24,26 @@ export interface Client {
     facilityImage?: string;
     createdAt: string;
     updatedAt: string;
+    // Extended properties from backend
+    lastVisited?: string | null;
+    nextScheduledVisit?: string | null;
+    nextScheduledVisitType?: string[];
+    dailyRunningHours?: {
+        value: number;
+        unit: string;
+    };
+    lineHealth?: {
+        percentage: number;
+        status: string;
+        totalParts: number;
+        healthyParts: number;
+        warningParts: number;
+        criticalParts: number;
+    };
 }
 
 export interface ClientSelectorProps {
     open: boolean;
     onOpenChange?: (open: boolean) => void;
     clients: Client[];
-} 
+}

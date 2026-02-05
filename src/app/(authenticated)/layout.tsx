@@ -44,27 +44,38 @@ export default async function RootLayout({
 
     return (
         <html lang="en" className={`${lato.className} ${montserrat.className}`}>
-            <body className="antialiased">
+            <body className="antialiased bg-background text-foreground">
                 <AuthProvider>
                     <SidebarProvider>
                         <AppSidebar user={currentUser.user} />
                         <SidebarInset>
-                            <header className="flex h-16 shrink-0 justify-between items-center gap-2 border-b px-4">
+                            <header className="flex h-16 shrink-0 justify-between items-center gap-2 border-b border-border px-4 bg-background">
                                 <div className="flex items-center gap-2">
-                                    <Label htmlFor="on-visit" className="uppercase cursor-pointer text-xs font-semibold">On Visit</Label>
-                                    <Switch className="cursor-pointer" id="on-visit" />
+                                    <Label htmlFor="on-visit" className="uppercase cursor-pointer text-xs font-semibold text-muted-foreground">On Visit</Label>
+                                    <Switch className="cursor-pointer data-[state=checked]:bg-orange" id="on-visit" />
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Notifications />
                                 </div>
                             </header>
-                            <main className="">
+                            <main className="bg-background min-h-[calc(100vh-4rem)]">
                                 <Providers>{children}</Providers>
                             </main>
                         </SidebarInset>
                     </SidebarProvider>
                 </AuthProvider>
-                <Toaster richColors position="top-right" />
+                <Toaster 
+                    richColors 
+                    position="top-right" 
+                    theme="dark"
+                    toastOptions={{
+                        style: {
+                            background: 'var(--card)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--foreground)',
+                        },
+                    }}
+                />
             </body>
         </html>
     );

@@ -43,7 +43,7 @@ export const authOptions = {
     }),
   ],
   pages: {
-    signIn: "/dashboard",
+    signIn: "/client-management",
   },
   callbacks: {
     async jwt({ token, user, trigger, session }) {

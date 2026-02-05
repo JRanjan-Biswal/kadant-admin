@@ -45,38 +45,38 @@ export default function Notifications() {
         switch (status) {
             case "success":
                 return {
-                    bg: "bg-[#F0F9F4]",
-                    title: "text-[#00A82D]",
-                    text: "text-[#727272]",
-                    border: "border-[#C5DBCA]",
+                    bg: "bg-green-500/10",
+                    title: "text-green-400",
+                    text: "text-muted-foreground",
+                    border: "border-green-500/20",
                 };
             case "info":
                 return {
-                    bg: "bg-[#E2EAF7]",
-                    title: "text-[#227CD9]",
-                    text: "text-[#727272]",
-                    border: "border-[#C5CCDB]",
+                    bg: "bg-blue-500/10",
+                    title: "text-blue-400",
+                    text: "text-muted-foreground",
+                    border: "border-blue-500/20",
                 };
             case "error":
                 return {
-                    bg: "bg-[#FAEFE9]",
-                    title: "text-[#BF1E21]",
-                    text: "text-[#727272]",
-                    border: "border-[#CD9B9B]",
+                    bg: "bg-red-500/10",
+                    title: "text-red-400",
+                    text: "text-muted-foreground",
+                    border: "border-red-500/20",
                 };
             case "warning":
                 return {
-                    bg: "bg-[#FFF5E2]",
-                    title: "text-[#D98E00]",
-                    text: "text-[#727272]",
-                    border: "border-[#D9D9D9]",
+                    bg: "bg-orange/10",
+                    title: "text-orange",
+                    text: "text-muted-foreground",
+                    border: "border-orange/20",
                 };
             default:
                 return {
-                    bg: "bg-[#FFF7EA]",
-                    title: "text-[#E6AB1D]",
-                    text: "text-[#727272]",
-                    border: "border-[#CDB99B]",
+                    bg: "bg-yellow-500/10",
+                    title: "text-yellow-400",
+                    text: "text-muted-foreground",
+                    border: "border-yellow-500/20",
                 };
         }
     }
@@ -84,18 +84,29 @@ export default function Notifications() {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-full cursor-pointer">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-full cursor-pointer border-border text-muted-foreground hover:text-foreground hover:border-orange"
+                >
                     <IoMdNotificationsOutline size={22} />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="overflow-y-auto">
-                <p className="text-base-4 uppercase font-semibold">Alerts</p>
+            <PopoverContent className="overflow-y-auto bg-popover border-border w-80">
+                <p className="text-foreground uppercase font-semibold text-sm">Alerts</p>
 
                 <div className="flex flex-col gap-2 mt-4">
                     {notifications.map((notification) => (
-                        <div key={notification.id} className={`p-4 rounded-md flex flex-col gap-1 ${getNotificationColor(notification.status)?.bg} ${getNotificationColor(notification.status)?.border} border`}>
-                            <p className={`${getNotificationColor(notification.status)?.title} text-sm font-semibold`}>{notification.title}</p>
-                            <p className={`${getNotificationColor(notification.status)?.text} text-xs`}>{notification.description}</p>
+                        <div 
+                            key={notification.id} 
+                            className={`p-4 rounded-md flex flex-col gap-1 ${getNotificationColor(notification.status)?.bg} ${getNotificationColor(notification.status)?.border} border`}
+                        >
+                            <p className={`${getNotificationColor(notification.status)?.title} text-sm font-semibold`}>
+                                {notification.title}
+                            </p>
+                            <p className={`${getNotificationColor(notification.status)?.text} text-xs`}>
+                                {notification.description}
+                            </p>
                         </div>
                     ))}
                 </div>

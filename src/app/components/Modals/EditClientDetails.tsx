@@ -230,8 +230,8 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
             await response.json();
             toast.success("Client details updated successfully");
-            setIsOpen(false); // Close the dialog after successful update
-            router.refresh(); // Refresh the page data
+            setIsOpen(false);
+            router.refresh();
         } catch (error) {
             console.error("Error submitting data:", error);
             toast.error("Failed to update the client details");
@@ -243,95 +243,101 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button disabled={isReadOnly} variant="ghost" className="text-base-4 cursor-pointer"><TbEdit className="ml-2" /> Edit Details</Button>
+                <Button 
+                    disabled={isReadOnly} 
+                    variant="outline" 
+                    className="border-orange text-orange hover:bg-orange hover:text-white cursor-pointer transition-colors"
+                >
+                    <TbEdit className="mr-2" /> Edit Details
+                </Button>
             </DialogTrigger>
-            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%]" showCloseButton={true}>
+            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-card border-border max-h-[90vh] overflow-y-auto" showCloseButton={true}>
                 <DialogHeader>
-                    <DialogTitle>Edit Client & Machine Details</DialogTitle>
+                    <DialogTitle className="text-foreground text-xl">Edit Client & Machine Details</DialogTitle>
                 </DialogHeader>
 
                 <div className="grid grid-cols-5 gap-4 mt-[20px]">
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">Company Name</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Company Name</Label>
                         <Input
                             type="text"
                             name="name"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.name || ''}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="Company Name"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">End Product</Label>
+                        <Label className="text-muted-foreground mb-[10px]">End Product</Label>
                         <Input
                             type="text"
                             name="endProduct"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.endProduct || ''}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="End Product"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">Capacity (TPD)</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Capacity (TPD)</Label>
                         <Input
                             type="number"
                             name="capacity"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.capacity || ''}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="Capacity (TPD)"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">Power Cost</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Power Cost</Label>
                         <Input
                             type="number"
                             name="powerCost.value"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.powerCost?.value || 0}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="Power Cost"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">Fiber Cost</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Fiber Cost</Label>
                         <Input
                             type="number"
                             name="fiberCost.value"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.fiberCost?.value || 0}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="Fiber Cost"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px]">Owner</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Owner</Label>
                         <Input
                             disabled={true}
                             type="text"
                             name="owner"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.clientOwnership?.name || ''}
-                            className="h-12 rounded-sm border-base-2 border cursor-not-allowed"
+                            className="h-12 rounded-sm border-border bg-muted text-muted-foreground cursor-not-allowed"
                             placeholder="Owner"
                         />
                     </div>
                     <div className="col-span-3">
-                        <Label className="text-base-4 mb-[10px]">Location</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Location</Label>
                         <Input
                             type="text"
                             name="location"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.location?.address || ''}
-                            className="h-12 rounded-sm border-base-2 border"
+                            className="h-12 rounded-sm border-border bg-input text-foreground"
                             placeholder="Location"
                         />
                     </div>
                     <div className="col-span-1">
-                        <Label className="text-base-4 mb-[10px] opacity-0">Paste Link</Label>
-                        <Button className="w-full bg-base-1 hover:bg-base-1 border border-dashed border-base-2 text-base-3 h-12 cursor-not-allowed">
+                        <Label className="text-muted-foreground mb-[10px] opacity-0">Paste Link</Label>
+                        <Button className="w-full bg-muted hover:bg-muted border border-dashed border-border text-muted-foreground h-12 cursor-not-allowed">
                             <TbLink />
                             Paste address link
                         </Button>
@@ -341,14 +347,14 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                 {/* Facility Image Upload Section */}
                 <div className="grid grid-cols-5 gap-4 mt-4">
                     <div className="col-span-2">
-                        <Label className="text-base-4 mb-[10px]">Facility Image</Label>
+                        <Label className="text-muted-foreground mb-[10px]">Facility Image</Label>
                         <div className="flex items-center gap-4">
                             {facilityImage ? (
                                 <div className="relative">
-                                    <div className="w-40 h-24 border border-base-2 rounded-md overflow-hidden">
+                                    <div className="w-40 h-24 border border-border rounded-md overflow-hidden">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
-                                            src={facilityImage.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '')}${facilityImage}` : facilityImage}
+                                            src={facilityImage}
                                             alt="Facility"
                                             className="w-full h-full object-cover"
                                         />
@@ -356,13 +362,13 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                     <button
                                         type="button"
                                         onClick={removeFacilityImage}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                                        className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/80 transition-colors"
                                     >
                                         <TbX size={14} />
                                     </button>
                                 </div>
                             ) : (
-                                <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-base-2 rounded-md cursor-pointer hover:border-base-3 transition-colors">
+                                <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30">
                                     <input
                                         type="file"
                                         accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -371,17 +377,17 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                         disabled={isUploadingImage}
                                     />
                                     {isUploadingImage ? (
-                                        <Loader2 className="animate-spin text-base-3" />
+                                        <Loader2 className="animate-spin text-orange" />
                                     ) : (
                                         <>
-                                            <TbUpload className="text-base-3 text-xl mb-1" />
-                                            <span className="text-xs text-base-3">Upload Image</span>
+                                            <TbUpload className="text-muted-foreground text-xl mb-1" />
+                                            <span className="text-xs text-muted-foreground">Upload Image</span>
                                         </>
                                     )}
                                 </label>
                             )}
                             {facilityImage && (
-                                <label className="flex items-center gap-2 px-3 py-2 bg-base-1 hover:bg-base-2 border border-dashed border-base-2 text-base-3 rounded-md cursor-pointer transition-colors">
+                                <label className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors">
                                     <input
                                         type="file"
                                         accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -400,73 +406,73 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                 </label>
                             )}
                         </div>
-                        <p className="text-xs text-base-2 mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
+                        <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
                     </div>
                 </div>
 
                 <div className="block mt-4">
-                    <h2 className="text-lg font-semibold text-base-4">Total Machines</h2>
-                    <div className="max-h-[200px] overflow-y-auto border-base-2 border-b">
-                        <Table className="border-[#96A5BA] border mt-4">
-                            <TableHeader className="bg-base-1 text-base-4">
-                                <TableRow>
-                                    <TableHead className="border-[#96A5BA] border font-semibold">Machine Name</TableHead>
-                                    <TableHead className="text-center border-[#96A5BA] border font-semibold">Serial Number</TableHead>
-                                    <TableHead className="text-center border-[#96A5BA] border font-semibold">Installation Date</TableHead>
-                                    <TableHead className="text-center border-[#96A5BA] border font-semibold w-16">Actions</TableHead>
+                    <h2 className="text-lg font-semibold text-foreground">Total Machines</h2>
+                    <div className="max-h-[200px] overflow-y-auto border-border border-b rounded-lg mt-4">
+                        <Table className="border-border border">
+                            <TableHeader className="bg-muted">
+                                <TableRow className="border-border hover:bg-transparent">
+                                    <TableHead className="border-border border font-semibold text-muted-foreground">Machine Name</TableHead>
+                                    <TableHead className="text-center border-border border font-semibold text-muted-foreground">Serial Number</TableHead>
+                                    <TableHead className="text-center border-border border font-semibold text-muted-foreground">Installation Date</TableHead>
+                                    <TableHead className="text-center border-border border font-semibold w-16 text-muted-foreground">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {machineRows.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-base-3 py-8">
+                                    <TableRow className="border-border">
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                                             No machines added yet. Click &quot;Add Machine&quot; to get started.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     machineRows.map((machine) => (
-                                        <TableRow key={machine.id}>
-                                            <TableCell className="font-medium border-[#96A5BA] border">
+                                        <TableRow key={machine.id} className="border-border hover:bg-muted/30">
+                                            <TableCell className="font-medium border-border border">
                                                 <Select
                                                     value={machine.productId}
                                                     onValueChange={(value) => handleMachineChange(machine.id, 'productId', value)}
                                                 >
-                                                    <SelectTrigger size="lg" className="w-full border-base-2 border">
+                                                    <SelectTrigger className="w-full border-border bg-input text-foreground">
                                                         <SelectValue placeholder="Select Machine" />
                                                     </SelectTrigger>
-                                                    <SelectContent>
+                                                    <SelectContent className="bg-popover border-border">
                                                         {products?.map((product: Product) => (
-                                                            <SelectItem key={product._id} value={product._id}>
+                                                            <SelectItem key={product._id} value={product._id} className="text-foreground hover:bg-accent">
                                                                 {product?.name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="text-center border-[#96A5BA] border">
+                                            <TableCell className="text-center border-border border">
                                                 <Input
                                                     type="text"
                                                     value={machine.serialNumber}
                                                     onChange={(e) => handleMachineChange(machine.id, 'serialNumber', e.target.value)}
-                                                    className="h-12 rounded-sm border-base-2 border"
+                                                    className="h-10 rounded-sm border-border bg-input text-foreground"
                                                     placeholder="Serial Number"
                                                 />
                                             </TableCell>
-                                            <TableCell className="text-center border-[#96A5BA] border">
+                                            <TableCell className="text-center border-border border">
                                                 <Input
                                                     type="date"
                                                     value={machine.installationDate}
                                                     onChange={(e) => handleMachineChange(machine.id, 'installationDate', e.target.value)}
-                                                    className="h-12 rounded-sm border-base-2 border"
+                                                    className="h-10 rounded-sm border-border bg-input text-foreground"
                                                     placeholder="Installation Date"
                                                 />
                                             </TableCell>
-                                            <TableCell className="text-center border-[#96A5BA] border">
+                                            <TableCell className="text-center border-border border">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => deleteMachineRow(machine.id)}
-                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                                 >
                                                     <TbTrash className="h-4 w-4" />
                                                 </Button>
@@ -482,7 +488,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                 <div className="flex justify-start">
                     <Button
                         onClick={addMachineRow}
-                        className="cursor-pointer bg-base-1 hover:bg-base-2 hover:text-base-4 text-base-3"
+                        className="cursor-pointer bg-muted hover:bg-muted/80 text-muted-foreground border border-dashed border-border"
                     >
                         <FaPlus className="mr-2" /> Add Machine
                     </Button>
@@ -493,7 +499,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                         <Button
                             size="lg"
                             onClick={handleSubmit}
-                            className="w-full bg-base-4 text-white uppercase font-semibold cursor-pointer w-[250px]"
+                            className="bg-orange text-white uppercase font-semibold cursor-pointer w-[250px] hover:bg-orange/90"
                         >
                             {isLoading ? <Loader2 className="animate-spin" /> : "Submit"}
                         </Button>
