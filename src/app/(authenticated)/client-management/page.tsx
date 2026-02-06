@@ -15,8 +15,22 @@ const fetchClients = async (accessToken: string) => {
             cache: 'no-store'
         });
 
+        if (!response.ok) {
+            console.error(`Failed to fetch clients: ${response.status} ${response.statusText}`);
+            return { clients: [], total: 0 };
+        }
+
         const data = await response.json();
-        return data;
+        
+        // Handle different response structures
+        if (Array.isArray(data)) {
+            return { clients: data, total: data.length };
+        }
+        
+        return {
+            clients: data.clients || data.data || [],
+            total: data.total || data.count || (data.clients?.length || data.data?.length || 0)
+        };
     } catch (error) {
         console.error("Error fetching clients:", error);
         return { clients: [], total: 0 };

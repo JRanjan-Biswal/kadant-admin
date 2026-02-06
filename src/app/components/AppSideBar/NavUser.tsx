@@ -33,13 +33,19 @@ export function NavUser({
 }: NavUserProps) {
   const { isMobile } = useSidebar();
   const [isUserEditOpen, setIsUserEditOpen] = useState(false);
-  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(
-    user.image ? `${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}` : null
-  );
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fetch the latest profile picture on component mount and when refresh is triggered
   useEffect(() => {
+    if (!isMounted) return;
+
     const fetchProfilePicture = async () => {
       try {
         const response = await fetch('/api/users/profile-picture', {
@@ -63,7 +69,7 @@ export function NavUser({
     };
 
     fetchProfilePicture();
-  }, [refreshKey, isUserEditOpen]); // Refetch when refreshKey changes or modal closes
+  }, [refreshKey, isUserEditOpen, isMounted]); // Refetch when refreshKey changes or modal closes
 
   // Callback to trigger profile picture refetch
   const handleProfilePictureUpdate = () => {

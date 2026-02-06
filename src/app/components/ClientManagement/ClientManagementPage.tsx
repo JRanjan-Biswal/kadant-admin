@@ -194,9 +194,9 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                     <div className="flex items-center gap-2 min-w-[200px]">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Region:</span>
                         <Select
-                            value={selectedRegion}
+                            value={selectedRegion || "all"}
                             onValueChange={(value) => {
-                                setSelectedRegion(value);
+                                setSelectedRegion(value === "all" ? "" : value);
                                 setSelectedCustomer(""); // Reset customer when region changes
                             }}
                         >
@@ -205,7 +205,7 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                             </SelectTrigger>
                             <SelectContent className="bg-popover border-border">
                                 <SelectItem
-                                    value=""
+                                    value="all"
                                     className="text-foreground hover:bg-accent cursor-pointer"
                                 >
                                     All Regions
@@ -226,29 +226,33 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                     <div className="flex items-center gap-2 min-w-[200px]">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Customer:</span>
                         <Select
-                            value={selectedCustomer}
-                            onValueChange={setSelectedCustomer}
+                            value={selectedCustomer || "all"}
+                            onValueChange={(value) => setSelectedCustomer(value === "all" ? "" : value)}
                             disabled={!selectedRegion}
                         >
                             <SelectTrigger className="w-full bg-card border-border disabled:opacity-50">
                                 <SelectValue placeholder={selectedRegion ? "Select Customer" : "Select Region First"} />
                             </SelectTrigger>
                             <SelectContent className="bg-popover border-border">
-                                <SelectItem
-                                    value=""
-                                    className="text-foreground hover:bg-accent cursor-pointer"
-                                >
-                                    All Customers
-                                </SelectItem>
-                                {customersByRegion.map((customer) => (
-                                    <SelectItem
-                                        key={customer}
-                                        value={customer}
-                                        className="text-foreground hover:bg-accent cursor-pointer"
-                                    >
-                                        {customer}
-                                    </SelectItem>
-                                ))}
+                                {selectedRegion && (
+                                    <>
+                                        <SelectItem
+                                            value="all"
+                                            className="text-foreground hover:bg-accent cursor-pointer"
+                                        >
+                                            All Customers
+                                        </SelectItem>
+                                        {customersByRegion.map((customer) => (
+                                            <SelectItem
+                                                key={customer}
+                                                value={customer}
+                                                className="text-foreground hover:bg-accent cursor-pointer"
+                                            >
+                                                {customer}
+                                            </SelectItem>
+                                        ))}
+                                    </>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
