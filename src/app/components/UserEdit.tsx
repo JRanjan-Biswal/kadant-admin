@@ -21,9 +21,10 @@ interface UserEditProps {
     user: User;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    onProfilePictureUpdate?: () => void;
 }
 
-export default function UserEdit({ user, isOpen, onOpenChange }: UserEditProps) {
+export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureUpdate }: UserEditProps) {
     const { update } = useSession();
 
     const [userDetails, setUserDetails] = useState({
@@ -33,6 +34,9 @@ export default function UserEdit({ user, isOpen, onOpenChange }: UserEditProps) 
         image: user.image as string || "",
         designation: user.designation as string || "",
     });
+    const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(
+        user.image ? `${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}` : null
+    );
 
     const [isUserDetailsLoading, setIsUserDetailsLoading] = useState(false);
     const [isPasswordLoading, setIsPasswordLoading] = useState(false);
@@ -95,7 +99,7 @@ export default function UserEdit({ user, isOpen, onOpenChange }: UserEditProps) 
                 name: userDetails.name,
                 email: userDetails.email,
                 phone: userDetails.phone,
-                image: `${process}`,
+                image: userDetails.image,
                 designation: userDetails.designation,
             });
         } catch (error) {
@@ -125,15 +129,27 @@ export default function UserEdit({ user, isOpen, onOpenChange }: UserEditProps) 
             }
 
             const data = await response.json();
-            setUserDetails(prev => ({ ...prev, image: data.media.url }));
+            
+            // Extract just the filename from the URL for session storage
+            const imageUrl = data.media.url;
+            const filename = imageUrl.includes('/uploads/profile-pictures/') 
+                ? imageUrl.split('/uploads/profile-pictures/')[1] 
+                : imageUrl.split('/').pop() || '';
+            
+            // Update state with filename and full URL for display
+            setUserDetails(prev => ({ ...prev, image: filename }));
+            setProfilePictureUrl(imageUrl); // Use full URL for immediate display
             toast.success("Profile picture updated successfully");
 
+            // Update session with filename (NextAuth expects filename, not full URL)
             await update({
-                image: data.media.url.replace("/uploads/profile-pictures/", ""),
+                image: filename,
             });
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            
+            // Notify parent component to refetch profile picture
+            if (onProfilePictureUpdate) {
+                onProfilePictureUpdate();
+            }
         } catch (error) {
             console.error("Error uploading image:", error);
             toast.error("Failed to upload image");
@@ -157,7 +173,7 @@ export default function UserEdit({ user, isOpen, onOpenChange }: UserEditProps) 
                     <div className="flex flex-row gap-4 pb-4 items-center">
                         <div>
                             <Avatar className="h-15 w-15">
-                                <AvatarImage src={`${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${userDetails.image}`} alt={userDetails.name} />
+                                <AvatarImage src={profilePictureUrl || undefined} alt={userDetails.name} />
                                 <AvatarFallback>CN</AvatarFallback>
                             </Avatar>
                         </div>

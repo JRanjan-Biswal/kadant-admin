@@ -21,7 +21,7 @@ import {
 import { signOut } from "next-auth/react";
 import { TbEdit } from "react-icons/tb";
 import { User } from "next-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import UserEdit from "@/app/components/UserEdit";
 
 interface NavUserProps {
@@ -33,6 +33,43 @@ export function NavUser({
 }: NavUserProps) {
   const { isMobile } = useSidebar();
   const [isUserEditOpen, setIsUserEditOpen] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(
+    user.image ? `${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}` : null
+  );
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Fetch the latest profile picture on component mount and when refresh is triggered
+  useEffect(() => {
+    const fetchProfilePicture = async () => {
+      try {
+        const response = await fetch('/api/users/profile-picture', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store' // Always fetch fresh data for profile picture
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.profilePictureUrl) {
+            setProfilePictureUrl(data.profilePictureUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profile picture:', error);
+        // Keep the existing profile picture URL on error
+      }
+    };
+
+    fetchProfilePicture();
+  }, [refreshKey, isUserEditOpen]); // Refetch when refreshKey changes or modal closes
+
+  // Callback to trigger profile picture refetch
+  const handleProfilePictureUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   function getInitials(name: string) {
     if (!name) return "";
 
@@ -55,7 +92,7 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent cursor-pointer data-[state=open]:text-sidebar-accent-foreground hover:bg-sidebar-accent"
             >
               <Avatar className="h-8 w-8 rounded-full border-2 border-orange/30">
-                <AvatarImage src={`${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}`} alt={user.name as string} />
+                <AvatarImage src={profilePictureUrl || undefined} alt={user.name as string} />
                 <AvatarFallback className="rounded-lg bg-orange/10 text-orange font-semibold">
                   {getInitials(user.name as string)}
                 </AvatarFallback>
@@ -81,7 +118,7 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg border-2 border-orange/30">
-                  <AvatarImage src={`${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}`} alt={user.name as string} />
+                  <AvatarImage src={profilePictureUrl || undefined} alt={user.name as string} />
                   <AvatarFallback className="rounded-lg bg-orange/10 text-orange font-semibold">
                     {getInitials(user.name as string)}
                   </AvatarFallback>
@@ -113,7 +150,12 @@ export function NavUser({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-      <UserEdit user={user} isOpen={isUserEditOpen} onOpenChange={setIsUserEditOpen} />
+      <UserEdit 
+        user={user} 
+        isOpen={isUserEditOpen} 
+        onOpenChange={setIsUserEditOpen}
+        onProfilePictureUpdate={handleProfilePictureUpdate}
+      />
     </SidebarMenu>
   );
 }
