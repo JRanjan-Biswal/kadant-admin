@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -76,10 +76,12 @@ export default function EditSparePartInsights({ clientMachineSparePart, sparePar
     }, [
         clientMachineSparePartData?.installedMotorPower?.value,
         clientMachineSparePartData?.actualMotorPowerConsumption?.healthy?.value,
-        clientMachineSparePartData?.actualMotorPowerConsumption?.wornout?.value
+        clientMachineSparePartData?.actualMotorPowerConsumption?.wornout?.value,
+        sparePartData?.actualMotorPowerConsumption?.healthy?.value,
+        sparePartData?.actualMotorPowerConsumption?.wornout?.value
     ]);
 
-    const fetchClientDetails = async () => {
+    const fetchClientDetails = useCallback(async () => {
         try {
             const response = await fetch(`/api/clients/${clientID}`);
             const data = await response.json();
@@ -88,11 +90,11 @@ export default function EditSparePartInsights({ clientMachineSparePart, sparePar
             console.error('Error fetching client details:', error);
             toast.error('Error fetching client details');
         }
-    };
+    }, [clientID]);
 
     useEffect(() => {
         fetchClientDetails();
-    }, [clientID]);
+    }, [fetchClientDetails]);
 
     useEffect(() => {
         if (clientMachineSparePart && sparePart) {

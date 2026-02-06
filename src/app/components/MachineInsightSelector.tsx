@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { Machine, SparePart } from '@/types/machine';
 import { toast } from 'sonner';
@@ -67,20 +67,41 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
     const [activeSparePartData, setActiveSparePartData] = useState<SparePart | null>(null);
     const [clientDetails, setClientDetails] = useState<Client | null>(null);
 
-    const handleCategoryClick = (categoryName: string) => {
+    const handleCategoryClick = useCallback((categoryName: string) => {
         if (expandedCategory === categoryName) {
             setExpandedCategory(null);
         } else {
             setExpandedCategory(categoryName);
         }
         setActiveCategory(categoryName);
-    };
+    }, [expandedCategory]);
 
-    const handleMachineClick = (machineId: string) => {
+    const fetchSpareParts = useCallback(async (machineId: string, setActive: boolean = true) => {
+        try {
+            const response = await fetch(`/api/products/${clientId}/spare-parts/${machineId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch spare parts');
+            }
+
+            const data = await response.json();
+            setSpareParts(data);
+            if (data.length > 0 && setActive) {
+                setActiveSparePart(data[0]._id);
+                setActiveSparePartData(data[0]);
+                setActiveClientSparePartData(data[0].clientMachineSparePart || defaultClientMachineSparePartData);
+            }
+            return data;
+        } catch (error) {
+            console.error('Error fetching spare parts:', error);
+            toast.error('Error fetching spare parts');
+        }
+    }, [clientId]);
+
+    const handleMachineClick = useCallback((machineId: string) => {
         fetchSpareParts(machineId);
-    };
+    }, [fetchSpareParts]);
 
-    const buildBreadcrumbItems = (): BreadcrumbItem[] => {
+    const buildBreadcrumbItems = useCallback((): BreadcrumbItem[] => {
         const items: BreadcrumbItem[] = [];
 
         categories.forEach((category) => {
@@ -108,7 +129,7 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
         });
 
         return items;
-    };
+    }, [categories, expandedCategory, activeCategory, handleCategoryClick, handleMachineClick]);
 
     const fetchCategories = async () => {
         try {
@@ -121,7 +142,7 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
         }
     };
 
-    const fetchClientDetails = async () => {
+    const fetchClientDetails = useCallback(async () => {
         try {
             const response = await fetch(`/api/clients/${clientId}`);
             const data = await response.json();
@@ -130,28 +151,8 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
             console.error('Error fetching client details:', error);
             toast.error('Error fetching client details');
         }
-    };
+    }, [clientId]);
 
-    const fetchSpareParts = async (machineId: string, setActive: boolean = true) => {
-        try {
-            const response = await fetch(`/api/products/${clientId}/spare-parts/${machineId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch spare parts');
-            }
-
-            const data = await response.json();
-            setSpareParts(data);
-            if (data.length > 0 && setActive) {
-                setActiveSparePart(data[0]._id);
-                setActiveSparePartData(data[0]);
-                setActiveClientSparePartData(data[0].clientMachineSparePart || defaultClientMachineSparePartData);
-            }
-            return data;
-        } catch (error) {
-            console.error('Error fetching spare parts:', error);
-            toast.error('Error fetching spare parts');
-        }
-    };
 
     const handleSparePartClick = (sparePartId: string) => {
         setActiveSparePart(sparePartId);
@@ -198,11 +199,11 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
     useEffect(() => {
         fetchCategories();
         fetchClientDetails();
-    }, []);
+    }, [fetchClientDetails]);
 
     useEffect(() => {
         setBreadcrumbItems(buildBreadcrumbItems());
-    }, [categories, expandedCategory, activeCategory]);
+    }, [buildBreadcrumbItems]);
 
     const handleDialogClose = async (sparePartId: string) => {
         const machineId = typeof activeSparePartData?.machine === 'object' ? activeSparePartData.machine._id : activeSparePartData?.machine || '';

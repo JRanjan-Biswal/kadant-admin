@@ -5,6 +5,8 @@ export interface Client {
     name: string;
     isActive: boolean;
     clientOwnership: Admin;
+    region?: string;
+    customer?: string;
     location: {
         address: string;
         mapLink: string;

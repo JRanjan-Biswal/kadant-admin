@@ -60,11 +60,17 @@ export default function SiteVisitSelector({ clientID, minSiteVisits = 0, shouldR
         } finally {
             setIsLoading(false);
         }
-    }, [clientID, shouldRefreshLogs]);
+    }, [clientID, onRefreshLogs]);
 
     useEffect(() => {
         getSiteVisits();
-    }, [getSiteVisits, shouldRefreshLogs]);
+    }, [getSiteVisits]);
+
+    useEffect(() => {
+        if (shouldRefreshLogs) {
+            getSiteVisits();
+        }
+    }, [shouldRefreshLogs, getSiteVisits]);
 
     const handleDelete = async (visitID: string) => {
         if (confirm("Are you sure you want to delete this site visit?")) {

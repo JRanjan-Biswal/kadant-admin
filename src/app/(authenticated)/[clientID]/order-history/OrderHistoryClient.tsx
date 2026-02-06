@@ -1,7 +1,7 @@
 'use client';
 
 import { Order } from "@/types/order";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     Table,
     TableBody,
@@ -23,7 +23,7 @@ interface OrderHistoryClientProps {
 export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps) {
     const [orders, setOrders] = useState<Order[]>([]);
 
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         const response = await fetch(`/api/clients/${clientID}/orders`, {
             method: "GET",
             headers: {
@@ -32,7 +32,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
         });
         const data = await response.json();
         setOrders(data);
-    }
+    }, [clientID]);
 
     const handleDeleteOrder = async (orderId: string) => {
         if (!orderId) {
@@ -55,7 +55,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [fetchOrders]);
 
     return (
         <div className="relative mt-4">

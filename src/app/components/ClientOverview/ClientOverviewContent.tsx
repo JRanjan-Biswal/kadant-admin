@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiOutlineLink, HiOutlineLocationMarker, HiOutlineClock, HiOutlinePencil } from "react-icons/hi";
 import { FaBolt, FaLeaf, FaChevronDown, FaChevronRight } from "react-icons/fa";
 import { BsBuilding, BsGearFill } from "react-icons/bs";
-import { MdOutlineCalendarToday } from "react-icons/md";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

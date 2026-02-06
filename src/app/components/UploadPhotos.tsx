@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, Plus, Trash2, Upload } from 'lucide-react';
 import { Machine } from '@/types/machine';
 import { toast } from 'sonner';
@@ -108,16 +108,46 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
         setIsReadOnly(session?.user?.isReadOnly || false);
     }, [session]);
 
-    const handleCategoryClick = (categoryName: string) => {
+    const handleCategoryClick = useCallback((categoryName: string) => {
         if (expandedCategory === categoryName) {
             setExpandedCategory(null);
         } else {
             setExpandedCategory(categoryName);
         }
         setActiveCategory(categoryName);
-    };
+    }, [expandedCategory]);
 
-    const handleMachineClick = async (machineId: string) => {
+    const fetchSpareParts = useCallback(async (machineId: string) => {
+        try {
+            const response = await fetch(`/api/products/spare-parts/${machineId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch spare parts');
+            }
+
+            const data = await response.json();
+            setSpareParts(data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching spare parts:', error);
+            toast.error('Error fetching spare parts');
+            throw error;
+        }
+    }, []);
+
+    const fetchMachineImages = useCallback(async (machineId: string) => {
+        try {
+            const response = await fetch(`/api/clients/${clientId}/client-machines/spare-parts/spare-parts-uploaded-images/${machineId}`);
+            const data = await response.json();
+            console.log(data);
+
+            setMachineImages(data);
+        } catch (error) {
+            console.error('Error fetching machine images:', error);
+            toast.error('Error fetching machine images');
+        }
+    }, [clientId]);
+
+    const handleMachineClick = useCallback(async (machineId: string) => {
         setSelectedMachineId(machineId);
         setUploadRows([]);
         setIsLoading(true);
@@ -130,22 +160,9 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [fetchSpareParts, fetchMachineImages]);
 
-    const fetchMachineImages = async (machineId: string) => {
-        try {
-            const response = await fetch(`/api/clients/${clientId}/client-machines/spare-parts/spare-parts-uploaded-images/${machineId}`);
-            const data = await response.json();
-            console.log(data);
-
-            setMachineImages(data);
-        } catch (error) {
-            console.error('Error fetching machine images:', error);
-            toast.error('Error fetching machine images');
-        }
-    };
-
-    const buildBreadcrumbItems = (): BreadcrumbItem[] => {
+    const buildBreadcrumbItems = useCallback((): BreadcrumbItem[] => {
         const items: BreadcrumbItem[] = [];
 
         categories.forEach((category) => {
@@ -175,7 +192,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
         });
 
         return items;
-    };
+    }, [categories, expandedCategory, activeCategory, handleCategoryClick, handleMachineClick]);
 
     const fetchCategories = async () => {
         try {
@@ -188,22 +205,6 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
         }
     };
 
-    const fetchSpareParts = async (machineId: string) => {
-        try {
-            const response = await fetch(`/api/products/spare-parts/${machineId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch spare parts');
-            }
-
-            const data = await response.json();
-            setSpareParts(data);
-            return data;
-        } catch (error) {
-            console.error('Error fetching spare parts:', error);
-            toast.error('Error fetching spare parts');
-            throw error;
-        }
-    };
 
     useEffect(() => {
         if (spareParts.length > 0 && machineImages.length > 0) {
@@ -422,7 +423,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
 
     useEffect(() => {
         setBreadcrumbItems(buildBreadcrumbItems());
-    }, [categories, expandedCategory, activeCategory]);
+    }, [buildBreadcrumbItems]);
 
     return (
         categories.length > 0 && (

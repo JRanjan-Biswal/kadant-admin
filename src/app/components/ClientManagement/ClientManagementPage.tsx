@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Client } from "@/types/client";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { HiOutlineSearch, HiOutlineLocationMarker } from "react-icons/hi";
-import { FaChevronRight } from "react-icons/fa";
+import { FaChevronRight, FaPlus } from "react-icons/fa";
 import { BsBuilding } from "react-icons/bs";
 import {
     Table,
@@ -18,6 +18,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface ClientManagementPageProps {
     clients: Client[];
@@ -27,20 +34,103 @@ interface ClientManagementPageProps {
 export default function ClientManagementPage({ clients, total }: ClientManagementPageProps) {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedRegion, setSelectedRegion] = useState<string>("");
+    const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+    const [isMounted, setIsMounted] = useState(false);
 
+    // Ensure component is mounted before running client-side effects
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    // Extract unique regions from clients
+    const regions = useMemo(() => {
+        const regionSet = new Set<string>();
+        clients.forEach((client) => {
+            if (client.region) {
+                regionSet.add(client.region);
+            }
+        });
+        return Array.from(regionSet).sort();
+    }, [clients]);
+
+    // Get customers filtered by selected region
+    const customersByRegion = useMemo(() => {
+        if (!selectedRegion) return [];
+        
+        const customerSet = new Set<string>();
+        clients.forEach((client) => {
+            if (client.region === selectedRegion && client.customer) {
+                customerSet.add(client.customer);
+            }
+        });
+        return Array.from(customerSet).sort();
+    }, [clients, selectedRegion]);
+
+    // Filter clients based on search, region, and customer
     const filteredClients = useMemo(() => {
-        if (!searchQuery.trim()) return clients;
+        let filtered = clients;
 
-        const query = searchQuery.toLowerCase();
-        return clients.filter((client) =>
-            client.name?.toLowerCase().includes(query) ||
-            client.location?.address?.toLowerCase().includes(query) ||
-            client.endProduct?.toLowerCase().includes(query)
-        );
-    }, [clients, searchQuery]);
+        // Filter by region
+        if (selectedRegion) {
+            filtered = filtered.filter((client) => client.region === selectedRegion);
+        }
+
+        // Filter by customer
+        if (selectedCustomer) {
+            filtered = filtered.filter((client) => client.customer === selectedCustomer);
+        }
+
+        // Filter by search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((client) =>
+                client.name?.toLowerCase().includes(query) ||
+                client.location?.address?.toLowerCase().includes(query) ||
+                client.endProduct?.toLowerCase().includes(query) ||
+                client.region?.toLowerCase().includes(query) ||
+                client.customer?.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [clients, searchQuery, selectedRegion, selectedCustomer]);
+
+    // Auto-fill region and customer when search matches a client (only after mount)
+    useEffect(() => {
+        if (!isMounted) return;
+        
+        if (searchQuery.trim() && filteredClients.length === 1) {
+            const matchedClient = filteredClients[0];
+            if (matchedClient.region && matchedClient.region !== selectedRegion) {
+                setSelectedRegion(matchedClient.region);
+            }
+            if (matchedClient.customer && matchedClient.customer !== selectedCustomer) {
+                setSelectedCustomer(matchedClient.customer);
+            }
+        }
+    }, [searchQuery, filteredClients, selectedRegion, selectedCustomer, isMounted]);
+
+    // Reset customer when region changes (only after mount)
+    useEffect(() => {
+        if (!isMounted) return;
+        
+        if (selectedRegion && selectedCustomer) {
+            // Check if selected customer exists in the new region
+            const customerExists = customersByRegion.includes(selectedCustomer);
+            if (!customerExists) {
+                setSelectedCustomer("");
+            }
+        }
+    }, [selectedRegion, selectedCustomer, customersByRegion, isMounted]);
 
     const handleClientSelect = (clientId: string) => {
         router.push(`/${clientId}/client-overview`);
+    };
+
+    const handleAddCustomer = () => {
+        // TODO: Implement add customer functionality
+        console.log("Add customer clicked");
     };
 
     const getHealthStatusColor = (status?: string) => {
@@ -72,21 +162,111 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
             </div>
 
             {/* Search and Filter Section */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="relative w-80">
-                    <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                        type="text"
-                        placeholder="Search clients..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-10 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-orange focus:ring-orange"
-                    />
+            <div className="flex flex-col gap-4 mb-6">
+                {/* Top Row: Search and Add Button */}
+                <div className="flex items-center justify-between gap-4">
+                    <div className="relative flex-1 max-w-md">
+                        <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                            type="text"
+                            placeholder="Search clients..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-10 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-orange focus:ring-orange"
+                        />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="bg-card border-border text-muted-foreground">
+                            {filteredClients.length} of {total} clients
+                        </Badge>
+                        <Button
+                            onClick={handleAddCustomer}
+                            className="bg-orange text-white hover:bg-orange/90 h-10 px-4"
+                        >
+                            <FaPlus className="mr-2 h-4 w-4" />
+                            Add a Customer
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="bg-card border-border text-muted-foreground">
-                        {filteredClients.length} of {total} clients
-                    </Badge>
+
+                {/* Bottom Row: Region and Customer Dropdowns */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 min-w-[200px]">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Region:</span>
+                        <Select
+                            value={selectedRegion}
+                            onValueChange={(value) => {
+                                setSelectedRegion(value);
+                                setSelectedCustomer(""); // Reset customer when region changes
+                            }}
+                        >
+                            <SelectTrigger className="w-full bg-card border-border">
+                                <SelectValue placeholder="All Regions" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border-border">
+                                <SelectItem
+                                    value=""
+                                    className="text-foreground hover:bg-accent cursor-pointer"
+                                >
+                                    All Regions
+                                </SelectItem>
+                                {regions.map((region) => (
+                                    <SelectItem
+                                        key={region}
+                                        value={region}
+                                        className="text-foreground hover:bg-accent cursor-pointer"
+                                    >
+                                        {region}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2 min-w-[200px]">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Customer:</span>
+                        <Select
+                            value={selectedCustomer}
+                            onValueChange={setSelectedCustomer}
+                            disabled={!selectedRegion}
+                        >
+                            <SelectTrigger className="w-full bg-card border-border disabled:opacity-50">
+                                <SelectValue placeholder={selectedRegion ? "Select Customer" : "Select Region First"} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border-border">
+                                <SelectItem
+                                    value=""
+                                    className="text-foreground hover:bg-accent cursor-pointer"
+                                >
+                                    All Customers
+                                </SelectItem>
+                                {customersByRegion.map((customer) => (
+                                    <SelectItem
+                                        key={customer}
+                                        value={customer}
+                                        className="text-foreground hover:bg-accent cursor-pointer"
+                                    >
+                                        {customer}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {(selectedRegion || selectedCustomer) && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSelectedRegion("");
+                                setSelectedCustomer("");
+                            }}
+                            className="border-border text-muted-foreground hover:bg-muted"
+                        >
+                            Clear Filters
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -154,7 +334,7 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <span className="text-sm text-muted-foreground">
+                                        <span className="text-sm text-muted-foreground" suppressHydrationWarning>
                                             {client.lastVisited
                                                 ? format(new Date(client.lastVisited), "dd MMM yyyy")
                                                 : "N/A"}
@@ -163,7 +343,7 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                                     <TableCell className="text-center">
                                         {client.nextScheduledVisit ? (
                                             <div className="flex flex-col items-center gap-1">
-                                                <span className="text-sm text-foreground">
+                                                <span className="text-sm text-foreground" suppressHydrationWarning>
                                                     {format(new Date(client.nextScheduledVisit), "dd MMM yyyy")}
                                                 </span>
                                                 {client.nextScheduledVisitType && client.nextScheduledVisitType.length > 0 && (
@@ -209,8 +389,8 @@ export default function ClientManagementPage({ clients, total }: ClientManagemen
                                             No clients found
                                         </h3>
                                         <p className="text-muted-foreground text-sm max-w-md">
-                                            {searchQuery
-                                                ? `No clients match your search "${searchQuery}". Try adjusting your search terms.`
+                                            {searchQuery || selectedRegion || selectedCustomer
+                                                ? `No clients match your filters. Try adjusting your search terms or filters.`
                                                 : "There are no clients available. Please contact your administrator."}
                                         </p>
                                     </div>

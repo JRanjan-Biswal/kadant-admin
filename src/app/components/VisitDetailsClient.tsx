@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import SiteVisitSelector from "@/app/components/Modals/SiteVisitSelector";
 import AddToCalendar from "@/app/components/AddToCalendar";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { SiteVisit } from "@/types/visit-details";
 import BackToSiteVisits from "./BackToSiteVisits";
 
@@ -39,7 +39,7 @@ const VisitDetailsClient = ({ clientID, visitID }: VisitDetailsClientPageProps) 
     const [latestSiteVisitDetails, setLatestSiteVisitDetails] = useState<SiteVisit>(initialData);
     const [shouldRefreshLogs, setShouldRefreshLogs] = useState(false);
 
-    const fetchLatestSiteVisitDetails = async (clientID: string) => {
+    const fetchLatestSiteVisitDetails = useCallback(async (clientID: string) => {
         try {
             const response = await fetch(`/api/clients/${clientID}/site-visits/${visitID}`, {
                 method: "GET",
@@ -54,11 +54,11 @@ const VisitDetailsClient = ({ clientID, visitID }: VisitDetailsClientPageProps) 
             console.log(error);
         }
 
-    }
+    }, [visitID]);
 
     useEffect(() => {
         fetchLatestSiteVisitDetails(clientID);
-    }, []);
+    }, [clientID, fetchLatestSiteVisitDetails]);
 
     return (
         <div className="relative mt-4">
