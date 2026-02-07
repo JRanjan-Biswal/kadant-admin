@@ -243,13 +243,13 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button 
+                <button 
                     disabled={isReadOnly} 
-                    variant="outline" 
-                    className="border-orange text-orange hover:bg-orange hover:text-white cursor-pointer transition-colors"
+                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] px-4 py-2 h-auto flex items-center gap-2 text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <TbEdit className="mr-2" /> Edit Details
-                </Button>
+                    <TbEdit className="w-4 h-4" />
+                    <span>Edit Details</span>
+                </button>
             </DialogTrigger>
             <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-card border-border max-h-[90vh] overflow-y-auto" showCloseButton={true}>
                 <DialogHeader>

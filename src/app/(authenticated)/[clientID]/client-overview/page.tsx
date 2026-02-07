@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+import { redirect } from "next/navigation";
 import getCurrentUser from "@/actions/get-current-user";
 import ClientOverviewContent from "@/app/components/ClientOverview/ClientOverviewContent";
 
@@ -43,8 +44,8 @@ export default async function ClientOverview({ params }: PageProps) {
     const { clientID } = await params;
     const currentUser = await getCurrentUser();
     
-    if (!currentUser) {
-        return <div>Unauthorized</div>;
+    if (!currentUser || !currentUser.accessToken) {
+        redirect('/login');
     }
 
     const [clientDetails, allClients] = await Promise.all([

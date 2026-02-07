@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Client } from "@/types/client";
 import { Button } from "@/components/ui/button";
 import { HiOutlineSearch, HiOutlineLocationMarker } from "react-icons/hi";
@@ -22,6 +23,7 @@ interface ClientManagementPageProps {
 }
 
 export default function ClientManagementPage({ clients }: ClientManagementPageProps) {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedRegion, setSelectedRegion] = useState<string>("");
     const [selectedCustomer, setSelectedCustomer] = useState<string>("");
@@ -127,6 +129,10 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
 
     const handleViewClient = (client: Client) => {
         setSelectedClientForView(client);
+    };
+
+    const handleNavigateToOverview = (clientId: string) => {
+        router.push(`/${clientId}/client-overview`);
     };
 
     const handleAddCustomer = () => {
@@ -317,9 +323,12 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
                                     {/* Company Name */}
                                     <div className="flex flex-col gap-2 w-[203px]">
                                         <p className="text-[#737373] text-sm leading-5">Company Name</p>
-                                        <p className="text-[#d45815] text-lg leading-7 font-normal">
+                                        <button
+                                            onClick={() => handleNavigateToOverview(client._id)}
+                                            className="text-[#d45815] text-lg leading-7 font-normal text-left hover:text-[#d45815]/80 transition-colors cursor-pointer"
+                                        >
                                             {client.name}
-                                        </p>
+                                        </button>
                                     </div>
 
                                     {/* Location */}
