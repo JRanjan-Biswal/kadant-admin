@@ -1,9 +1,7 @@
 "use client";
 
 import { format, differenceInDays, parseISO } from "date-fns";
-import EditVisitDetails from "@/app/components/Modals/EditVisitDetails";
-import SiteVisitSelector from "@/app/components/Modals/SiteVisitSelector";
-import AddToCalendar from "@/app/components/AddToCalendar";
+import ScheduleNextVisit from "@/app/components/Modals/ScheduleNextVisit";
 import { useEffect, useState, useCallback } from "react";
 import { SiteVisit } from "@/types/visit-details";
 import { FaPlus } from "react-icons/fa6";
@@ -19,24 +17,21 @@ import { Button } from "@/components/ui/button";
 
 interface VisitDetailsPageProps {
     clientID: string;
-    initialData: SiteVisit;
+    initialData?: SiteVisit;
 }
 
 interface ScheduledVisit extends SiteVisit {
     daysUntil?: number;
 }
 
-const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
+const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     const router = useRouter();
-    const [siteVisits, setSiteVisits] = useState<SiteVisit[]>([]);
     const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
     const [visitHistory, setVisitHistory] = useState<SiteVisit[]>([]);
     const [filterPeriod, setFilterPeriod] = useState<string>("all");
-    const [isLoading, setIsLoading] = useState(true);
 
     const fetchSiteVisits = useCallback(async () => {
         try {
-            setIsLoading(true);
             const response = await fetch(`/api/clients/${clientID}/site-visits`, {
                 method: "GET",
                 headers: {
@@ -45,7 +40,6 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
                 cache: 'no-store'
             });
             const data = await response.json();
-            setSiteVisits(data);
 
             // Filter scheduled visits (future dates)
             const now = new Date();
@@ -80,8 +74,6 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
             setVisitHistory(history);
         } catch (error) {
             console.error("Error fetching site visits:", error);
-        } finally {
-            setIsLoading(false);
         }
     }, [clientID]);
 
@@ -142,7 +134,7 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
     };
 
     return (
-        <div className="flex flex-col gap-4 w-full">
+        <div className="flex flex-col gap-4 w-full p-6">
             {/* Header Section */}
             <div className="flex flex-col gap-2">
                 <div className="flex h-[70px] items-center justify-between">
@@ -152,7 +144,7 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
                         </h1>
                     </div>
                     <div className="flex-1 flex gap-3 items-center justify-end">
-                        <EditVisitDetails clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                        <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
                             <Button 
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
                                 variant="ghost"
@@ -160,8 +152,8 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
                                 <FaPlus className="w-4 h-4" />
                                 <span className="text-base leading-6">Add Visit Data</span>
                             </Button>
-                        </EditVisitDetails>
-                        <EditVisitDetails clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                        </ScheduleNextVisit>
+                        <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
                             <Button 
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
                                 variant="ghost"
@@ -169,7 +161,7 @@ const VisitDetailsPage = ({ clientID, initialData }: VisitDetailsPageProps) => {
                                 <LuCalendar className="w-4 h-4" />
                                 <span className="text-base leading-6">Schedule Next Visit</span>
                             </Button>
-                        </EditVisitDetails>
+                        </ScheduleNextVisit>
                     </div>
                 </div>
 
