@@ -14,7 +14,7 @@ export function AppLogo() {
       <SidebarMenuItem>
         <NextLink href="/client-management">
           <div
-            className="data-[state=open]:bg-sidebar-accent pl-[15px] pt-[18px] pb-[20px] data-[state=open]:text-sidebar-accent-foreground"
+            className="data-[state=open]:bg-sidebar-accent pl-[15px] pt-[18px] pb-[20px] data-[state=open]:text-sidebar-accent-foreground border-b h-16"
           >
             {/* Using white logo for dark theme */}
             <Image

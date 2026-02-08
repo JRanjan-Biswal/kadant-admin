@@ -1,24 +1,7 @@
 "use client";
 
-import { ChevronRight, type LucideIcon, Lock } from "lucide-react";
 import { IconType } from "react-icons";
 import { usePathname } from "next/navigation";
-
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarGroupLabel,
-} from "@/components/ui/sidebar";
 import Link from "next/link";
 import {
   Tooltip,
@@ -26,11 +9,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Lock } from "lucide-react";
 
 interface NavItem {
     title: string;
     url: string;
-    icon?: LucideIcon | IconType;
+    icon?: IconType | React.ComponentType<{ className?: string }>;
     isActive?: boolean;
   disabled?: boolean;
   alwaysEnabled?: boolean;
@@ -42,8 +26,6 @@ interface NavItem {
 
 export function NavMain({
   items,
-  selectedClientId,
-  isOnClientManagement,
 }: {
   items: NavItem[];
   selectedClientId?: string;
@@ -60,104 +42,72 @@ export function NavMain({
   };
 
   return (
-    <SidebarGroup className="pl-0">
-      <SidebarGroupLabel className="font-montserrat text-muted-foreground mb-[10px] mt-[10px] pl-4 uppercase text-xs font-semibold tracking-wider">
-        Main Menu
-      </SidebarGroupLabel>
+    <div className="flex flex-col gap-[12px] pt-[16px] px-[16px] flex-1 overflow-y-auto">
+      {/* Main Menu Label */}
+      <div className="h-[20px] px-[12px]">
+        <p className="flex-1 font-lato font-black leading-[20px] text-[14px] text-[#607797] tracking-[0.7px] uppercase">
+          Main Menu
+        </p>
+      </div>
 
-      {/* Show message when no client is selected */}
-      {!selectedClientId && !isOnClientManagement && (
-        <div className="mx-4 mb-4 p-3 rounded-lg bg-orange/10 border border-orange/20">
-          <p className="text-xs text-orange font-medium">No Client Selected</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Select a client from Client Management to access all features.
-          </p>
-        </div>
-      )}
+      {/* Navigation Items */}
+      <div className="flex flex-col gap-[8px] w-full">
+        {items.map((item) => {
+          const isActive = isActiveRoute(item.url);
+          
+          if (item.disabled) {
+            return (
+              <TooltipProvider key={item.title}>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <div className="flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] cursor-not-allowed opacity-40">
+                      {item.icon && (
+                        <div className="relative shrink-0 size-[20px]">
+                          <item.icon className="w-5 h-5 text-[#6a7282]" />
+                        </div>
+                      )}
+                      <span className="font-lato font-normal leading-[24px] text-[16px] text-[#6a7282]">
+                        {item.title}
+                      </span>
+                      <Lock className="ml-auto h-3 w-3 text-[#6a7282]" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                    <p className="text-xs">Select a client first from Client Management</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          }
 
-      {/* Show selected client info */}
-      {selectedClientId && (
-        <div className="mx-4 mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-          <p className="text-xs text-green-400 font-medium">Client Selected</p>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            ID: {selectedClientId.slice(0, 12)}...
-          </p>
-        </div>
-      )}
-
-      <SidebarMenu className="gap-[4px]">
-        {items.map((item) => (
-          <Collapsible
-            key={item.title}
-            asChild
-            defaultOpen={item.isActive}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              {item.items ? (
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={item.title}>
-                    {item.icon && <item.icon />}
-                    <span className="font-montserrat text-sm">{item.title}</span>
-                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-              ) : item.disabled ? (
-                <TooltipProvider>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <div className="w-full">
-                        <SidebarMenuButton
-                          className="h-[42px] pl-4 cursor-not-allowed opacity-40 hover:bg-transparent hover:opacity-40"
-                          tooltip={item.title}
-                        >
-                          {item.icon && <item.icon className="text-muted-foreground" />}
-                          <span className="font-montserrat text-sm text-muted-foreground">{item.title}</span>
-                          <Lock className="ml-auto h-3 w-3 text-muted-foreground" />
-                        </SidebarMenuButton>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
-                      <p className="text-xs">Select a client first from Client Management</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : (
-                <Link href={item.url} className="block">
-                  <SidebarMenuButton
-                    className={`h-[42px] pl-4 cursor-pointer transition-all duration-200 ${
-                      isActiveRoute(item.url)
-                        ? 'bg-orange text-white rounded-r-full hover:bg-orange hover:text-white'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    }`}
-                    tooltip={item.title}
-                  >
-                    {item.icon && <item.icon className={isActiveRoute(item.url) ? 'text-white' : ''} />}
-                    <span className="font-montserrat text-sm">{item.title}</span>
-                  </SidebarMenuButton>
-                </Link>
-              )}
-
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
-                      <Link href={subItem.url}>
-                        <SidebarMenuSubButton
-                          asChild
-                          className={pathname === subItem.url ? 'bg-orange text-white' : ''}
-                        >
-                          <span className="font-montserrat text-sm">{subItem.title}</span>
-                        </SidebarMenuSubButton>
-                      </Link>
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+          return (
+            <Link key={item.title} href={item.url} className="block">
+              <div
+                className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${
+                  isActive
+                    ? 'bg-[#d45815]'
+                    : 'hover:bg-sidebar-accent'
+                }`}
+              >
+                {item.icon && (
+                  <div className="relative shrink-0 size-[20px]">
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#6a7282]'}`} />
+                  </div>
+                )}
+                <span
+                  className={`font-lato leading-[24px] text-[16px] ${
+                    isActive
+                      ? 'font-bold text-white'
+                      : 'font-normal text-[#6a7282]'
+                  }`}
+                >
+                  {item.title}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }

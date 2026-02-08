@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,12 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { signOut } from "next-auth/react";
 import { TbEdit } from "react-icons/tb";
 import { User } from "next-auth";
@@ -89,79 +84,83 @@ export function NavUser({
   }
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent cursor-pointer data-[state=open]:text-sidebar-accent-foreground hover:bg-sidebar-accent"
-            >
-              <Avatar className="h-8 w-8 rounded-full border-2 border-orange/30">
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div className="border-b border-[#1a1a1a] pb-px pl-[16px] pr-[24px] pt-[24px] h-[97px] flex flex-col cursor-pointer hover:bg-sidebar-accent/50 transition-colors">
+            <div className="flex gap-[12px] items-center w-full">
+              <div className="relative rounded-full shrink-0 size-[48px] overflow-hidden">
+                <Avatar className="h-full w-full rounded-full border-0">
+                  <AvatarImage src={profilePictureUrl || undefined} alt={user.name as string} />
+                  <AvatarFallback className="rounded-full bg-orange/10 text-orange font-semibold text-base">
+                    {getInitials(user.name as string)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="flex-1 h-[48px] flex flex-col gap-[3px]">
+                <div className="flex gap-[8px] h-[24px] items-center">
+                  <span className="h-[24px] font-lato font-normal leading-[24px] text-[#f3f4f6] text-[16px]">
+                    {(user.name as string)?.split(' ')[0]}
+                  </span>
+                  <Badge className="h-[24px] bg-[rgba(255,105,0,0.2)] text-[#ff8904] rounded-[4px] px-[8px] py-[2px] text-[14px] leading-[20px] font-lato font-normal border-0">
+                    Admin
+                  </Badge>
+                </div>
+                <div className="h-[19px]">
+                  <span className="font-lato font-normal leading-[20px] text-[14px] text-[#607797]">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover border-border"
+          side={isMobile ? "bottom" : "right"}
+          align="end"
+          sideOffset={4}
+        >
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <Avatar className="h-8 w-8 rounded-lg border-2 border-orange/30">
                 <AvatarImage src={profilePictureUrl || undefined} alt={user.name as string} />
                 <AvatarFallback className="rounded-lg bg-orange/10 text-orange font-semibold">
                   {getInitials(user.name as string)}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold text-sidebar-foreground">
-                  {user.name}
-                  <Badge variant="default" className="ml-2 text-xs bg-orange text-white rounded-full border-0">
-                    Admin
-                  </Badge>
-                </span>
-                <span className="truncate text-xs mt-1 text-muted-foreground">{user.email}</span>
+                <span className="truncate font-semibold text-foreground">{user.name as string}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover border-border"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg border-2 border-orange/30">
-                  <AvatarImage src={profilePictureUrl || undefined} alt={user.name as string} />
-                  <AvatarFallback className="rounded-lg bg-orange/10 text-orange font-semibold">
-                    {getInitials(user.name as string)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold text-foreground">{user.name as string}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuGroup>
-              <DropdownMenuItem 
-                className="cursor-pointer text-foreground hover:bg-accent focus:bg-accent" 
-                onClick={() => setIsUserEditOpen(true)}
-              >
-                <TbEdit className="mr-2 h-4 w-4" />
-                Edit Profile
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator className="bg-border" />
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-border" />
+          <DropdownMenuGroup>
             <DropdownMenuItem 
-              className="cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive" 
-              onClick={() => signOut({ callbackUrl: "/" })}
+              className="cursor-pointer text-foreground hover:bg-accent focus:bg-accent" 
+              onClick={() => setIsUserEditOpen(true)}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
+              <TbEdit className="mr-2 h-4 w-4" />
+              Edit Profile
             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator className="bg-border" />
+          <DropdownMenuItem 
+            className="cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive" 
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <UserEdit 
         user={user} 
         isOpen={isUserEditOpen} 
         onOpenChange={setIsUserEditOpen}
         onProfilePictureUpdate={handleProfilePictureUpdate}
       />
-    </SidebarMenu>
+    </>
   );
 }
