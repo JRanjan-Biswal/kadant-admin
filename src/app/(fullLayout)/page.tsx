@@ -50,67 +50,66 @@ export default function Home() {
   };
 
   return (
-    <div className="grid grid-cols-2">
-      <div className="relative h-screen w-full">
+    <div className="relative min-h-screen bg-white w-full overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute h-[1086.673px] left-[calc(50%+24.57px)] top-[calc(50%-9.5px)] -translate-x-1/2 -translate-y-1/2 w-[1489.145px]">
         <Image
           alt="login-bg"
           src="/login-bg.png"
-          width={1000}
-          height={1000}
-          className="object-cover object-top h-[100svh]"
+          fill
+          className="object-cover pointer-events-none"
           priority
         />
-        <div className="absolute top-10 w-full flex flex-col text-center justify-center z-10">
-          <Image
-            alt="logo"
-            className="mx-auto"
-            src="/kadant-logo.svg"
-            width={185}
-            height={30}
-            priority
-          />
-          <p className="text-white text-4xl font-lato font-semibold mt-10">
-            From machine health alerts,
-            <br />
-            to client service schedules
-            <br />
-            All in one place.
-          </p>
-        </div>
-        <div className="absolute z-9 inset-0 bg-[#637796]/37"></div>
       </div>
-      <div className="flex flex-col px-[130px] justify-center">
 
-        <div className="flex items-center gap-2 px-4 py-2 min-w-[177px] h-[44px] absolute top-4 right-4">
-          <BiUser color="#2d3e5c" />
-          <Link
-            href="https://client.healthmonitorapp.online"
-            className="text-[#2d3e5c] font-semibold text-sm font-montserrat hover:text-[#1a2538] transition-colors"
-          >
-            Login to Client
-          </Link>
-        </div>
+      {/* Logo */}
+      <div className="absolute top-[76px] left-[76px] z-10">
+        <Image
+          alt="logo"
+          src="/kadant-logo.svg"
+          width={185}
+          height={30}
+          priority
+        />
+      </div>
 
-        <div className="flex flex-col">
-          <p className="text-3xl font-montserrat font-semibold">Admin Portal</p>
-          <p className="text-base mt-[10px] font-montserrat font-medium">
-            Login to access the Admin Portal
-          </p>
-        </div>
+      {/* Form Container with Gradient Background */}
+      <div 
+        className="absolute left-[795px] top-1/2 -translate-y-1/2 border border-[#f5f7ff] h-[576.162px] w-[555.189px] rounded-[42px] z-10 flex items-center justify-center"
+        style={{ 
+          backgroundImage: "linear-gradient(210.51deg, rgb(255, 255, 255) 32.149%, rgba(243, 250, 255, 0.5) 65.418%, rgba(189, 227, 255, 0) 98.688%)" 
+        }}
+      >
+        {/* Form Content */}
+        <div className="flex flex-col gap-[50px] w-[443px] px-[56px] py-[50px]">
+          {/* Header */}
+          <div className="flex flex-col gap-[10px]">
+            <h2 className="text-[#1d1d1d] text-[32px] leading-[100%] font-montserrat font-bold">
+              Admin Portal
+            </h2>
+            <p className="text-[#404040] text-[18px] leading-[1.35] font-montserrat font-semibold">
+              Log in to view assigned cases
+            </p>
+          </div>
 
-        <div className="flex flex-col mt-[50px]">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="flex flex-col gap-[20px]">
-              <Input
-                className="bg-white h-12 border-#96A5BA rounded-sm"
-                type="email"
-                id="email"
-                placeholder="Email"
-                {...register("email", { required: true })}
-              />
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[35px]">
+            <div className="flex flex-col gap-[12px]">
+              {/* Admin ID Field */}
               <div className="relative">
                 <Input
-                  className="bg-white h-12 border-#96A5BA rounded-sm pr-10"
+                  className="bg-white h-[51px] border border-[#607797] rounded-[6px] px-5 text-[#2d3e5c] text-[18px] leading-[27px] font-montserrat font-medium placeholder:text-[#2d3e5c] focus-visible:ring-0 focus-visible:ring-offset-0"
+                  type="text"
+                  id="email"
+                  placeholder="Admin ID"
+                  {...register("email", { required: true })}
+                />
+              </div>
+
+              {/* Password Field */}
+              <div className="relative">
+                <Input
+                  className="bg-white h-[51px] border border-[#607797] rounded-[6px] px-5 pr-[50px] text-[#2d3e5c] text-[18px] leading-[27px] font-montserrat font-medium placeholder:text-[#2d3e5c] focus-visible:ring-0 focus-visible:ring-offset-0"
                   type={showPassword ? "text" : "password"}
                   id="password"
                   placeholder="Password"
@@ -120,32 +119,62 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  className="absolute right-3 cursor-pointer top-1/2 -translate-y-1/2"
+                  className="absolute right-[14px] top-1/2 -translate-y-1/2 cursor-pointer w-6 h-6"
                 >
                   {showPassword ? (
-                    <LuEye className="w-5 h-5 text-gray-500" />
+                    <LuEye className="w-6 h-6 text-[#2d3e5c]" />
                   ) : (
-                    <LuEyeClosed className="w-5 h-5 text-gray-500" />
+                    <LuEyeClosed className="w-6 h-6 text-[#2d3e5c]" />
                   )}
                 </button>
               </div>
 
-              <Button
-                type="submit"
-                size="lg"
-                disabled={isLoading}
-                variant="default"
-                className="w-full mt-[15px] cursor-pointer hover:bg-secondary hover:text-white"
+              {/* Forgot Password Link */}
+              <Link
+                href="/forgot-password"
+                className="text-[#171717] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline self-start"
               >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Log In"
-                )}
-              </Button>
+                Forgot Password?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-[#d45815] hover:bg-[#d45815]/90 text-white h-[54px] rounded-[6px] px-[50px] text-[18px] leading-[1.35] font-montserrat font-semibold"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "Log In"
+              )}
+            </Button>
+
+            {/* Login to Client Link - Bottom */}
+            <div className="flex items-center justify-center gap-[5px] p-[10px]">
+              <BiUser color="#2d3e5c" size={24} />
+              <Link
+                href="https://client.healthmonitorapp.online"
+                className="text-[#2d3e5c] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
+              >
+                Login to Client
+              </Link>
             </div>
           </form>
         </div>
+      </div>
+
+      {/* Marketing Text */}
+      <div className="absolute left-[76px] top-[736px] flex flex-col gap-[14px] max-w-[593px] z-10">
+        <h1 className="text-[#1d1d1d] text-[48px] leading-none font-lato font-black not-italic">
+          From machine health alerts,
+          <br />
+          to client service schedules
+        </h1>
+        <p className="text-[#1d1d1d] text-[18px] leading-[1.35] font-lato font-semibold w-[556.586px]">
+          Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
+        </p>
       </div>
     </div>
   );

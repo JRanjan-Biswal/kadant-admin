@@ -48,4 +48,4 @@ export interface ClientSelectorProps {
     open: boolean;
     onOpenChange?: (open: boolean) => void;
     clients: Client[];
-}
+} 

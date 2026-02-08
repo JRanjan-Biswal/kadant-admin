@@ -28,16 +28,16 @@ import {
 } from "@/components/ui/tooltip";
 
 interface NavItem {
-  title: string;
-  url: string;
-  icon?: LucideIcon | IconType;
-  isActive?: boolean;
-  disabled?: boolean;
-  alwaysEnabled?: boolean;
-  items?: {
     title: string;
     url: string;
-  }[];
+    icon?: LucideIcon | IconType;
+    isActive?: boolean;
+  disabled?: boolean;
+  alwaysEnabled?: boolean;
+    items?: {
+      title: string;
+      url: string;
+    }[];
 }
 
 export function NavMain({

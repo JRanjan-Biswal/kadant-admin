@@ -44,42 +44,42 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       disabled: false,
       alwaysEnabled: true,
     },
-    {
-      title: "Client Overview",
+      {
+        title: "Client Overview",
       url: hasSelectedClient ? `/${clientID}/client-overview` : "#",
-      icon: FaRegUser,
+        icon: FaRegUser,
       disabled: !hasSelectedClient,
-    },
-    {
-      title: "Visit Details",
+      },
+      {
+        title: "Visit Details",
       url: hasSelectedClient ? `/${clientID}/visit-details` : "#",
-      icon: LuCalendarCog,
+        icon: LuCalendarCog,
       disabled: !hasSelectedClient,
-    },
-    {
-      title: "Machine Insights",
+      },
+      {
+        title: "Machine Insights",
       url: hasSelectedClient ? `/${clientID}/machine-insights` : "#",
-      icon: PiGearFineBold,
+        icon: PiGearFineBold,
       disabled: !hasSelectedClient,
-    },
-    {
-      title: "Upload Photos",
+      },
+      {
+        title: "Upload Photos",
       url: hasSelectedClient ? `/${clientID}/upload-photos` : "#",
-      icon: FiUpload,
+        icon: FiUpload,
       disabled: !hasSelectedClient,
-    },
-    {
-      title: "Upload Videos",
+      },
+      {
+        title: "Upload Videos",
       url: hasSelectedClient ? `/${clientID}/upload-videos` : "#",
-      icon: FiUpload,
+        icon: FiUpload,
       disabled: !hasSelectedClient,
-    },
-    {
-      title: "Order History",
+      },
+      {
+        title: "Order History",
       url: hasSelectedClient ? `/${clientID}/order-history` : "#",
-      icon: LuHistory,
+        icon: LuHistory,
       disabled: !hasSelectedClient,
-    },
+      },
   ];
 
   return (

@@ -6,20 +6,41 @@ import getCurrentUser from "@/actions/get-current-user";
 import ClientOverviewContent from "@/app/components/ClientOverview/ClientOverviewContent";
 
 const fetchClientDetails = async (clientID: string, accessToken: string) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client/${clientID}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`,
-        },
-        cache: 'no-store'
-    });
-    const data = await response.json();
-    return data;
+    try {
+        if (!process.env.NEXT_PUBLIC_API_URL) {
+            console.error('NEXT_PUBLIC_API_URL is not configured');
+            return { machines: [] } as any;
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client/${clientID}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${accessToken}`,
+            },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch client details: ${response.status} ${response.statusText}`);
+            return { machines: [] } as any;
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error fetching client details:", error);
+        return { machines: [] } as any;
+    }
 }
 
 const fetchAllClients = async (accessToken: string) => {
     try {
+        if (!process.env.NEXT_PUBLIC_API_URL) {
+            console.error('NEXT_PUBLIC_API_URL is not configured');
+            return [];
+        }
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client`, {
             method: "GET",
             headers: {
@@ -28,6 +49,12 @@ const fetchAllClients = async (accessToken: string) => {
             },
             cache: 'no-store'
         });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch clients: ${response.status} ${response.statusText}`);
+            return [];
+        }
+
         const data = await response.json();
         return data.clients || [];
     } catch (error) {

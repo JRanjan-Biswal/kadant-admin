@@ -77,8 +77,8 @@ export default function ClientOverviewContent({
             // Handle category as object (populated) or string
             let categoryName = "Uncategorized";
             if (machine.machine?.category) {
-                if (typeof machine.machine.category === 'object' && machine.machine.category.name) {
-                    categoryName = machine.machine.category.name;
+                if (typeof machine.machine.category === 'object' && machine.machine.category !== null && 'name' in machine.machine.category) {
+                    categoryName = (machine.machine.category as { name: string }).name;
                 } else if (typeof machine.machine.category === 'string') {
                     categoryName = machine.machine.category;
                 }
