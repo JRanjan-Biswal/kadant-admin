@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useCallback } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus, FaChevronDown } from "react-icons/fa";
 import { format } from "date-fns";
@@ -13,36 +12,56 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ClientMachine } from "@/types/machine";
 import { Client } from "@/types/client";
+import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
+import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
+import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-interface ClientDetailsWithMachines extends Client {
-    machines?: ClientMachine[];
+interface Category {
+    _id: string;
+    name: string;
+    slug: string;
+    machines: Machine[];
+    isActive?: boolean;
 }
 
 interface ClientOverviewContentProps {
-    clientDetails: ClientDetailsWithMachines;
+    clientDetails: Client;
     allClients: Client[];
     currentClientId: string;
+    categories: Category[];
 }
 
-interface MachineCategory {
-    category: string;
-    machines: ClientMachine[];
-    count: number;
+interface SparePartWithStatus extends SparePart {
+    status?: "healthy" | "warning" | "critical";
+    healthPercentage?: number;
+    lastServiceDate?: string | null;
+    sparePartInstallationDate?: string | null;
+    customName?: string;
+    clientSparePartId?: string;
+}
+
+interface MachineSpareParts {
+    [machineId: string]: SparePartWithStatus[];
 }
 
 export default function ClientOverviewContent({
     clientDetails,
     allClients,
     currentClientId,
+    categories,
 }: ClientOverviewContentProps) {
-    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+    const [expandedMachines, setExpandedMachines] = useState<Record<string, boolean>>({});
     const [selectedRegion, setSelectedRegion] = useState<string>("");
     const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+    const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
+    const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
+    const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
 
     // Extract unique regions from all clients
     const regions = useMemo(() => {
@@ -67,65 +86,192 @@ export default function ClientOverviewContent({
         return Array.from(customerSet).sort();
     }, [allClients, selectedRegion]);
 
-    // Group machines by category
-    const machineCategories = useMemo(() => {
-        if (!clientDetails?.machines) return [];
-        
-        const categoryMap = new Map<string, ClientMachine[]>();
-
-        clientDetails.machines.forEach((machine) => {
-            // Handle category as object (populated) or string
-            let categoryName = "Uncategorized";
-            if (machine.machine?.category) {
-                if (typeof machine.machine.category === 'object' && machine.machine.category !== null && 'name' in machine.machine.category) {
-                    categoryName = (machine.machine.category as { name: string }).name;
-                } else if (typeof machine.machine.category === 'string') {
-                    categoryName = machine.machine.category;
-                }
-            }
-            
-            if (!categoryMap.has(categoryName)) {
-                categoryMap.set(categoryName, []);
-            }
-            categoryMap.get(categoryName)!.push(machine);
-        });
-
-        const categories: MachineCategory[] = [];
-        categoryMap.forEach((machines, category) => {
-            categories.push({
-                category,
-                machines,
-                count: machines.length,
-            });
-        });
-
-        return categories.sort((a, b) => a.category.localeCompare(b.category));
-    }, [clientDetails?.machines]);
-
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
-        if (!searchQuery.trim()) return machineCategories;
+        if (!searchQuery.trim()) return categories;
         
         const query = searchQuery.toLowerCase();
-        return machineCategories.filter((cat) =>
-            cat.category.toLowerCase().includes(query) 
-        ||
+        return categories.filter((cat) =>
+            cat.name.toLowerCase().includes(query) ||
             cat.machines.some((m) =>
-                m.machine?.name?.toLowerCase().includes(query)
+                m.name?.toLowerCase().includes(query)
             )
         );
-    }, [machineCategories, searchQuery]);
+    }, [categories, searchQuery]);
 
     // Total machines count
     const totalMachines = useMemo(() => {
-        return clientDetails?.machines?.length || 0;
-    }, [clientDetails?.machines]);
+        return categories.reduce((sum, cat) => sum + (cat.machines?.length || 0), 0);
+    }, [categories]);
 
-    const toggleCategory = (category: string) => {
+    const toggleCategory = useCallback((categoryName: string) => {
         setExpandedCategories((prev) => ({
             ...prev,
-            [category]: !prev[category],
+            [categoryName]: !prev[categoryName],
         }));
+    }, []);
+
+    const fetchSpareParts = useCallback(async (machineId: string) => {
+        if (machineSpareParts[machineId]) {
+            // Already fetched, just toggle
+            setExpandedMachines((prev) => ({
+                ...prev,
+                [machineId]: !prev[machineId],
+            }));
+            return;
+        }
+
+        setLoadingSpareParts((prev) => ({ ...prev, [machineId]: true }));
+        try {
+            const response = await fetch(`/api/products/${currentClientId}/spare-parts/${machineId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch spare parts');
+            }
+
+            const data = await response.json();
+            
+            // Transform spare parts to include status and dates
+            const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string } }) => {
+                const clientSparePart = part.clientMachineSparePart;
+                const totalRunningHours = clientSparePart?.totalRunningHours?.value || 0;
+                const lifetimeOfRotor = part.lifeTime?.value || clientSparePart?.lifetimeOfRotor?.value || 0;
+                const healthPercentage = lifetimeOfRotor > 0 
+                    ? Math.max(0, Math.min(100, ((lifetimeOfRotor - totalRunningHours) / lifetimeOfRotor) * 100))
+                    : 100;
+                
+                let status: "healthy" | "warning" | "critical" = "healthy";
+                if (healthPercentage < 20) {
+                    status = "critical";
+                } else if (healthPercentage < 50) {
+                    status = "warning";
+                }
+
+                return {
+                    ...part,
+                    status,
+                    healthPercentage: Math.round(healthPercentage),
+                    lastServiceDate: clientSparePart?.lastServiceDate || null,
+                    sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
+                    customName: clientSparePart?.customName || part.name,
+                    clientSparePartId: clientSparePart?._id || undefined,
+                };
+            });
+
+            setMachineSpareParts((prev) => ({
+                ...prev,
+                [machineId]: transformedSpareParts,
+            }));
+            setExpandedMachines((prev) => ({
+                ...prev,
+                [machineId]: true,
+            }));
+        } catch (error) {
+            console.error('Error fetching spare parts:', error);
+            toast.error('Failed to fetch spare parts');
+        } finally {
+            setLoadingSpareParts((prev) => ({ ...prev, [machineId]: false }));
+        }
+    }, [currentClientId, machineSpareParts]);
+
+    const toggleMachine = useCallback((machineId: string) => {
+        fetchSpareParts(machineId);
+    }, [fetchSpareParts]);
+
+    const handleSaveSparePart = useCallback(async (updates: {
+        customName?: string;
+        lastServiceDate?: string;
+        sparePartInstallationDate?: string;
+    }) => {
+        if (!editingSparePart) return;
+
+        const machineId = typeof editingSparePart.machine === 'object' 
+            ? editingSparePart.machine._id 
+            : editingSparePart.machine || '';
+
+        try {
+            const response = await fetch(`/api/clients/${currentClientId}/machines/${machineId}/spare-parts`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sparePartID: editingSparePart._id,
+                    ...updates,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update spare part');
+            }
+
+            // Refresh spare parts for this machine
+            const sparePartsResponse = await fetch(`/api/products/${currentClientId}/spare-parts/${machineId}`);
+            if (sparePartsResponse.ok) {
+                const data = await sparePartsResponse.json();
+                const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string } }) => {
+                    const clientSparePart = part.clientMachineSparePart;
+                    const totalRunningHours = clientSparePart?.totalRunningHours?.value || 0;
+                    const lifetimeOfRotor = part.lifeTime?.value || clientSparePart?.lifetimeOfRotor?.value || 0;
+                    const healthPercentage = lifetimeOfRotor > 0 
+                        ? Math.max(0, Math.min(100, ((lifetimeOfRotor - totalRunningHours) / lifetimeOfRotor) * 100))
+                        : 100;
+                    
+                    let status: "healthy" | "warning" | "critical" = "healthy";
+                    if (healthPercentage < 20) {
+                        status = "critical";
+                    } else if (healthPercentage < 50) {
+                        status = "warning";
+                    }
+
+                    return {
+                        ...part,
+                        status,
+                        healthPercentage: Math.round(healthPercentage),
+                        lastServiceDate: clientSparePart?.lastServiceDate || null,
+                        sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
+                        customName: clientSparePart?.customName || part.name,
+                        clientSparePartId: clientSparePart?._id || undefined,
+                    };
+                });
+
+                setMachineSpareParts((prev) => ({
+                    ...prev,
+                    [machineId]: transformedSpareParts,
+                }));
+            }
+
+            toast.success('Spare part updated successfully');
+            setEditingSparePart(null);
+        } catch (error) {
+            console.error('Error updating spare part:', error);
+            toast.error('Failed to update spare part');
+        }
+    }, [editingSparePart, currentClientId]);
+
+    const getStatusColor = (status?: string) => {
+        switch (status) {
+            case "healthy":
+                return "bg-green-500/20 text-green-400 border-green-500/30";
+            case "warning":
+                return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+            case "critical":
+                return "bg-red-500/20 text-red-400 border-red-500/30";
+            default:
+                return "bg-muted text-muted-foreground border-border";
+        }
+    };
+
+    const getStatusText = (status?: string) => {
+        switch (status) {
+            case "healthy":
+                return "Healthy";
+            case "warning":
+                return "Warning";
+            case "critical":
+                return "Critical";
+            default:
+                return "Unknown";
+        }
     };
 
     // Get owner name
@@ -210,7 +356,7 @@ export default function ClientOverviewContent({
                         </Select>
 
                         {/* Edit Details Button */}
-                        <EditClientDetails client={clientDetails} machines={clientDetails?.machines || []} />
+                        <EditClientDetails client={clientDetails} machines={[]} />
                     </div>
                 </div>
 
@@ -298,42 +444,104 @@ export default function ClientOverviewContent({
                     <div className="flex flex-col">
                         {filteredCategories.length > 0 ? (
                             filteredCategories.map((category) => (
-                                <div key={category.category}>
+                                <div key={category._id || category.name}>
                                     <button
-                                        onClick={() => toggleCategory(category.category)}
+                                        onClick={() => toggleCategory(category.name)}
                                         className="w-full bg-[#0d0d0d] border-b border-[#1a1a1a] flex items-center justify-between px-6 py-3 hover:bg-[#1a1a1a] transition-colors"
                                     >
                                         <div className="flex items-center gap-2">
-                                            {expandedCategories[category.category] ? (
+                                            {expandedCategories[category.name] ? (
                                                 <FaChevronDown className="w-4 h-4 text-white" />
                                             ) : (
                                                 <HiOutlineChevronRight className="w-4 h-4 text-white" />
                                             )}
                                             <span className="text-white text-lg font-bold leading-[1.2]">
-                                                {category.category}
+                                                {category.name}
                                             </span>
                                             <div className="bg-[#1a1a1a] rounded px-2 py-0.5">
                                                 <span className="text-[#6a7282] text-sm leading-5">
-                                                    {category.count}
+                                                    {category.machines?.length || 0}
                                                 </span>
                                             </div>
                                         </div>
                                     </button>
                                     
                                     {/* Expanded Content - Machine List */}
-                                    {expandedCategories[category.category] && (
-                                        <div className="bg-[#1a1a1a] border-b border-[#1a1a1a] px-6 py-4">
-                                            <div className="flex flex-col gap-2">
-                                                {category.machines.map((machine) => (
-                                                    <div
-                                                        key={machine._id}
-                                                        className="text-white text-sm py-2 hover:text-[#d45815] transition-colors cursor-pointer"
-                                                        onClick={() => router.push(`/${currentClientId}/machines/${machine.machine?._id || machine._id}`)}
+                                    {expandedCategories[category.name] && (
+                                        <div className="bg-[#1a1a1a] border-b border-[#1a1a1a]">
+                                            {category.machines?.map((machine) => (
+                                                <div key={machine._id}>
+                                                    <button
+                                                        onClick={() => toggleMachine(machine._id)}
+                                                        className="w-full bg-[#1a1a1a] border-b border-[#262626] flex items-center justify-between px-8 py-3 hover:bg-[#262626] transition-colors"
                                                     >
-                                                        {machine.machine?.name || "N/A"}
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {expandedMachines[machine._id] ? (
+                                                                <FaChevronDown className="w-4 h-4 text-white" />
+                                                            ) : (
+                                                                <HiOutlineChevronRight className="w-4 h-4 text-white" />
+                                                            )}
+                                                            <span className="text-white text-base font-medium">
+                                                                {machine.name || "N/A"}
+                                                            </span>
+                                                        </div>
+                                                        {loadingSpareParts[machine._id] && (
+                                                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                                                        )}
+                                                    </button>
+
+                                                    {/* Expanded Spare Parts */}
+                                                    {expandedMachines[machine._id] && machineSpareParts[machine._id] && (
+                                                        <div className="bg-[#262626] border-b border-[#1a1a1a] px-12 py-4">
+                                                            <div className="flex flex-col gap-3">
+                                                                {machineSpareParts[machine._id].length > 0 ? (
+                                                                    machineSpareParts[machine._id].map((sparePart) => (
+                                                                        <div
+                                                                            key={sparePart._id}
+                                                                            className="bg-[#1a1a1a] border border-[#404040] rounded-[8px] p-4 flex items-center justify-between hover:border-[#d45815] transition-colors"
+                                                                        >
+                                                                            <div className="flex items-center gap-4 flex-1">
+                                                                                <div className="flex-1">
+                                                                                    <p className="text-white text-sm font-medium mb-1">
+                                                                                        {sparePart.customName || sparePart.name}
+                                                                                    </p>
+                                                                                    <div className="flex items-center gap-4 text-xs text-[#a1a1a1]">
+                                                                                        <span>
+                                                                                            Status: <Badge className={`${getStatusColor(sparePart.status)} text-xs border`}>
+                                                                                                {getStatusText(sparePart.status)}
+                                                                                            </Badge>
+                                                                                        </span>
+                                                                                        {sparePart.lastServiceDate && (
+                                                                                            <span>
+                                                                                                Last Service: {format(new Date(sparePart.lastServiceDate), "dd MMM yyyy")}
+                                                                                            </span>
+                                                                                        )}
+                                                                                        {sparePart.sparePartInstallationDate && (
+                                                                                            <span>
+                                                                                                Installed: {format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy")}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <Button
+                                                                                    onClick={() => setEditingSparePart(sparePart)}
+                                                                                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white text-xs px-3 py-1 h-auto"
+                                                                                >
+                                                                                    Edit Detail
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <p className="text-[#6a7282] text-sm text-center py-4">
+                                                                        No spare parts found
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
@@ -353,6 +561,28 @@ export default function ClientOverviewContent({
                     </div>
                 </div>
             </div>
+
+            {/* Edit Spare Part Modal */}
+            {editingSparePart && (
+                <EditSparePartModal
+                    open={!!editingSparePart}
+                    onOpenChange={(open) => !open && setEditingSparePart(null)}
+                    sparePart={{
+                        _id: editingSparePart._id,
+                        name: editingSparePart.customName || editingSparePart.name,
+                        originalName: editingSparePart.name,
+                        status: editingSparePart.status || "healthy",
+                        healthPercentage: editingSparePart.healthPercentage || 100,
+                        lifetimeOfRotor: editingSparePart.lifeTime || { value: 0, unit: "Hrs" },
+                        totalRunningHours: editingSparePart.clientMachineSparePart?.totalRunningHours || { value: 0, unit: "Hrs" },
+                        lastServiceDate: editingSparePart.lastServiceDate || null,
+                        sparePartInstallationDate: editingSparePart.sparePartInstallationDate || null,
+                        machineInstallationDate: null,
+                        clientSparePartId: editingSparePart.clientSparePartId || null,
+                    }}
+                    onSave={handleSaveSparePart}
+                />
+            )}
         </div>
     );
 }

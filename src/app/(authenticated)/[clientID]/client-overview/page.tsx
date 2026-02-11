@@ -9,7 +9,7 @@ const fetchClientDetails = async (clientID: string, accessToken: string) => {
     try {
         if (!process.env.NEXT_PUBLIC_API_URL) {
             console.error('NEXT_PUBLIC_API_URL is not configured');
-            return { machines: [] } as any;
+            return null;
         }
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client/${clientID}`, {
@@ -23,14 +23,43 @@ const fetchClientDetails = async (clientID: string, accessToken: string) => {
 
         if (!response.ok) {
             console.error(`Failed to fetch client details: ${response.status} ${response.statusText}`);
-            return { machines: [] } as any;
+            return null;
         }
 
         const data = await response.json();
         return data;
     } catch (error) {
         console.error("Error fetching client details:", error);
-        return { machines: [] } as any;
+        return null;
+    }
+}
+
+const fetchCategories = async (accessToken: string) => {
+    try {
+        if (!process.env.NEXT_PUBLIC_API_URL) {
+            console.error('NEXT_PUBLIC_API_URL is not configured');
+            return [];
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/machine-category-with-products`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${accessToken}`,
+            },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
+            return [];
+        }
+
+        const data = await response.json();
+        return data || [];
+    } catch (error) {
+        console.error("Error fetching categories:", error);
+        return [];
     }
 }
 
@@ -75,16 +104,22 @@ export default async function ClientOverview({ params }: PageProps) {
         redirect('/login');
     }
 
-    const [clientDetails, allClients] = await Promise.all([
+    const [clientDetails, allClients, categories] = await Promise.all([
         fetchClientDetails(clientID, currentUser.accessToken),
-        fetchAllClients(currentUser.accessToken)
+        fetchAllClients(currentUser.accessToken),
+        fetchCategories(currentUser.accessToken)
     ]);
+
+    if (!clientDetails) {
+        redirect('/client-management');
+    }
 
     return (
         <ClientOverviewContent 
             clientDetails={clientDetails}
             allClients={allClients}
             currentClientId={clientID}
+            categories={categories}
         />
     );
 }
