@@ -42,6 +42,7 @@ interface SparePartWithStatus extends SparePart {
     sparePartInstallationDate?: string | null;
     customName?: string;
     clientSparePartId?: string;
+    isActive?: boolean;
 }
 
 interface MachineSpareParts {
@@ -128,10 +129,12 @@ export default function ClientOverviewContent({
                 throw new Error('Failed to fetch spare parts');
             }
 
-            const data = await response.json();
+            const responseData = await response.json();
+            // API returns { spareParts, categories } - extract spareParts array
+            const data = responseData.spareParts || responseData;
             
             // Transform spare parts to include status and dates
-            const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string } }) => {
+            const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string; isActive?: boolean } }) => {
                 const clientSparePart = part.clientMachineSparePart;
                 const totalRunningHours = clientSparePart?.totalRunningHours?.value || 0;
                 const lifetimeOfRotor = part.lifeTime?.value || clientSparePart?.lifetimeOfRotor?.value || 0;
@@ -154,6 +157,7 @@ export default function ClientOverviewContent({
                     sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
                     customName: clientSparePart?.customName || part.name,
                     clientSparePartId: clientSparePart?._id || undefined,
+                    isActive: clientSparePart?.isActive !== undefined ? clientSparePart.isActive : true,
                 };
             });
 
@@ -207,8 +211,10 @@ export default function ClientOverviewContent({
             // Refresh spare parts for this machine
             const sparePartsResponse = await fetch(`/api/products/${currentClientId}/spare-parts/${machineId}`);
             if (sparePartsResponse.ok) {
-                const data = await sparePartsResponse.json();
-                const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string } }) => {
+                const responseData = await sparePartsResponse.json();
+                // API returns { spareParts, categories } - extract spareParts array
+                const data = responseData.spareParts || responseData;
+                const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string; isActive?: boolean } }) => {
                     const clientSparePart = part.clientMachineSparePart;
                     const totalRunningHours = clientSparePart?.totalRunningHours?.value || 0;
                     const lifetimeOfRotor = part.lifeTime?.value || clientSparePart?.lifetimeOfRotor?.value || 0;
@@ -231,6 +237,7 @@ export default function ClientOverviewContent({
                         sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
                         customName: clientSparePart?.customName || part.name,
                         clientSparePartId: clientSparePart?._id || undefined,
+                        isActive: clientSparePart?.isActive !== undefined ? clientSparePart.isActive : true,
                     };
                 });
 
@@ -491,36 +498,49 @@ export default function ClientOverviewContent({
                                                     </button>
 
                                                     {/* Expanded Spare Parts */}
-                                                    {expandedMachines[machine._id] && machineSpareParts[machine._id] && (
+                                                    {/* {expandedMachines[machine._id] && machineSpareParts[machine._id] && (
                                                         <div className="bg-[#262626] border-b border-[#1a1a1a] px-12 py-4">
                                                             <div className="flex flex-col gap-3">
                                                                 {machineSpareParts[machine._id].length > 0 ? (
                                                                     machineSpareParts[machine._id].map((sparePart) => (
                                                                         <div
                                                                             key={sparePart._id}
-                                                                            className="bg-[#1a1a1a] border border-[#404040] rounded-[8px] p-4 flex items-center justify-between hover:border-[#d45815] transition-colors"
+                                                                            className="bg-[#1a1a1a] border border-[#404040] rounded-[8px] p-4 hover:border-[#d45815] transition-colors"
                                                                         >
-                                                                            <div className="flex items-center gap-4 flex-1">
+                                                                            <div className="flex items-start justify-between gap-4">
                                                                                 <div className="flex-1">
-                                                                                    <p className="text-white text-sm font-medium mb-1">
+                                                                                    <p className="text-white text-sm font-medium mb-3">
                                                                                         {sparePart.customName || sparePart.name}
-                                                                                    </p>
-                                                                                    <div className="flex items-center gap-4 text-xs text-[#a1a1a1]">
-                                                                                        <span>
-                                                                                            Status: <Badge className={`${getStatusColor(sparePart.status)} text-xs border`}>
-                                                                                                {getStatusText(sparePart.status)}
+                                                                                    </p> */}
+                                                                                    {/* Spare Part Details Grid */}
+                                                                                    {/* <div className="grid grid-cols-3 gap-4"> */}
+                                                                                        {/* Current Status */}
+                                                                                        {/* <div className="bg-[#0d0d0d] border border-[#262626] rounded-[6px] p-3">
+                                                                                            <p className="text-[#6a7282] text-xs mb-1">Current Status</p>
+                                                                                            <Badge 
+                                                                                                className={`${sparePart.isActive !== false ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'} text-xs border font-medium`}
+                                                                                            >
+                                                                                                {sparePart.isActive !== false ? 'Active' : 'Inactive'}
                                                                                             </Badge>
-                                                                                        </span>
-                                                                                        {sparePart.lastServiceDate && (
-                                                                                            <span>
-                                                                                                Last Service: {format(new Date(sparePart.lastServiceDate), "dd MMM yyyy")}
-                                                                                            </span>
-                                                                                        )}
-                                                                                        {sparePart.sparePartInstallationDate && (
-                                                                                            <span>
-                                                                                                Installed: {format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy")}
-                                                                                            </span>
-                                                                                        )}
+                                                                                        </div> */}
+                                                                                        {/* Last Service On */}
+                                                                                        {/* <div className="bg-[#0d0d0d] border border-[#262626] rounded-[6px] p-3">
+                                                                                            <p className="text-[#6a7282] text-xs mb-1">Last Service On</p>
+                                                                                            <p className="text-white text-sm font-medium">
+                                                                                                {sparePart.lastServiceDate 
+                                                                                                    ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy")
+                                                                                                    : "N/A"}
+                                                                                            </p>
+                                                                                        </div> */}
+                                                                                        {/* Installation Date */}
+                                                                                        {/* <div className="bg-[#0d0d0d] border border-[#262626] rounded-[6px] p-3">
+                                                                                            <p className="text-[#6a7282] text-xs mb-1">Installation Date</p>
+                                                                                            <p className="text-white text-sm font-medium">
+                                                                                                {sparePart.sparePartInstallationDate 
+                                                                                                    ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy")
+                                                                                                    : "N/A"}
+                                                                                            </p>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
                                                                                 <Button
@@ -539,7 +559,7 @@ export default function ClientOverviewContent({
                                                                 )}
                                                             </div>
                                                         </div>
-                                                    )}
+                                                    )} */}
                                                 </div>
                                             ))}
                                         </div>
