@@ -4,7 +4,9 @@ import { useState, useMemo, useCallback, Fragment } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import AddMachineModal from "@/app/components/Modals/AddMachineModal";
 import {
     Select,
     SelectContent,
@@ -65,6 +67,7 @@ export default function ClientOverviewContent({
     currentClientId,
     categories,
 }: ClientOverviewContentProps) {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     // Only machine row is accordion; category shows table, machine expands to show spare parts table
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -432,12 +435,14 @@ export default function ClientOverviewContent({
                                     </span>
                                 </div>
                             </div>
-                            <Button
-                                className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
-                            >
-                                <FaPlus className="w-4 h-4" />
-                                Add Category
-                            </Button>
+                            <AddMachineModal onSuccess={() => router.refresh()}>
+                                <Button
+                                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
+                                >
+                                    <FaPlus className="w-4 h-4" />
+                                    Add Category
+                                </Button>
+                            </AddMachineModal>
                         </div>
                         {/* Search Input */}
                         <div className="relative w-[256px]">
