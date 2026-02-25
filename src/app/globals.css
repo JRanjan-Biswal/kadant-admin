@@ -175,6 +175,7 @@
     opacity: 0;
     transform: translateX(10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -183,4 +184,55 @@
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Glassmorphic Login Container */
+.glassmorphic-login-container {
+  position: relative;
+  background: linear-gradient(210.51deg, rgb(99, 35, 0) 32.149%, rgba(48, 19, 4, 0.5) 65.418%, rgba(43, 15, 0, 0) 98.688%);
+  backdrop-filter: blur(26.9px);
+  -webkit-backdrop-filter: blur(26.9px);
+  border-radius: 42px;
+  border: 1px solid rgba(255, 238, 228, 0.47);
+  box-shadow: 0px 4px 13px 0px rgba(0, 0, 0, 0.25);
+  width: 555.189px;
+  height: 576.162px;
+  max-width: 90%;
+  max-height: 90vh;
+  animation: fadeInUp 0.8s ease-out;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56.0945px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media screen and (max-width:1310px) {
+  .glassmorphic-login-container {
+    width: 510.189px;
+    height: 576.162px;
+    max-width: 90%;
+    max-height: 88vh;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glassmorphic-login-container {
+    padding: 32px 24px;
+    max-width: 90%;
+  }
 }
