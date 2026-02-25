@@ -131,6 +131,7 @@ export interface ClientMachineSparePart {
         value: number;
         unit: string;
     };
+    isActive?: boolean;
     createdAt?: string;
     updatedAt?: string;
 }

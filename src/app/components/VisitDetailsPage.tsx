@@ -2,6 +2,7 @@
 
 import { format, differenceInDays, parseISO } from "date-fns";
 import ScheduleNextVisit from "@/app/components/Modals/ScheduleNextVisit";
+import EditVisitDataModal from "@/app/components/Modals/EditVisitDataModal";
 import { useEffect, useState, useCallback } from "react";
 import { SiteVisit } from "@/types/visit-details";
 import { FaPlus } from "react-icons/fa6";
@@ -14,6 +15,7 @@ import { HiOutlineEye } from "react-icons/hi2";
 import { TbEdit } from "react-icons/tb";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface VisitDetailsPageProps {
     clientID: string;
@@ -29,8 +31,12 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
     const [visitHistory, setVisitHistory] = useState<SiteVisit[]>([]);
     const [filterPeriod, setFilterPeriod] = useState<string>("all");
+    const [loading, setLoading] = useState(true);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
 
     const fetchSiteVisits = useCallback(async () => {
+        setLoading(true);
         try {
             const response = await fetch(`/api/clients/${clientID}/site-visits`, {
                 method: "GET",
@@ -74,6 +80,8 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             setVisitHistory(history);
         } catch (error) {
             console.error("Error fetching site visits:", error);
+        } finally {
+            setLoading(false);
         }
     }, [clientID]);
 
@@ -129,9 +137,18 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     };
 
     const handleEdit = (visitID: string) => {
-        // Handle edit action - you may want to open a modal or navigate
-        console.log("Edit visit:", visitID);
+        setEditingVisitId(visitID);
+        setEditModalOpen(true);
     };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col gap-4 w-full p-6 min-h-[400px] items-center justify-center">
+                <Loader2 className="w-10 h-10 text-[#ff6900] animate-spin" />
+                <p className="text-[#a1a1a1] text-sm mt-2">Loading visit details...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col gap-4 w-full p-6">
@@ -411,6 +428,14 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                     })}
                 </div>
             </div>
+
+            <EditVisitDataModal
+                open={editModalOpen}
+                onOpenChange={setEditModalOpen}
+                visitId={editingVisitId ?? ""}
+                clientID={clientID}
+                onSuccess={fetchSiteVisits}
+            />
         </div>
     );
 };

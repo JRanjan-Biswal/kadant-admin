@@ -14,6 +14,16 @@ interface SiteVisitUser {
     designation: string;
 }
 
+export interface MachineIssue {
+    machineId?: string;
+    sparePartId?: string;
+    machineName?: string;
+    sparePartName?: string;
+    status?: string;
+    optimalStateMediaUrls?: string[];
+    currentVisitMediaUrls?: string[];
+}
+
 export interface SiteVisit {
     _id: string;
     client: {
@@ -28,4 +38,5 @@ export interface SiteVisit {
     nextScheduledVisit: string;
     assignedEngineer: SiteVisitUser;
     auditReportUrl?: string;
+    machineIssues?: MachineIssue[];
 }

@@ -6,6 +6,7 @@ import AddToCalendar from "@/app/components/AddToCalendar";
 import { useEffect, useState, useCallback } from "react";
 import { SiteVisit } from "@/types/visit-details";
 import BackToSiteVisits from "./BackToSiteVisits";
+import { Loader2 } from "lucide-react";
 
 interface VisitDetailsClientPageProps {
     clientID: string;
@@ -38,8 +39,10 @@ const initialData = {
 const VisitDetailsClient = ({ clientID, visitID }: VisitDetailsClientPageProps) => {
     const [latestSiteVisitDetails, setLatestSiteVisitDetails] = useState<SiteVisit>(initialData);
     const [shouldRefreshLogs, setShouldRefreshLogs] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const fetchLatestSiteVisitDetails = useCallback(async (clientID: string) => {
+        setLoading(true);
         try {
             const response = await fetch(`/api/clients/${clientID}/site-visits/${visitID}`, {
                 method: "GET",
@@ -52,13 +55,25 @@ const VisitDetailsClient = ({ clientID, visitID }: VisitDetailsClientPageProps) 
             setLatestSiteVisitDetails(data as SiteVisit);
         } catch (error) {
             console.log(error);
+        } finally {
+            setLoading(false);
         }
-
     }, [visitID]);
 
     useEffect(() => {
         fetchLatestSiteVisitDetails(clientID);
     }, [clientID, fetchLatestSiteVisitDetails]);
+
+    if (loading) {
+        return (
+            <div className="relative mt-4 flex min-h-[300px] items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-[#ff6900] animate-spin" />
+                    <p className="text-base-3 text-sm">Loading visit details...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative mt-4">

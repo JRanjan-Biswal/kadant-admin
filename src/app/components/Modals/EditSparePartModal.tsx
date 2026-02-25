@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface SparePart {
@@ -27,6 +28,7 @@ interface SparePart {
     sparePartInstallationDate: string | null;
     machineInstallationDate: string | null;
     clientSparePartId: string | null;
+    isActive?: boolean;
 }
 
 interface EditSparePartModalProps {
@@ -37,6 +39,7 @@ interface EditSparePartModalProps {
         customName?: string;
         lastServiceDate?: string;
         sparePartInstallationDate?: string;
+        isActive?: boolean;
     }) => void;
 }
 
@@ -60,15 +63,33 @@ export default function EditSparePartModal({
             ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
             : ""
     );
+    const [isActive, setIsActive] = useState(sparePart.isActive !== false);
+
+    useEffect(() => {
+        setCustomName(sparePart.name || "");
+        setLastServiceDate(
+            sparePart.lastServiceDate
+                ? format(new Date(sparePart.lastServiceDate), "yyyy-MM-dd")
+                : ""
+        );
+        setInstallationDate(
+            sparePart.sparePartInstallationDate
+                ? format(new Date(sparePart.sparePartInstallationDate), "yyyy-MM-dd")
+                : sparePart.machineInstallationDate
+                ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
+                : ""
+        );
+        setIsActive(sparePart.isActive !== false);
+    }, [sparePart._id, sparePart.name, sparePart.lastServiceDate, sparePart.sparePartInstallationDate, sparePart.machineInstallationDate, sparePart.isActive]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
             case "healthy":
-                return "bg-green-500/20 text-green-400 border-green-500/30";
+                return "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40";
             case "warning":
-                return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+                return "bg-[#ff9a00]/20 text-[#ff9a00] border-[#ff9a00]/40";
             case "critical":
-                return "bg-red-500/20 text-red-400 border-red-500/30";
+                return "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40";
             default:
                 return "bg-muted text-muted-foreground border-border";
         }
@@ -79,11 +100,24 @@ export default function EditSparePartModal({
             case "healthy":
                 return "Healthy";
             case "warning":
-                return "Warning";
+                return "Monitor";
             case "critical":
-                return "Critical";
+                return "Attention";
             default:
                 return "Unknown";
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case "healthy":
+                return <CheckCircle2 className="w-4 h-4 text-[#00a82d]" />;
+            case "warning":
+                return <AlertTriangle className="w-4 h-4 text-[#ff9a00]" />;
+            case "critical":
+                return <XCircle className="w-4 h-4 text-[#bf1e21]" />;
+            default:
+                return <CheckCircle2 className="w-4 h-4 text-muted-foreground" />;
         }
     };
 
@@ -94,6 +128,7 @@ export default function EditSparePartModal({
                 customName?: string;
                 lastServiceDate?: string;
                 sparePartInstallationDate?: string;
+                isActive?: boolean;
             } = {};
 
             if (customName !== sparePart.name) {
@@ -104,6 +139,9 @@ export default function EditSparePartModal({
             }
             if (installationDate) {
                 updates.sparePartInstallationDate = new Date(installationDate).toISOString();
+            }
+            if (isActive !== (sparePart.isActive !== false)) {
+                updates.isActive = isActive;
             }
 
             await onSave(updates);
@@ -118,6 +156,7 @@ export default function EditSparePartModal({
                 <DialogHeader>
                     <DialogTitle className="text-foreground flex items-center gap-3">
                         Edit Spare Part Details
+                        {getStatusIcon(sparePart.status)}
                         <Badge
                             variant="outline"
                             className={`${getStatusColor(sparePart.status)} font-medium text-xs`}
@@ -194,6 +233,22 @@ export default function EditSparePartModal({
                                 onChange={(e) => setInstallationDate(e.target.value)}
                                 className="bg-background border-border text-foreground"
                             />
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                            <Label htmlFor="isActive" className="text-foreground cursor-pointer">
+                                Current Status
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                    {isActive ? "Active" : "Inactive"}
+                                </span>
+                                <Switch
+                                    id="isActive"
+                                    checked={isActive}
+                                    onCheckedChange={setIsActive}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
