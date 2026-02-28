@@ -167,7 +167,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                 )}
             </DialogTrigger>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
             >
                 <div className="bg-[#171717] border-b border-[#262626] flex h-[64px] items-center justify-between px-6 shrink-0">
@@ -249,7 +249,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                         {components.map((comp) => (
                             <div
                                 key={comp.id}
-                                className="bg-[#262626] border border-[#404040] rounded-[10px] p-4 mb-4 flex flex-col gap-3"
+                                className="bg-[#26262680] border border-[#404040] rounded-[10px] p-4 mb-2 flex flex-col gap-3"
                             >
                                 <div className="flex items-center justify-between">
                                     <span className="text-white text-[14px] font-medium">Component</span>
@@ -268,7 +268,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                                             value={comp.componentName}
                                             onChange={(e) => updateComponent(comp.id, "componentName", e.target.value)}
                                             placeholder="e.g., Rotor Blade"
-                                            className="bg-[#171717] border border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
+                                            className="bg-[#262626] border border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
                                         />
                                     </div>
                                     <div className="flex flex-col gap-1.5">
@@ -277,7 +277,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                                             value={comp.klCode}
                                             onChange={(e) => updateComponent(comp.id, "klCode", e.target.value)}
                                             placeholder="e.g., KL-5000"
-                                            className="bg-[#171717] border border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
+                                            className="bg-[#262626] border border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
                                         />
                                     </div>
                                 </div>
@@ -289,7 +289,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                                             value={comp.partDrawingLink}
                                             onChange={(e) => updateComponent(comp.id, "partDrawingLink", e.target.value)}
                                             placeholder="https://..."
-                                            className="bg-[#171717] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
+                                            className="bg-[#262626] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] placeholder:text-[#525252] focus-visible:ring-0"
                                         />
                                     </div>
                                 </div>
@@ -302,7 +302,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                                                 type="date"
                                                 value={comp.installationDate}
                                                 onChange={(e) => updateComponent(comp.id, "installationDate", e.target.value)}
-                                                className="bg-[#171717] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] focus-visible:ring-0"
+                                                className="bg-[#262626] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:invert"
                                             />
                                         </div>
                                     </div>
@@ -314,14 +314,14 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                                                 type="date"
                                                 value={comp.endOfLife}
                                                 onChange={(e) => updateComponent(comp.id, "endOfLife", e.target.value)}
-                                                className="bg-[#171717] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] focus-visible:ring-0"
+                                                className="bg-[#262626] border border-[#404040] h-[40px] rounded-[8px] pl-9 pr-3 text-white text-[13px] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:invert"
                                             />
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[#a1a1a1] text-[12px]">Component Image</Label>
-                                    <div className="border border-dashed border-[#404040] rounded-[8px] flex items-center justify-center py-5 bg-[#171717]">
+                                    <div className="border border-dashed border-[#404040] rounded-[8px] flex items-center justify-center py-5 bg-[#262626]">
                                         <Upload className="w-5 h-5 text-[#525252] mr-2" />
                                         <span className="text-[#a1a1a1] text-[12px]">Upload</span>
                                     </div>
@@ -340,14 +340,14 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                 </div>
 
                 <DialogFooter className="border-t border-[#262626] px-6 py-4 flex justify-end gap-3 shrink-0">
-                    <Button
+                    {/* <Button
                         type="button"
                         onClick={handleAddCategory}
                         disabled={addingCategory || !machineCategory.trim()}
                         className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium h-10 px-5 rounded-[10px]"
                     >
                         {addingCategory ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Category"}
-                    </Button>
+                    </Button> */}
                     <Button
                         type="button"
                         onClick={handleAddMachinePart}

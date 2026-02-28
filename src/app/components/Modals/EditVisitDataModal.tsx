@@ -518,7 +518,7 @@ export default function EditVisitDataModal({
                                             control={control}
                                             render={({ field }) => (
                                                 <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} h-[50px] rounded-[10px] text-white text-[16px] focus:ring-0`}>
+                                                    <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] focus:ring-0`}>
                                                         <SelectValue placeholder="Select engineer" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#262626] border-[#404040]">
@@ -575,7 +575,7 @@ export default function EditVisitDataModal({
                             </div>
 
                             {/* Machines Requiring Attention */}
-                            <div className="bg-[#1f1f1f] border border-[#262626] rounded-[10px] p-5 flex flex-col gap-4">
+                            <div className="py-5 flex flex-col gap-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <div className="bg-[rgba(255,105,0,0.2)] rounded p-1">
@@ -670,7 +670,7 @@ export default function EditVisitDataModal({
                                                         fetchSparePartsForMachine(value);
                                                     }}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] border border-[#404040] h-[44px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select machine" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#262626] border-[#404040]">
@@ -700,7 +700,7 @@ export default function EditVisitDataModal({
                                                     }}
                                                     disabled={!newMachineIssue.machineId || loadingSpareParts}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] border border-[#404040] h-[44px] rounded-[10px] text-white text-[14px] focus:ring-0 disabled:opacity-50">
+                                                    <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0 disabled:opacity-50">
                                                         <SelectValue placeholder={loadingSpareParts ? "Loading..." : "Select spare part"} />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#262626] border-[#404040]">
@@ -713,14 +713,14 @@ export default function EditVisitDataModal({
                                                 </Select>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4">
                                             <div className="flex flex-col gap-2">
                                                 <Label className="text-white text-[14px]">Status *</Label>
                                                 <Select
                                                     value={newMachineIssue.status}
                                                     onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, status: v }))}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] border border-[#404040] h-[44px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select status" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#262626] border-[#404040]">
@@ -751,7 +751,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => optimalInputRef.current?.click()}
                                                         disabled={uploadingMedia === "optimal"}
-                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[70px] min-w-[80px] rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "optimal" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>
@@ -775,7 +775,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => currentInputRef.current?.click()}
                                                         disabled={uploadingMedia === "current"}
-                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[70px] min-w-[80px] rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "current" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>

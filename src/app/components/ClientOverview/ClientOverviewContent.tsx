@@ -104,7 +104,7 @@ export default function ClientOverviewContent({
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
         if (!searchQuery.trim()) return categories;
-        
+
         const query = searchQuery.toLowerCase();
         return categories.filter((cat) =>
             cat.name.toLowerCase().includes(query) ||
@@ -189,8 +189,8 @@ export default function ClientOverviewContent({
     }) => {
         if (!editingSparePart) return;
 
-        const machineId = typeof editingSparePart.machine === 'object' 
-            ? editingSparePart.machine._id 
+        const machineId = typeof editingSparePart.machine === 'object'
+            ? editingSparePart.machine._id
             : editingSparePart.machine || '';
 
         try {
@@ -290,12 +290,12 @@ export default function ClientOverviewContent({
     };
 
     // Get owner name
-    const ownerName = typeof clientDetails?.clientOwnership === 'object' 
-        ? clientDetails.clientOwnership.name 
+    const ownerName = typeof clientDetails?.clientOwnership === 'object'
+        ? clientDetails.clientOwnership.name
         : "N/A";
 
     // Get last update date
-    const lastUpdate = clientDetails?.updatedAt 
+    const lastUpdate = clientDetails?.updatedAt
         ? format(new Date(clientDetails.updatedAt), "dd/MM/yyyy 'At' h:mma")
         : "N/A";
 
@@ -389,7 +389,7 @@ export default function ClientOverviewContent({
                     <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-[10px] p-4 flex flex-col gap-1 w-[215px] h-[82px]">
                         <p className="text-[#4a5565] text-sm leading-5">Location</p>
                         <p className="text-white text-base font-bold leading-6 truncate">
-                            {clientDetails?.location?.address 
+                            {clientDetails?.location?.address
                                 ? clientDetails.location.address.length > 20
                                     ? `${clientDetails.location.address.substring(0, 20)}...`
                                     : clientDetails.location.address
@@ -476,7 +476,7 @@ export default function ClientOverviewContent({
                                                 >
                                                     <HiOutlineChevronRight className="w-4 h-4 text-white" />
                                                 </span>
-                                                <span className="text-white text-lg font-bold leading-[1.2]">
+                                                <span className="text-white text-[16px] font-normal font-lato leading-[24px]">
                                                     {category.name}
                                                 </span>
                                                 <div className="bg-[#1a1a1a] rounded px-2 py-0.5">
@@ -495,17 +495,17 @@ export default function ClientOverviewContent({
                                             <div className="min-h-0 overflow-hidden">
                                                 <div className="bg-[#1a1a1a] border-b border-[#1a1a1a] overflow-x-auto">
                                                     <table className="w-full border-collapse">
-                                                        <thead>
+                                                        <thead className="bg-[#171717]">
                                                             <tr className="border-b border-[#262626]">
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-16">Sr.No.</th>
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Machine Name</th>
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Current Status</th>
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service on</th>
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
-                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-16">Sr.No.</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Machine Name</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Current Status</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service on</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
+                                                                <th className="text-left py-5 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-auto">Edit Detail</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody className="bg-[#0D0D0D]">
                                                             {(category.machines ?? []).map((machine, index) => {
                                                                 const isMachineOpen = expandedMachine === machine._id;
                                                                 const spareParts = machineSpareParts[machine._id] ?? [];
@@ -514,7 +514,7 @@ export default function ClientOverviewContent({
                                                                     <Fragment key={machine._id}>
                                                                         <tr
                                                                             onClick={() => toggleMachine(machine._id)}
-                                                                            className="border-b border-[#262626] bg-[#1a1a1a] hover:bg-[#262626] transition-colors cursor-pointer"
+                                                                            className="border-b border-[#262626] bg-[#0D0D0D] hover:bg-[#0D0D0D] transition-colors cursor-pointer"
                                                                         >
                                                                             <td className="py-3 px-4 text-white text-sm">{index + 1}</td>
                                                                             <td className="py-3 px-4">
@@ -522,12 +522,12 @@ export default function ClientOverviewContent({
                                                                                     <span className="transition-transform duration-200 ease-out shrink-0" style={{ transform: isMachineOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
                                                                                         <HiOutlineChevronRight className="w-4 h-4 text-white" />
                                                                                     </span>
-                                                                                    <span className="text-white text-sm font-medium">{machine.name || "N/A"}</span>
+                                                                                    <span className="text-white text-[16px] font-normal">{machine.name || "N/A"}</span>
                                                                                     {isLoading && <Loader2 className="w-4 h-4 text-white animate-spin shrink-0" />}
                                                                                 </div>
                                                                             </td>
                                                                             <td className="py-3 px-4">
-                                                                                <Badge className="bg-[#00a82d]/20 text-[#00a82d] border border-[#00a82d]/40 text-xs">Active</Badge>
+                                                                                <Badge className="bg-[#00a82d]/20 text-[#00a82d] border border-[#00a82d]/40 text-xs rounded-2xl">Active</Badge>
                                                                             </td>
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
@@ -536,23 +536,23 @@ export default function ClientOverviewContent({
                                                                         {isMachineOpen && (
                                                                             <tr className="bg-[#0d0d0d]">
                                                                                 <td colSpan={6} className="p-0 border-b border-[#262626]">
-                                                                                    <div className="px-4 pb-4">
+                                                                                    <div className="px-0 pb-0">
                                                                                         {spareParts.length > 0 ? (
-                                                                                            <table className="w-full border-collapse rounded-lg overflow-hidden border border-[#262626]">
+                                                                                            <table className="w-full border-collapse rounded-none overflow-hidden border border-[#262626]">
                                                                                                 <thead>
-                                                                                                    <tr className="bg-[#1a1a1a] border-b border-[#262626]">
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-12">#</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Spare Part Name</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Health</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Current Status</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service On</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
+                                                                                                    <tr className="bg-[#171717] border-b border-[#262626] ">
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-12">#</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Spare Part Name</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Health</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Current Status</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service On</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
+                                                                                                        <th className="text-left py-4 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-auto">Edit Detail</th>
                                                                                                     </tr>
                                                                                                 </thead>
                                                                                                 <tbody>
                                                                                                     {spareParts.map((sparePart, spIndex) => (
-                                                                                                        <tr key={sparePart._id} className="border-b border-[#262626] bg-[#1a1a1a] hover:bg-[#262626]/50 last:border-b-0">
+                                                                                                        <tr key={sparePart._id} className="border-b border-[#262626] bg-[#171717] hover:bg-[#262626]/50 last:border-b-0">
                                                                                                             <td className="py-2 px-3 text-white text-sm">{spIndex + 1}</td>
                                                                                                             <td className="py-2 px-3 text-white text-sm font-medium">{sparePart.customName || sparePart.name}</td>
                                                                                                             <td className="py-2 px-3">

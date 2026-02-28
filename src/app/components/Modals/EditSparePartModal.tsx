@@ -60,8 +60,8 @@ export default function EditSparePartModal({
         sparePart.sparePartInstallationDate
             ? format(new Date(sparePart.sparePartInstallationDate), "yyyy-MM-dd")
             : sparePart.machineInstallationDate
-            ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
-            : ""
+                ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
+                : ""
     );
     const [isActive, setIsActive] = useState(sparePart.isActive !== false);
 
@@ -76,8 +76,8 @@ export default function EditSparePartModal({
             sparePart.sparePartInstallationDate
                 ? format(new Date(sparePart.sparePartInstallationDate), "yyyy-MM-dd")
                 : sparePart.machineInstallationDate
-                ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
-                : ""
+                    ? format(new Date(sparePart.machineInstallationDate), "yyyy-MM-dd")
+                    : ""
         );
         setIsActive(sparePart.isActive !== false);
     }, [sparePart._id, sparePart.name, sparePart.lastServiceDate, sparePart.sparePartInstallationDate, sparePart.machineInstallationDate, sparePart.isActive]);
@@ -152,8 +152,8 @@ export default function EditSparePartModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-card border-border">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[500px] bg-[#0D0D0D] border border-[#1A1A1A] px-0">
+                <DialogHeader className="border-b border-[#1A1A1A] px-4 pb-4">
                     <DialogTitle className="text-foreground flex items-center gap-3">
                         Edit Spare Part Details
                         {getStatusIcon(sparePart.status)}
@@ -166,9 +166,9 @@ export default function EditSparePartModal({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-4 px-4">
                     {/* Status Info */}
-                    <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                    <div className="bg-[#1A1A1A] rounded-lg p-3 space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Health Percentage:</span>
                             <span className="text-foreground font-medium">
@@ -191,7 +191,7 @@ export default function EditSparePartModal({
 
                     {/* Editable Fields */}
                     <div className="space-y-4">
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             <Label htmlFor="customName" className="text-foreground">
                                 Spare Part Name
                             </Label>
@@ -199,7 +199,7 @@ export default function EditSparePartModal({
                                 id="customName"
                                 value={customName}
                                 onChange={(e) => setCustomName(e.target.value)}
-                                className="bg-background border-border text-foreground"
+                                className="bg-[#1A1A1A] py-5 border-[#272626] text-foreground"
                                 placeholder={sparePart.originalName}
                             />
                             {customName !== sparePart.originalName && (
@@ -209,7 +209,7 @@ export default function EditSparePartModal({
                             )}
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             <Label htmlFor="lastServiceDate" className="text-foreground">
                                 Last Service Date
                             </Label>
@@ -218,11 +218,11 @@ export default function EditSparePartModal({
                                 type="date"
                                 value={lastServiceDate}
                                 onChange={(e) => setLastServiceDate(e.target.value)}
-                                className="bg-background border-border text-foreground"
+                                className="bg-[#1A1A1A] py-5 border-[#272626] text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                             />
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             <Label htmlFor="installationDate" className="text-foreground">
                                 Installation Date
                             </Label>
@@ -231,11 +231,11 @@ export default function EditSparePartModal({
                                 type="date"
                                 value={installationDate}
                                 onChange={(e) => setInstallationDate(e.target.value)}
-                                className="bg-background border-border text-foreground"
+                                className="bg-[#1A1A1A] !py-5 border-[#272626] text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                             />
                         </div>
 
-                        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                        <div className="flex items-center justify-between rounded-lg bg-[#1A1A1A]  border-[#272626] p-3">
                             <Label htmlFor="isActive" className="text-foreground cursor-pointer">
                                 Current Status
                             </Label>
@@ -253,7 +253,7 @@ export default function EditSparePartModal({
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 px-4">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}

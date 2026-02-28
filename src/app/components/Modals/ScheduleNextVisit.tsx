@@ -161,8 +161,8 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent 
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[894px] max-w-[894px] h-[700px] max-h-[700px] overflow-hidden"
+            <DialogContent
+                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[894px] max-w-[894px] h-[90vh] overflow-y-auto "
                 showCloseButton={false}
             >
                 {/* Custom Header */}
@@ -254,7 +254,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                 control={control}
                                 render={({ field }) => (
                                     <Select value={field.value} onValueChange={field.onChange}>
-                                        <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} h-[47px] rounded-[10px] text-white text-[16px] font-lato focus:ring-0`}>
+                                        <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] font-lato focus:ring-0`}>
                                             <SelectValue placeholder="Select Engineer" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-[#262626] border-[#404040]">
@@ -321,7 +321,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                     </div>
 
                     {/* Footer Buttons */}
-                    <DialogFooter className="border-t border-[#262626] pt-6 pb-0 mt-auto">
+                    <DialogFooter className="border-t border-[#262626] pt-6 pb-3 mt-auto">
                         <div className="flex gap-4 justify-end w-full">
                             <Button
                                 type="button"
