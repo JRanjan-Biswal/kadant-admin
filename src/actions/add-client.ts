@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import getCurrentUser from "./get-current-user";
+import type { Client } from "@/types/client";
 
 // Machine Component Interface
 export interface MachineComponentData {
@@ -54,7 +55,7 @@ export interface AddClientFormData {
 export interface AddClientResult {
     success: boolean;
     error?: string;
-    client?: any;
+    client?: Client;
 }
 
 export async function addClient(formData: AddClientFormData): Promise<AddClientResult> {

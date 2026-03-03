@@ -185,24 +185,23 @@ export default function EditSparePartInsights({ clientMachineSparePart, sparePar
                         }
                     };
                 } else {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const fieldData = newData[parentField as keyof ClientMachineSparePart] as any;
+                    const key = parentField as keyof ClientMachineSparePart;
+                    const fieldData = newData[key] as Record<string, unknown> | undefined;
                     if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
-                        newData[parentField as keyof ClientMachineSparePart] = {
+                        (newData as Record<string, unknown>)[parentField] = {
                             ...fieldData,
-                            value: Number(value)
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        } as any;
+                            value: Number(value),
+                        };
                     }
                 }
             } else {
-                const fieldData = newData[field as keyof ClientMachineSparePart] as { value: number; unit: string };
+                const key = field as keyof ClientMachineSparePart;
+                const fieldData = newData[key] as { value: number; unit: string } | undefined;
                 if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
-                    newData[field as keyof ClientMachineSparePart] = {
+                    (newData as Record<string, unknown>)[field] = {
                         ...fieldData,
-                        value: Number(value)
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    } as any;
+                        value: Number(value),
+                    };
                 }
             }
 

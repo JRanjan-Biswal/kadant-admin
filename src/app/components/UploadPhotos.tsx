@@ -575,6 +575,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
                                                         {row.imageUrls.map((url, index) => (
                                                             <Dialog key={index}>
                                                                 <DialogTrigger asChild>
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                                     <img
                                                                         src={`${process.env.NEXT_PUBLIC_API_HOST}${url}`}
                                                                         alt={`Preview ${index + 1}`}
@@ -590,6 +591,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
                                                                         <Trash2 className='w-4 h-4' />
                                                                     </button> */}
                                                                     <div className="relative w-full h-full">
+                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                                                         <img
                                                                             src={`${process.env.NEXT_PUBLIC_API_HOST}${url}`}
                                                                             alt={`Preview ${index + 1}`}

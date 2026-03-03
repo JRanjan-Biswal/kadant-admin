@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { addClient, AddClientFormData } from "@/actions/add-client";
 import { toast } from "sonner";
 import { 
@@ -12,7 +11,6 @@ import {
     Save, 
     User, 
     Lock, 
-    Upload, 
     MapPin, 
     Package, 
     Clock, 

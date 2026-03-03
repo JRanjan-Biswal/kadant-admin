@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, Calendar, TriangleAlert, CloudUpload, Play, UserPlus } from "lucide-react";
+import { X, Calendar, TriangleAlert, CloudUpload, UserPlus } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,6 +54,7 @@ function MediaPreview({ url, onRemove }: { url: string; onRemove: () => void }) 
             {isVideo ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={url} alt="" className="w-full h-full object-cover" />
             )}
             <button
@@ -96,7 +97,7 @@ export default function EditVisitDataModal({
     clientID,
     onSuccess,
 }: EditVisitDataModalProps) {
-    const [visit, setVisit] = useState<SiteVisit | null>(null);
+    const [, setVisit] = useState<SiteVisit | null>(null);
     const [users, setUsers] = useState<Admin[]>([]);
     const [loadingVisit, setLoadingVisit] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -167,7 +168,7 @@ export default function EditVisitDataModal({
             );
             setValue("clientRepresentative", d.clientRepresentative ?? "");
             setValue("clientRepresentativeDesignation", d.clientRepresentativeDesignation ?? "");
-        } catch (e) {
+        } catch {
             toast.error("Failed to load visit details");
             onOpenChange(false);
         } finally {

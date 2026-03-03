@@ -7,13 +7,6 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AddMachineModal from "@/app/components/Modals/AddMachineModal";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
@@ -106,13 +99,12 @@ export default function ClientOverviewContent({
     currentClientId,
     categories,
 }: ClientOverviewContentProps) {
+    void allClients; // Reserved for region/customer filtering UI
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     // Only machine row is accordion; category shows table, machine expands to show spare parts table
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
     const [expandedMachine, setExpandedMachine] = useState<string | null>(null);
-    const [selectedRegion, setSelectedRegion] = useState<string>("");
-    const [selectedCustomer, setSelectedCustomer] = useState<string>("");
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
     const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
@@ -122,29 +114,6 @@ export default function ClientOverviewContent({
     const [partsModalSparePart, setPartsModalSparePart] = useState<{ sparePartId: string; sparePartName: string } | null>(null);
     const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
     const [loadingParts, setLoadingParts] = useState(false);
-
-    // Extract unique regions from all clients
-    const regions = useMemo(() => {
-        const regionSet = new Set<string>();
-        allClients.forEach((client) => {
-            if (client.region) {
-                regionSet.add(client.region);
-            }
-        });
-        return Array.from(regionSet).sort();
-    }, [allClients]);
-
-    // Get customers filtered by selected region
-    const customersByRegion = useMemo(() => {
-        if (!selectedRegion) return [];
-        const customerSet = new Set<string>();
-        allClients.forEach((client) => {
-            if (client.region === selectedRegion && client.customer) {
-                customerSet.add(client.customer);
-            }
-        });
-        return Array.from(customerSet).sort();
-    }, [allClients, selectedRegion]);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {

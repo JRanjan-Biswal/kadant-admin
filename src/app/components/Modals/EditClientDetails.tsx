@@ -5,22 +5,22 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 import { useEffect, useState } from "react";
-import { TbEdit, TbLink, TbTrash, TbUpload, TbX } from "react-icons/tb";
+import { TbEdit, TbLink, TbUpload, TbX } from "react-icons/tb";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Client } from "@/types/client";
 import { ClientMachine } from "@/types/machine";
-import { Product } from "@/types/product";
+// import { Product } from "@/types/product";
 import { format } from "date-fns";
-import { FaPlus } from "react-icons/fa6";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+// import { FaPlus } from "react-icons/fa6";
+// import {
+//     Select,
+//     SelectContent,
+//     SelectItem,
+//     SelectTrigger,
+//     SelectValue,
+// } from "@/components/ui/select"
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -42,7 +42,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
     const router = useRouter();
     const [clientDetails, setClientDetails] = useState<Client>(client);
     const [machineRows, setMachineRows] = useState<MachineRow[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    // const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const { data: session } = useSession();
@@ -82,25 +82,25 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
         }
     };
 
-    const handleMachineChange = (id: string, field: keyof MachineRow, value: string) => {
-        setMachineRows(prev => prev.map(machine =>
-            machine.id === id ? { ...machine, [field]: value } : machine
-        ));
-    };
+    // const handleMachineChange = (id: string, field: keyof MachineRow, value: string) => {
+    //     setMachineRows(prev => prev.map(machine =>
+    //         machine.id === id ? { ...machine, [field]: value } : machine
+    //     ));
+    // };
 
-    const addMachineRow = () => {
-        const newMachine: MachineRow = {
-            id: `new_${Date.now()}`,
-            productId: '',
-            serialNumber: '',
-            installationDate: ''
-        };
-        setMachineRows(prev => [...prev, newMachine]);
-    };
+    // const addMachineRow = () => {
+    //     const newMachine: MachineRow = {
+    //         id: `new_${Date.now()}`,
+    //         productId: '',
+    //         serialNumber: '',
+    //         installationDate: ''
+    //     };
+    //     setMachineRows(prev => [...prev, newMachine]);
+    // };
 
-    const deleteMachineRow = (id: string) => {
-        setMachineRows(prev => prev.filter(machine => machine.id !== id));
-    };
+    // const deleteMachineRow = (id: string) => {
+    //     setMachineRows(prev => prev.filter(machine => machine.id !== id));
+    // };
 
     const handleFacilityImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -148,29 +148,29 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
         setFacilityImage(null);
     };
 
-    const getProducts = async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(`/api/products`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
+    // const getProducts = async () => {
+    //     try {
+    //         setIsLoading(true);
+    //         const response = await fetch(`/api/products`, {
+    //             method: "GET",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //             }
+    //         });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+    //         if (!response.ok) {
+    //             throw new Error(`HTTP error! status: ${response.status}`);
+    //         }
 
-            const data = await response.json();
-            setProducts(data);
-        } catch (error) {
-            console.error("Error fetching products:", error);
-            toast.error("Failed to fetch products");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    //         const data = await response.json();
+    //         setProducts(data);
+    //     } catch (error) {
+    //         console.error("Error fetching products:", error);
+    //         toast.error("Failed to fetch products");
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
 
     useEffect(() => {
         const initialMachines: MachineRow[] = machines.map((machine, index) => ({
@@ -184,9 +184,9 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
         setMachineRows(initialMachines);
     }, [machines]);
 
-    useEffect(() => {
-        getProducts();
-    }, []);
+    // useEffect(() => {
+    //     getProducts();
+    // }, []);
 
     const handleSubmit = async () => {
         const updatedData = {
@@ -435,13 +435,13 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                             <TableCell className="font-medium border-border border">
                                                 <Select
                                                     value={machine.productId}
-                                                    onValueChange={(value) => handleMachineChange(machine.id, 'productId', value)}
+                                                    onValueChange={(value) => _handleMachineChange(machine.id, 'productId', value)}
                                                 >
                                                     <SelectTrigger className="w-full border-border bg-input text-foreground">
                                                         <SelectValue placeholder="Select Machine" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-popover border-border">
-                                                        {products?.map((product: Product) => (
+                                                        {_products?.map((product: Product) => (
                                                             <SelectItem key={product._id} value={product._id} className="text-foreground hover:bg-accent">
                                                                 {product?.name}
                                                             </SelectItem>
@@ -453,7 +453,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                                 <Input
                                                     type="text"
                                                     value={machine.serialNumber}
-                                                    onChange={(e) => handleMachineChange(machine.id, 'serialNumber', e.target.value)}
+                                                    onChange={(e) => _handleMachineChange(machine.id, 'serialNumber', e.target.value)}
                                                     className="h-10 rounded-sm border-border bg-input text-foreground"
                                                     placeholder="Serial Number"
                                                 />
@@ -462,7 +462,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                                 <Input
                                                     type="date"
                                                     value={machine.installationDate}
-                                                    onChange={(e) => handleMachineChange(machine.id, 'installationDate', e.target.value)}
+                                                    onChange={(e) => _handleMachineChange(machine.id, 'installationDate', e.target.value)}
                                                     className="h-10 rounded-sm border-border bg-input text-foreground"
                                                     placeholder="Installation Date"
                                                 />
@@ -471,7 +471,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => deleteMachineRow(machine.id)}
+                                                    onClick={() => _deleteMachineRow(machine.id)}
                                                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                                 >
                                                     <TbTrash className="h-4 w-4" />
@@ -487,7 +487,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
                 {/* <div className="flex justify-start">
                     <Button
-                        onClick={addMachineRow}
+                        onClick={_addMachineRow}
                         className="cursor-pointer bg-muted hover:bg-muted/80 text-muted-foreground border border-dashed border-border"
                     >
                         <FaPlus className="mr-2" /> Add Machine
