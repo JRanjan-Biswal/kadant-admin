@@ -95,7 +95,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
 
     const getFilteredHistory = () => {
         if (filterPeriod === "all") return visitHistory;
-        
+
         const now = new Date();
         const periodMap: { [key: string]: number } = {
             "3": 3,
@@ -104,7 +104,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
         };
         const months = periodMap[filterPeriod] || 12;
         const cutoffDate = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
-        
+
         return visitHistory.filter((visit) => {
             if (!visit.lastVisitOn) return false;
             const visitDate = parseISO(visit.lastVisitOn);
@@ -115,17 +115,17 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     const getVisitTypeBadge = (visitType: string[]) => {
         if (!visitType || visitType.length === 0) return null;
         const type = visitType[0];
-        
+
         if (type === "Process Audit") {
             return (
-                <div className="bg-[rgba(255,105,0,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full">
-                    <p className="text-[#ff8904] text-[14px] leading-[14px] font-normal">Process Audit</p>
+                <div className="bg-[rgba(255,105,0,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap">
+                    <p className="text-[#ff8904] text-[13px] leading-[14px] font-normal">Process Audit</p>
                 </div>
             );
         } else if (type === "Mechanical Audit") {
             return (
-                <div className="bg-[rgba(43,127,255,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full">
-                    <p className="text-[#51a2ff] text-[14px] leading-[14px] font-normal">Mechanical Audit</p>
+                <div className="bg-[rgba(43,127,255,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap">
+                    <p className="text-[#51a2ff] text-[13px] leading-[14px] font-normal">Mechanical Audit</p>
                 </div>
             );
         }
@@ -162,7 +162,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                     </div>
                     <div className="flex-1 flex gap-3 items-center justify-end">
                         <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
-                            <Button 
+                            <Button
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
                                 variant="ghost"
                             >
@@ -171,7 +171,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                             </Button>
                         </ScheduleNextVisit>
                         <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
-                            <Button 
+                            <Button
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
                                 variant="ghost"
                             >
@@ -199,7 +199,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                             const scheduledDate = visit.nextScheduledVisit ? parseISO(visit.nextScheduledVisit) : null;
                             const timeStr = scheduledDate ? format(scheduledDate, "h:mm a") : "";
                             const dateStr = scheduledDate ? format(scheduledDate, "dd MMM yyyy") : "";
-                            
+
                             return (
                                 <div
                                     key={visit._id || index}
@@ -262,47 +262,39 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             <div className="flex flex-col gap-6">
                 <div className="flex h-[28px] items-center justify-between">
                     <h3 className="text-[20px] leading-[28px] text-white font-normal">Visit History</h3>
-                    <div className="flex gap-2 items-center w-[364.734px]">
+                    <div className="flex gap-2 items-center w-[400px]">
                         <p className="text-[#737373] text-[14px] leading-5">Filter:</p>
                         <button
                             onClick={() => handleFilterChange("3")}
-                            className={`h-7 rounded px-[11px] py-[3px] ${
-                                filterPeriod === "3" ? "bg-[#ff6900]" : "bg-[#262626]"
-                            }`}
+                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "3" ? "bg-[#ff6900]" : "bg-[#262626]"
+                                }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${
-                                filterPeriod === "3" ? "text-white" : "text-[#a1a1a1]"
-                            }`}>3 Months</p>
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "3" ? "text-white" : "text-[#a1a1a1]"
+                                }`}>3 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("6")}
-                            className={`h-7 rounded px-[11px] py-[3px] ${
-                                filterPeriod === "6" ? "bg-[#ff6900]" : "bg-[#262626]"
-                            }`}
+                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "6" ? "bg-[#ff6900]" : "bg-[#262626]"
+                                }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${
-                                filterPeriod === "6" ? "text-white" : "text-[#a1a1a1]"
-                            }`}>6 Months</p>
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "6" ? "text-white" : "text-[#a1a1a1]"
+                                }`}>6 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("12")}
-                            className={`h-7 rounded flex-1 px-[11px] py-[3px] ${
-                                filterPeriod === "12" ? "bg-[#ff6900]" : "bg-[#262626]"
-                            }`}
+                            className={`h-7 rounded flex-1 px-[11px] py-[3px] ${filterPeriod === "12" ? "bg-[#ff6900]" : "bg-[#262626]"
+                                }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${
-                                filterPeriod === "12" ? "text-white" : "text-[#a1a1a1]"
-                            }`}>12 Months</p>
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "12" ? "text-white" : "text-[#a1a1a1]"
+                                }`}>12 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("all")}
-                            className={`h-7 rounded px-3 py-[3px] ${
-                                filterPeriod === "all" ? "bg-[#ff6900]" : "bg-[#262626]"
-                            }`}
+                            className={`h-7 rounded px-3 py-[3px] ${filterPeriod === "all" ? "bg-[#ff6900]" : "bg-[#262626]"
+                                }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${
-                                filterPeriod === "all" ? "text-white" : "text-[#a1a1a1]"
-                            }`}>All</p>
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "all" ? "text-white" : "text-[#a1a1a1]"
+                                }`}>All</p>
                         </button>
                     </div>
                 </div>
@@ -312,48 +304,48 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                     {/* Table Header */}
                     <div className="bg-[#171717] border border-[#262626] flex items-center rounded-t-[10px]">
                         <div className="flex items-center self-stretch w-[85px]">
-                            <div className="flex h-full items-center justify-center px-9 py-4">
+                            <div className="flex h-full items-center justify-center px-5 py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Sr.no
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center self-stretch">
+                        <div className="flex items-center justify-center self-stretch">
                             <div className="flex h-full items-center justify-center px-6 py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Scheduled Date
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center self-stretch w-[171px]">
-                            <div className="flex h-full items-center justify-center px-6 py-4">
+                        <div className="flex items-center justify-center self-stretch w-[185px]">
+                            <div className="flex h-full items-center justify-center px-5 py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Engineer Name
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center self-stretch w-[144px]">
+                        <div className="flex items-center justify-center self-stretch w-[144px]">
                             <div className="flex h-full items-center justify-center px-[33px] py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Client
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center self-stretch w-[155px]">
+                        <div className="flex items-center justify-center self-stretch w-[160px]">
                             <div className="flex h-full items-center justify-center px-3 py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Visit Type
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center self-stretch">
-                            <div className="flex h-full items-center justify-center px-[68px] py-4">
+                        <div className="flex items-center justify-center self-stretch">
+                            <div className="flex h-full items-center justify-center px-[40px] py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Visit detail
                                 </p>
                             </div>
                         </div>
-                        <div className="flex flex-1 items-center self-stretch">
+                        <div className="flex flex-1 items-center justify-center self-stretch">
                             <div className="flex flex-1 h-full items-center justify-center px-6 py-4">
                                 <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Actions
@@ -366,43 +358,43 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                     {getFilteredHistory().map((visit, index) => {
                         const visitDate = visit.lastVisitOn ? parseISO(visit.lastVisitOn) : null;
                         const dateStr = visitDate ? format(visitDate, "dd MMM yyyy") : "N/A";
-                        
+
                         return (
                             <div
                                 key={visit._id || index}
                                 className="bg-[#0d0d0d] border-b border-l border-r border-[#262626] flex items-center"
                             >
-                                <div className="flex items-center self-stretch w-[85px]">
+                                <div className="flex justify-center items-center self-stretch w-[85px]">
                                     <div className="flex h-full items-center justify-center px-9 py-4">
                                         <p className="text-[#d4d4d4] text-base leading-6">{index + 1}.</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center self-stretch">
+                                <div className="flex justify-center items-center self-stretch">
                                     <div className="flex h-full items-center justify-center px-[46px] py-4">
                                         <p className="text-[#d4d4d4] text-base leading-6">{dateStr}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center self-stretch w-[171px]">
+                                <div className="flex justify-center items-center self-stretch w-[171px]">
                                     <div className="flex h-full items-center justify-center px-6 py-4">
                                         <p className="text-[#d4d4d4] text-base leading-6">
                                             {visit.engineer?.name || "N/A"}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center self-stretch w-[144px]">
+                                <div className="flex justify-center items-center self-stretch w-[165px]">
                                     <div className="flex h-full items-center justify-center px-[33px] py-4">
                                         <p className="text-[#d4d4d4] text-base leading-6">
                                             {visit.client?.name || "N/A"}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center self-stretch w-[155px]">
+                                <div className="flex justify-center items-center self-stretch w-[180px]">
                                     <div className="flex h-full items-center justify-center px-3 py-4">
                                         {getVisitTypeBadge(visit.visitType || [])}
                                     </div>
                                 </div>
-                                <div className="flex items-center self-stretch">
-                                    <div className="flex h-full items-start px-[68px] py-4">
+                                <div className="flex justify-center items-center self-stretch">
+                                    <div className="flex h-full items-center px-[40px] py-4">
                                         <button
                                             onClick={() => handleViewDetail(visit._id)}
                                             className="flex gap-2 h-5 items-center"

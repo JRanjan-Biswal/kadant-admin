@@ -28,7 +28,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                 )}
             </DialogTrigger>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
             >
                 <div className="bg-[#171717] border-b border-[#262626] flex h-[64px] items-center justify-between px-6 shrink-0">

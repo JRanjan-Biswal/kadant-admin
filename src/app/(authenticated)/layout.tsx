@@ -58,15 +58,15 @@ export default async function RootLayout({
                                     <Notifications />
                                 </div>
                             </header>
-                            <main className="bg-background min-h-[calc(100vh-4rem)]">
+                            <main className="bg-[#0a0a0a] min-h-[calc(100vh-4rem)]">
                                 <Providers>{children}</Providers>
                             </main>
                         </SidebarInset>
                     </SidebarProvider>
                 </AuthProvider>
-                <Toaster 
-                    richColors 
-                    position="top-right" 
+                <Toaster
+                    richColors
+                    position="top-right"
                     theme="dark"
                     toastOptions={{
                         style: {
