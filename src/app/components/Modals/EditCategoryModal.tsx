@@ -42,6 +42,13 @@ export default function EditCategoryModal({
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        if (open) {
+            setName(initialName);
+            setImageFile(null);
+        }
+    }, [open, categoryId, initialName]);
+
     const handleSave = useCallback(async () => {
         const trimmed = name.trim();
         if (!trimmed) {

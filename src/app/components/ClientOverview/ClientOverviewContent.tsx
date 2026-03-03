@@ -6,14 +6,19 @@ import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+} from "@/components/ui/dialog";
 import AddMachineModal from "@/app/components/Modals/AddMachineModal";
+import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, X } from "lucide-react";
 import { toast } from "sonner";
 
 const getStatusColor = (status?: string) => {
@@ -114,6 +119,7 @@ export default function ClientOverviewContent({
     const [partsModalSparePart, setPartsModalSparePart] = useState<{ sparePartId: string; sparePartName: string } | null>(null);
     const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
     const [loadingParts, setLoadingParts] = useState(false);
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -526,16 +532,28 @@ export default function ClientOverviewContent({
                                                     </span>
                                                 </div>
                                             </button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
-                                                className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 shrink-0"
-                                                title="Delete category"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={(e) => { e.stopPropagation(); setEditingCategoryId(category._id); }}
+                                                    className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#d45815] hover:bg-[#d45815]/10"
+                                                    title="Edit category"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
+                                                    className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10"
+                                                    title="Delete category"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
                                         </div>
 
                                         {/* Animated Category content - Machine List */}
@@ -679,6 +697,36 @@ export default function ClientOverviewContent({
                     </div>
                 </div>
             </div>
+
+            {/* Edit Category modal – full hierarchy pre-populated */}
+            <Dialog open={!!editingCategoryId} onOpenChange={(open) => !open && setEditingCategoryId(null)}>
+                <DialogContent
+                    className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                    showCloseButton={false}
+                >
+                    <div className="bg-[#171717] border-b border-[#262626] flex h-[64px] items-center justify-between px-6 shrink-0">
+                        <h2 className="text-white text-[20px] font-medium">Edit Category, Machine, Spare Parts &amp; Parts</h2>
+                        <button
+                            type="button"
+                            onClick={() => setEditingCategoryId(null)}
+                            className="w-8 h-8 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                            aria-label="Close"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="px-6 py-5">
+                        {editingCategoryId && (
+                            <AddCategoryMachineFlow
+                                compact={false}
+                                categoryIdForEdit={editingCategoryId}
+                                onSuccess={() => router.refresh()}
+                                onComplete={() => setEditingCategoryId(null)}
+                            />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete confirmation modal */}
             {deleteConfirm && (

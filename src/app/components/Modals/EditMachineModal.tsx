@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 async function uploadEntityImage(type: string, id: string, file: File) {
@@ -26,6 +27,7 @@ interface EditMachineModalProps {
     onOpenChange: (open: boolean) => void;
     machineId: string;
     initialName: string;
+    initialIsActive?: boolean;
     initialImageUrl?: string | null;
     onSuccess?: () => void;
 }
@@ -35,12 +37,22 @@ export default function EditMachineModal({
     onOpenChange,
     machineId,
     initialName,
+    initialIsActive = true,
     initialImageUrl,
     onSuccess,
 }: EditMachineModalProps) {
     const [name, setName] = useState(initialName);
+    const [isActive, setIsActive] = useState(initialIsActive);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            setName(initialName);
+            setIsActive(initialIsActive);
+            setImageFile(null);
+        }
+    }, [open, machineId, initialName, initialIsActive]);
 
     const handleSave = useCallback(async () => {
         const trimmed = name.trim();
@@ -53,7 +65,7 @@ export default function EditMachineModal({
             const res = await fetch(`/api/machines/${machineId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: trimmed }),
+                body: JSON.stringify({ name: trimmed, isActive }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -70,7 +82,7 @@ export default function EditMachineModal({
         } finally {
             setLoading(false);
         }
-    }, [machineId, name, imageFile, onSuccess, onOpenChange]);
+    }, [machineId, name, isActive, imageFile, onSuccess, onOpenChange]);
 
     const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
     useEffect(() => {
@@ -96,6 +108,14 @@ export default function EditMachineModal({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="bg-[#262626] border-[#404040] text-white mt-1"
+                        />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-[#262626] border border-[#404040] p-3">
+                        <Label className="text-[#a1a1a1] text-sm">Active</Label>
+                        <Switch
+                            checked={isActive}
+                            onCheckedChange={setIsActive}
+                            className="data-[state=checked]:bg-[#d45815]"
                         />
                     </div>
                     <div>
