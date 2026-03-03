@@ -12,16 +12,16 @@ import {
 import { Lock } from "lucide-react";
 
 interface NavItem {
-    title: string;
-    url: string;
-    icon?: IconType | React.ComponentType<{ className?: string }>;
-    isActive?: boolean;
+  title: string;
+  url: string;
+  icon?: IconType | React.ComponentType<{ className?: string }>;
+  isActive?: boolean;
   disabled?: boolean;
   alwaysEnabled?: boolean;
-    items?: {
-      title: string;
-      url: string;
-    }[];
+  items?: {
+    title: string;
+    url: string;
+  }[];
 }
 
 export function NavMain({
@@ -54,7 +54,7 @@ export function NavMain({
       <div className="flex flex-col gap-[8px] w-full">
         {items.map((item) => {
           const isActive = isActiveRoute(item.url);
-          
+
           if (item.disabled) {
             return (
               <TooltipProvider key={item.title}>
@@ -83,11 +83,10 @@ export function NavMain({
           return (
             <Link key={item.title} href={item.url} className="block">
               <div
-                className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${
-                  isActive
+                className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${isActive
                     ? 'bg-[#d45815]'
                     : 'hover:bg-sidebar-accent'
-                }`}
+                  }`}
               >
                 {item.icon && (
                   <div className="relative shrink-0 size-[20px]">
@@ -95,11 +94,10 @@ export function NavMain({
                   </div>
                 )}
                 <span
-                  className={`font-lato leading-[24px] text-[16px] ${
-                    isActive
+                  className={`font-lato leading-[20px] text-[15px] ${isActive
                       ? 'font-bold text-white'
                       : 'font-normal text-[#6a7282]'
-                  }`}
+                    }`}
                 >
                   {item.title}
                 </span>

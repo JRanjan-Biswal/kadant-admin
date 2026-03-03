@@ -7,4 +7,8 @@ export interface Order {
     replacedDate: string;
     runningHr: number;
     remarks: string;
+    machineName?: string;
+    date?: string;
+    doneBy?: string;
+    status?: string;
 }

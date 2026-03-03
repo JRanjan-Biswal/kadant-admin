@@ -156,12 +156,12 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({
         <div className="flex flex-col gap-4 p-4 pb-8">
             {/* ── Header ── */}
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-foreground">Machine Insights</h1>
+                <h1 className="text-[28px] leading-[42px] font-lato font-normal text-[#F3F4F6]">Machine Insights</h1>
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">Select Category</span>
+                        <span className="text-xs text-[#99A1AF]">Select Category</span>
                         <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                            <SelectTrigger className="w-[220px] h-10 bg-card border-border">
+                            <SelectTrigger className="w-[220px] h-10 bg-[#171717] border-[#262626]">
                                 <SelectValue placeholder="Select Category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -172,9 +172,9 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({
                         </Select>
                     </div>
                     <div className="flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">Select Machine</span>
+                        <span className="text-xs text-[#99A1AF]">Select Machine</span>
                         <Select value={activeMachineId} onValueChange={handleMachineChange}>
-                            <SelectTrigger className="w-[200px] h-10 bg-card border-border">
+                            <SelectTrigger className="w-[200px] h-10 bg-[#171717] border-[#262626]">
                                 <SelectValue placeholder="Select Machine" />
                             </SelectTrigger>
                             <SelectContent>
@@ -207,7 +207,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({
 
             {/* ── Fiber Loss Calculation ── */}
             <InsightSection title="Fiber Loss Calculation" onEdit={() => handleEditSection("fiberLoss")}>
-                <p className="text-sm font-semibold text-foreground mb-3">Fiber Loss</p>
+                <p className="text-[14px] font-normal text-[#A1A1A1] leading-[20px] font-lato mb-3">Fiber Loss</p>
                 <div className="flex flex-wrap items-end gap-4">
                     {fiberLoss.ranges.map((r) => (
                         <MetricCard key={r.id} label={r.label} value={`${r.value}${r.unit}`} unit="" />
@@ -230,21 +230,21 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({
             <InsightSection title="Power Loss Calculation" onEdit={() => handleEditSection("powerLoss")}>
                 <div className="flex flex-wrap gap-x-8 gap-y-4">
                     <div>
-                        <p className="text-sm font-semibold text-foreground mb-3">Actual Motor Power Consumption</p>
+                        <p className="text-[14px] font-normal text-[#A1A1A1] leading-[20px] font-lato mb-3">Actual Motor Power Consumption</p>
                         <div className="flex gap-4">
                             <MetricCard label="Healthy Rotor" value={`${powerLoss.actualMotorPower.healthy.value}${powerLoss.actualMotorPower.healthy.unit}`} unit="" />
                             <MetricCard label="Wornout Rotor" value={`${powerLoss.actualMotorPower.wornout.value}${powerLoss.actualMotorPower.wornout.unit}`} unit="" />
                         </div>
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-foreground mb-3">Power Consumption</p>
+                        <p className="text-[14px] font-normal text-[#A1A1A1] leading-[20px] font-lato mb-3">Power Consumption</p>
                         <div className="flex gap-4">
                             <MetricCard label="Healthy Rotor" value={powerLoss.powerConsumption.healthy.value} unit={powerLoss.powerConsumption.healthy.unit} />
                             <MetricCard label="Wornout Rotor" value={powerLoss.powerConsumption.wornout.value} unit={powerLoss.powerConsumption.wornout.unit} />
                         </div>
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-foreground mb-3 opacity-0">&nbsp;</p>
+                        <p className="text-[14px] font-normal text-[#A1A1A1] leading-[20px] font-lato mb-3 opacity-0">&nbsp;</p>
                         <div className="flex gap-4">
                             <MetricCard
                                 label="Power Cost"
