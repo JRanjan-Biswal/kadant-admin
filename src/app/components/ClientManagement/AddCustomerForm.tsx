@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { addClient, AddClientFormData, MachineData } from "@/actions/add-client";
+import { addClient, AddClientFormData } from "@/actions/add-client";
 import { toast } from "sonner";
 import { 
     Loader2, 
@@ -17,12 +17,7 @@ import {
     Package, 
     Clock, 
     Zap, 
-    Leaf, 
-    Plus, 
-    Trash2,
-    Link as LinkIcon,
-    Calendar,
-    X
+    Leaf
 } from "lucide-react";
 
 // Import reusable components
@@ -30,92 +25,12 @@ import SectionHeader from "@/components/SectionHeader";
 import UploadBox from "@/components/UploadBox";
 import InputField from "@/components/InputField";
 import SelectField from "@/components/SelectField";
+import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 
 interface AddCustomerFormProps {
     onBack: () => void;
     existingRegions: string[];
 }
-
-interface MachineComponent {
-    id: string;
-    componentName: string;
-    klCode: string;
-    partDrawingLink: string;
-    installationDate: string;
-    endOfLife: string;
-    componentImage: File | null;
-}
-
-interface Machine {
-    id: string;
-    category: string;
-    machineName: string;
-    productSummary: string;
-    machineImage: File | null;
-    components: MachineComponent[];
-}
-
-// Component Image Upload with Preview
-const ComponentImageUpload = ({ 
-    file, 
-    onFileChange 
-}: { 
-    file: File | null; 
-    onFileChange: (file: File | null) => void;
-}) => {
-    const [preview, setPreview] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (file) {
-            const objectUrl = URL.createObjectURL(file);
-            setPreview(objectUrl);
-            return () => URL.revokeObjectURL(objectUrl);
-        } else {
-            setPreview(null);
-        }
-    }, [file]);
-
-    const handleRemove = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onFileChange(null);
-    };
-
-    return (
-        <label className="border border-dashed border-[#404040] rounded-lg min-h-[74px] flex flex-col items-center justify-center cursor-pointer hover:border-[#505050] transition-colors relative overflow-hidden">
-            <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*"
-                onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-            />
-            {preview ? (
-                <>
-                    <div className="relative w-full h-full min-h-[74px] flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                            src={preview} 
-                            alt="Preview" 
-                            className="max-w-full max-h-[74px] object-contain rounded"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleRemove}
-                            className="absolute top-1 right-1 bg-[#262626] hover:bg-[#404040] text-white rounded-full p-1 transition-colors z-10"
-                            aria-label="Remove image"
-                        >
-                            <X className="w-3 h-3" />
-                        </button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <Upload className="w-6 h-6 text-[#737373]" />
-                    <span className="text-[#737373] text-xs">Upload</span>
-                </>
-            )}
-        </label>
-    );
-};
 
 export default function AddCustomerForm({ onBack, existingRegions }: AddCustomerFormProps) {
     const router = useRouter();
@@ -144,88 +59,6 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
     // Flowsheet & Stock Preparation Images
     const [flowsheetImage, setFlowsheetImage] = useState<File | null>(null);
     const [stockPrepImage, setStockPrepImage] = useState<File | null>(null);
-    
-    // Machines
-    const [machines, setMachines] = useState<Machine[]>([
-        {
-            id: "1",
-            category: "",
-            machineName: "",
-            productSummary: "",
-            machineImage: null,
-            components: [
-                {
-                    id: "1",
-                    componentName: "",
-                    klCode: "",
-                    partDrawingLink: "",
-                    installationDate: "",
-                    endOfLife: "",
-                    componentImage: null,
-                }
-            ]
-        }
-    ]);
-
-    const addMachine = () => {
-        const newMachine: Machine = {
-            id: Date.now().toString(),
-            category: "",
-            machineName: "",
-            productSummary: "",
-            machineImage: null,
-            components: []
-        };
-        setMachines([...machines, newMachine]);
-    };
-
-    const removeMachine = (machineId: string) => {
-        setMachines(machines.filter(m => m.id !== machineId));
-    };
-
-    const updateMachine = (machineId: string, field: keyof Machine, value: string | File | null | MachineComponent[]) => {
-        setMachines(machines.map(m => 
-            m.id === machineId ? { ...m, [field]: value } : m
-        ));
-    };
-
-    const addComponent = (machineId: string) => {
-        const newComponent: MachineComponent = {
-            id: Date.now().toString(),
-            componentName: "",
-            klCode: "",
-            partDrawingLink: "",
-            installationDate: "",
-            endOfLife: "",
-            componentImage: null,
-        };
-        setMachines(machines.map(m => 
-            m.id === machineId 
-                ? { ...m, components: [...m.components, newComponent] }
-                : m
-        ));
-    };
-
-    const removeComponent = (machineId: string, componentId: string) => {
-        setMachines(machines.map(m => 
-            m.id === machineId 
-                ? { ...m, components: m.components.filter(c => c.id !== componentId) }
-                : m
-        ));
-    };
-
-    const updateComponent = (machineId: string, componentId: string, field: keyof MachineComponent, value: string | File | null) => {
-        setMachines(machines.map(m => 
-            m.id === machineId 
-                ? { 
-                    ...m, 
-                    components: m.components.map(c => 
-                        c.id === componentId ? { ...c, [field]: value } : c
-                    )
-                }
-                : m
-        ));
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -247,13 +80,6 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
 
         setIsLoading(true);
         try {
-            // Prepare machines data (without images for now)
-            const machinesData: MachineData[] = machines.map(m => ({
-                category: m.category,
-                machineName: m.machineName,
-                productSummary: m.productSummary,
-            })).filter(m => m.category || m.machineName); // Only include machines with data
-
             const formData: AddClientFormData = {
                 // Login credentials
                 username: username || undefined,
@@ -280,9 +106,6 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                     priceUnit: "INR",
                     perUnit: "kWh",
                 },
-                
-                // Machines
-                machines: machinesData.length > 0 ? machinesData : undefined,
             };
 
             const result = await addClient(formData);
@@ -551,189 +374,18 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                     </div>
                 </div>
 
-                {/* Section 6: Add Machine Details */}
+                {/* Section 6: Add Machine Details (Category → Machine → Spare Parts → Parts) */}
                 <div className="mx-6 bg-[#171717] border border-[#262626] rounded-[10px] overflow-hidden">
-                    <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] px-6 py-4 flex items-center justify-between">
+                    <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] px-6 py-4">
                         <h2 className="text-xl font-normal text-white">
                             6. Add Machine Details
                         </h2>
-                        <Button
-                            type="button"
-                            onClick={addMachine}
-                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] px-4 py-2 h-auto flex items-center gap-2"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Machine</span>
-                        </Button>
+                        <p className="text-[#a1a1a1] text-sm mt-1">
+                            Create a machine category, then machine, then spare parts and their parts. You can upload images for each. Same flow as in Client Overview.
+                        </p>
                     </div>
-
-                    <div className="p-6 flex flex-col gap-6">
-                        {machines.map((machine, machineIndex) => (
-                            <div key={machine.id} className="bg-[rgba(38,38,38,0.3)] border border-[#404040] rounded-[10px] p-6 flex flex-col gap-5">
-                                {/* Machine Header */}
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-white text-base font-normal">Machine {machineIndex + 1}</h3>
-                                    {machines.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => removeMachine(machine.id)}
-                                            className="text-[#737373] hover:text-red-500 transition-colors p-2"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Machine Category & Name */}
-                                <div className="flex gap-6">
-                                    <div className="flex-1">
-                                        <InputField
-                                            label="Machine Category"
-                                            placeholder="Pulping and Detrashing"
-                                            value={machine.category}
-                                            onChange={(val) => updateMachine(machine.id, "category", val)}
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <InputField
-                                            label="Machine Name"
-                                            placeholder="Hydrapulper"
-                                            value={machine.machineName}
-                                            onChange={(val) => updateMachine(machine.id, "machineName", val)}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Product Summary */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[#a1a1a1] text-sm leading-5">Product Summary (250 words)</label>
-                                    <Textarea
-                                        value={machine.productSummary}
-                                        onChange={(e) => updateMachine(machine.id, "productSummary", e.target.value)}
-                                        placeholder="Enter detailed product summary..."
-                                        className="bg-[#262626] border-[#404040] rounded-[10px] min-h-[122px] text-white placeholder:text-[#737373] resize-none"
-                                    />
-                                </div>
-
-                                {/* Machine Image */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[#a1a1a1] text-sm leading-5">Machine Image</label>
-                                    <UploadBox
-                                        label="Click to upload Machine image"
-                                        sublabel="Upload multiple images (PNG, JPG, GIF)"
-                                        file={machine.machineImage}
-                                        onFileChange={(file) => updateMachine(machine.id, "machineImage", file)}
-                                    />
-                                </div>
-
-                                {/* Machine Components */}
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-white text-base">Machine Components</h4>
-                                        <Button
-                                            type="button"
-                                            onClick={() => addComponent(machine.id)}
-                                            className="bg-[#404040] hover:bg-[#505050] text-white rounded-[10px] px-3 py-2 h-9 flex items-center gap-2 text-sm"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            <span>Add Component</span>
-                                        </Button>
-                                    </div>
-
-                                    {machine.components.map((component, componentIndex) => (
-                                        <div key={component.id} className="bg-[rgba(38,38,38,0.5)] border border-[#404040] rounded-[10px] p-4 flex flex-col gap-4">
-                                            {/* Component Header */}
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-white text-base">Component {componentIndex + 1}</span>
-                                                {machine.components.length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeComponent(machine.id, component.id)}
-                                                        className="text-[#737373] hover:text-red-500 transition-colors p-1"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Row 1: Component Name & KL Code */}
-                                            <div className="flex gap-3">
-                                                <div className="flex-1">
-                                                    <InputField
-                                                        label="Component Name"
-                                                        placeholder="e.g., Rotor Blade"
-                                                        value={component.componentName}
-                                                        onChange={(val) => updateComponent(machine.id, component.id, "componentName", val)}
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <InputField
-                                                        label="KL Code"
-                                                        placeholder="e.g., KL-5000"
-                                                        value={component.klCode}
-                                                        onChange={(val) => updateComponent(machine.id, component.id, "klCode", val)}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Row 2: Part Drawing Link & Installation Date */}
-                                            <div className="flex gap-3">
-                                                <div className="flex-1">
-                                                    <InputField
-                                                        label="Part Drawing Link"
-                                                        placeholder="https://..."
-                                                        value={component.partDrawingLink}
-                                                        onChange={(val) => updateComponent(machine.id, component.id, "partDrawingLink", val)}
-                                                        icon={LinkIcon}
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="flex flex-col gap-2">
-                                                        <label className="text-[#a1a1a1] text-sm leading-5">Installation Date</label>
-                                                        <div className="bg-[#262626] border border-[#404040] rounded-lg h-[50px] flex items-center px-3">
-                                                            <Calendar className="w-4 h-4 text-[#737373] mr-2" />
-                                                            <input
-                                                                type="date"
-                                                                value={component.installationDate}
-                                                                onChange={(e) => updateComponent(machine.id, component.id, "installationDate", e.target.value)}
-                                                                className="bg-transparent flex-1 text-white outline-none [color-scheme:dark]"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Row 3: End of Life & Component Image */}
-                                            <div className="flex gap-3">
-                                                <div className="flex-1">
-                                                    <div className="flex flex-col gap-2">
-                                                        <label className="text-[#a1a1a1] text-sm leading-5">End of Life</label>
-                                                        <div className="bg-[#262626] border border-[#404040] rounded-lg h-[50px] flex items-center px-3">
-                                                            <Calendar className="w-4 h-4 text-[#737373] mr-2" />
-                                                            <input
-                                                                type="date"
-                                                                value={component.endOfLife}
-                                                                onChange={(e) => updateComponent(machine.id, component.id, "endOfLife", e.target.value)}
-                                                                className="bg-transparent flex-1 text-white outline-none [color-scheme:dark]"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="flex flex-col gap-2">
-                                                        <label className="text-[#a1a1a1] text-sm leading-5">Component Image</label>
-                                                        <ComponentImageUpload
-                                                            file={component.componentImage}
-                                                            onFileChange={(file) => updateComponent(machine.id, component.id, "componentImage", file)}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                    <div className="p-6">
+                        <AddCategoryMachineFlow compact={true} onSuccess={() => {}} />
                     </div>
                 </div>
 

@@ -26,10 +26,12 @@ interface NavItem {
 
 export function NavMain({
   items,
+  onNavigateStart,
 }: {
   items: NavItem[];
   selectedClientId?: string;
   isOnClientManagement?: boolean;
+  onNavigateStart?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -81,7 +83,12 @@ export function NavMain({
           }
 
           return (
-            <Link key={item.title} href={item.url} className="block">
+            <Link
+              key={item.title}
+              href={item.url}
+              className="block"
+              onClick={() => onNavigateStart?.()}
+            >
               <div
                 className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${
                   isActive

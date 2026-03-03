@@ -18,10 +18,49 @@ import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
+import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
+const getStatusColor = (status?: string) => {
+    switch (status) {
+        case "healthy":
+            return "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40";
+        case "warning":
+            return "bg-[#ff9a00]/20 text-[#ff9a00] border-[#ff9a00]/40";
+        case "critical":
+            return "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40";
+        default:
+            return "bg-muted text-muted-foreground border-border";
+    }
+};
+
+const getStatusText = (status?: string) => {
+    switch (status) {
+        case "healthy":
+            return "Healthy";
+        case "warning":
+            return "Monitor";
+        case "critical":
+            return "Attention";
+        default:
+            return "Unknown";
+    }
+};
+
+const getStatusIcon = (status?: string) => {
+    switch (status) {
+        case "healthy":
+            return <CheckCircle2 className="w-4 h-4 text-[#00a82d] shrink-0" />;
+        case "warning":
+            return <AlertTriangle className="w-4 h-4 text-[#ff9a00] shrink-0" />;
+        case "critical":
+            return <XCircle className="w-4 h-4 text-[#bf1e21] shrink-0" />;
+        default:
+            return <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />;
+    }
+};
 /** Status logic aligned with machine-health: totalRunningHours > lifeTime → Attention, === → Monitor, else Healthy */
 function getSparePartStatusFromHours(
     totalRunningHours: number,
@@ -77,6 +116,12 @@ export default function ClientOverviewContent({
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
     const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
+    type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
+    const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [partsModalSparePart, setPartsModalSparePart] = useState<{ sparePartId: string; sparePartName: string } | null>(null);
+    const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
+    const [loadingParts, setLoadingParts] = useState(false);
 
     // Extract unique regions from all clients
     const regions = useMemo(() => {
@@ -250,44 +295,71 @@ export default function ClientOverviewContent({
         }
     }, [editingSparePart, currentClientId]);
 
-    const getStatusColor = (status?: string) => {
-        switch (status) {
-            case "healthy":
-                return "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40";
-            case "warning":
-                return "bg-[#ff9a00]/20 text-[#ff9a00] border-[#ff9a00]/40";
-            case "critical":
-                return "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40";
-            default:
-                return "bg-muted text-muted-foreground border-border";
+    const handleDeleteConfirm = useCallback(async () => {
+        if (!deleteConfirm) return;
+        setDeleteLoading(true);
+        try {
+            if (deleteConfirm.type === "category") {
+                const res = await fetch(`/api/machines/machine-category/${deleteConfirm.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to delete category");
+                }
+                toast.success("Category deleted.");
+            } else if (deleteConfirm.type === "machine") {
+                const res = await fetch(`/api/machines/${deleteConfirm.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to delete machine");
+                }
+                toast.success("Machine deleted.");
+            } else if (deleteConfirm.type === "sparePart") {
+                const res = await fetch(`/api/machines/spare-parts/${deleteConfirm.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to delete spare part");
+                }
+                setMachineSpareParts((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((mid) => {
+                        next[mid] = next[mid].filter((sp) => sp._id !== deleteConfirm.id);
+                    });
+                    return next;
+                });
+                toast.success("Spare part deleted.");
+            } else if (deleteConfirm.type === "part") {
+                const res = await fetch(`/api/machines/spare-parts-part/${deleteConfirm.id}`, { method: "DELETE" });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to delete part");
+                }
+                setPartsList((prev) => prev.filter((p) => p._id !== deleteConfirm.id));
+                toast.success("Part deleted.");
+            }
+            setDeleteConfirm(null);
+            router.refresh();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Delete failed");
+        } finally {
+            setDeleteLoading(false);
         }
-    };
+    }, [deleteConfirm, router]);
 
-    const getStatusText = (status?: string) => {
-        switch (status) {
-            case "healthy":
-                return "Healthy";
-            case "warning":
-                return "Monitor";
-            case "critical":
-                return "Attention";
-            default:
-                return "Unknown";
+    const openPartsModal = useCallback(async (sparePartId: string, sparePartName: string) => {
+        setPartsModalSparePart({ sparePartId, sparePartName });
+        setLoadingParts(true);
+        try {
+            const res = await fetch(`/api/machines/spare-parts/${sparePartId}/parts`);
+            if (!res.ok) throw new Error("Failed to fetch parts");
+            const data = await res.json();
+            setPartsList(Array.isArray(data) ? data : []);
+        } catch {
+            toast.error("Failed to load parts");
+            setPartsList([]);
+        } finally {
+            setLoadingParts(false);
         }
-    };
-
-    const getStatusIcon = (status?: string) => {
-        switch (status) {
-            case "healthy":
-                return <CheckCircle2 className="w-4 h-4 text-[#00a82d] shrink-0" />;
-            case "warning":
-                return <AlertTriangle className="w-4 h-4 text-[#ff9a00] shrink-0" />;
-            case "critical":
-                return <XCircle className="w-4 h-4 text-[#bf1e21] shrink-0" />;
-            default:
-                return <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />;
-        }
-    };
+    }, []);
 
     // Get owner name
     const ownerName = typeof clientDetails?.clientOwnership === 'object' 
@@ -309,7 +381,7 @@ export default function ClientOverviewContent({
                     </h1>
                     <div className="flex items-center gap-3">
                         {/* Region Dropdown */}
-                        <Select
+                        {/* <Select
                             value={selectedRegion || "all"}
                             onValueChange={(value) => {
                                 setSelectedRegion(value === "all" ? "" : value);
@@ -336,10 +408,10 @@ export default function ClientOverviewContent({
                                     </SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select>
+                        </Select> */}
 
                         {/* Customer Dropdown */}
-                        <Select
+                        {/* <Select
                             value={selectedCustomer || "all"}
                             onValueChange={(value) => setSelectedCustomer(value === "all" ? "" : value)}
                             disabled={!selectedRegion}
@@ -368,7 +440,7 @@ export default function ClientOverviewContent({
                                     </>
                                 )}
                             </SelectContent>
-                        </Select>
+                        </Select> */}
 
                         {/* Edit Details Button */}
                         <EditClientDetails client={clientDetails} machines={[]} />
@@ -464,12 +536,12 @@ export default function ClientOverviewContent({
                                 const isCategoryOpen = expandedCategory === category.name;
                                 return (
                                     <div key={category._id || category.name}>
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleCategory(category.name)}
-                                            className="w-full bg-[#0d0d0d] border-b border-[#1a1a1a] flex items-center justify-between px-6 py-3 hover:bg-[#1a1a1a] transition-colors"
-                                        >
-                                            <div className="flex items-center gap-2">
+                                        <div className="w-full bg-[#0d0d0d] border-b border-[#1a1a1a] flex items-center justify-between px-6 py-3 hover:bg-[#1a1a1a] transition-colors">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleCategory(category.name)}
+                                                className="flex items-center gap-2 flex-1 text-left"
+                                            >
                                                 <span
                                                     className="transition-transform duration-200 ease-out"
                                                     style={{ transform: isCategoryOpen ? "rotate(90deg)" : "rotate(0deg)" }}
@@ -484,8 +556,18 @@ export default function ClientOverviewContent({
                                                         {category.machines?.length || 0}
                                                     </span>
                                                 </div>
-                                            </div>
-                                        </button>
+                                            </button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
+                                                className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 shrink-0"
+                                                title="Delete category"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
 
                                         {/* Animated Category content - Machine List */}
                                         <div
@@ -503,6 +585,7 @@ export default function ClientOverviewContent({
                                                                 <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service on</th>
                                                                 <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
                                                                 <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
+                                                                <th className="text-left py-3 px-4 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-20">Delete</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -532,10 +615,15 @@ export default function ClientOverviewContent({
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
                                                                             <td className="py-3 px-4 text-[#6a7282]">—</td>
+                                                                            <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "machine", id: machine._id, name: machine.name || "N/A" })} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete machine">
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </Button>
+                                                                            </td>
                                                                         </tr>
                                                                         {isMachineOpen && (
                                                                             <tr className="bg-[#0d0d0d]">
-                                                                                <td colSpan={6} className="p-0 border-b border-[#262626]">
+                                                                                <td colSpan={7} className="p-0 border-b border-[#262626]">
                                                                                     <div className="px-4 pb-4">
                                                                                         {spareParts.length > 0 ? (
                                                                                             <table className="w-full border-collapse rounded-lg overflow-hidden border border-[#262626]">
@@ -548,6 +636,8 @@ export default function ClientOverviewContent({
                                                                                                         <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Last Service On</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider">Installation Date</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-20">Parts</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#6a7282] text-xs font-medium uppercase tracking-wider w-20">Delete</th>
                                                                                                     </tr>
                                                                                                 </thead>
                                                                                                 <tbody>
@@ -569,8 +659,18 @@ export default function ClientOverviewContent({
                                                                                                             <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.lastServiceDate ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.sparePartInstallationDate ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart(sparePart); }} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#d45815] hover:bg-[#d45815]/10">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart(sparePart); }} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
                                                                                                                     <Pencil className="w-4 h-4" />
+                                                                                                                </Button>
+                                                                                                            </td>
+                                                                                                            <td className="py-2 px-3">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPartsModal(sparePart._id, sparePart.customName || sparePart.name); }} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Manage parts">
+                                                                                                                    <Package className="w-4 h-4" />
+                                                                                                                </Button>
+                                                                                                            </td>
+                                                                                                            <td className="py-2 px-3">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "sparePart", id: sparePart._id, name: sparePart.customName || sparePart.name }); }} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete spare part">
+                                                                                                                    <Trash2 className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
                                                                                                         </tr>
@@ -610,6 +710,64 @@ export default function ClientOverviewContent({
                     </div>
                 </div>
             </div>
+
+            {/* Delete confirmation modal */}
+            {deleteConfirm && (
+                <DeleteConfirmModal
+                    open={!!deleteConfirm}
+                    onOpenChange={(open) => !open && setDeleteConfirm(null)}
+                    title={
+                        deleteConfirm.type === "category"
+                            ? "Delete category?"
+                            : deleteConfirm.type === "machine"
+                                ? "Delete machine?"
+                                : deleteConfirm.type === "sparePart"
+                                    ? "Delete spare part?"
+                                    : "Delete part?"
+                    }
+                    message={
+                        deleteConfirm.type === "category"
+                            ? `Are you sure you want to delete the category "${deleteConfirm.name}"? This will delete all machines, spare parts and parts under it.`
+                            : deleteConfirm.type === "machine"
+                                ? `Are you sure you want to delete the machine "${deleteConfirm.name}"? This will delete all spare parts and parts under it.`
+                                : deleteConfirm.type === "sparePart"
+                                    ? `Are you sure you want to delete the spare part "${deleteConfirm.name}"? This will delete all parts under it.`
+                                    : `Are you sure you want to delete the part "${deleteConfirm.name}"?`
+                    }
+                    onConfirm={handleDeleteConfirm}
+                    isLoading={deleteLoading}
+                />
+            )}
+
+            {/* Parts list modal (for a spare part) */}
+            {partsModalSparePart && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPartsModalSparePart(null)} role="dialog" aria-modal="true" aria-labelledby="parts-modal-title">
+                    <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-[14px] shadow-xl max-w-md w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="border-b border-[#1a1a1a] px-6 py-4 flex items-center justify-between">
+                            <h3 id="parts-modal-title" className="text-white text-lg font-medium">Parts under &quot;{partsModalSparePart.sparePartName}&quot;</h3>
+                            <Button size="sm" variant="ghost" onClick={() => setPartsModalSparePart(null)} className="text-[#6a7282] hover:text-white">Close</Button>
+                        </div>
+                        <div className="p-4 overflow-auto flex-1">
+                            {loadingParts ? (
+                                <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-[#6a7282]" /></div>
+                            ) : partsList.length === 0 ? (
+                                <p className="text-[#6a7282] text-sm py-4">No parts</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {partsList.map((part) => (
+                                        <li key={part._id} className="flex items-center justify-between gap-2 py-2 border-b border-[#262626] last:border-0">
+                                            <span className="text-white text-sm truncate">{part.name}</span>
+                                            <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "part", id: part._id, name: part.name })} className="h-8 w-8 p-0 text-[#6a7282] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 shrink-0" title="Delete part">
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Spare Part Modal */}
             {editingSparePart && (

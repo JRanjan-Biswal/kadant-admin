@@ -410,7 +410,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                     </div>
                 </div>
 
-                <div className="block mt-4">
+                {/* <div className="block mt-4">
                     <h2 className="text-lg font-semibold text-foreground">Total Machines</h2>
                     <div className="max-h-[200px] overflow-y-auto border-border border-b rounded-lg mt-4">
                         <Table className="border-border border">
@@ -483,16 +483,16 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             </TableBody>
                         </Table>
                     </div>
-                </div>
+                </div> */}
 
-                <div className="flex justify-start">
+                {/* <div className="flex justify-start">
                     <Button
                         onClick={addMachineRow}
                         className="cursor-pointer bg-muted hover:bg-muted/80 text-muted-foreground border border-dashed border-border"
                     >
                         <FaPlus className="mr-2" /> Add Machine
                     </Button>
-                </div>
+                </div> */}
 
                 <DialogFooter>
                     <div className="flex justify-end">

@@ -1,4 +1,6 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import { FaRegUser } from "react-icons/fa6";
 import { LuCalendarCog } from "react-icons/lu";
 import { PiGearFineBold } from "react-icons/pi";
@@ -25,6 +27,11 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const params = useParams();
   const pathname = usePathname();
   const clientID = params?.clientID as string | undefined;
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    setIsNavigating(false);
+  }, [pathname]);
 
   // Check if we're on a page with a selected client
   const hasSelectedClient = !!clientID;
@@ -84,7 +91,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
     <Sidebar className="bg-sidebar border-r border-[#262626] w-[255px] flex flex-col" collapsible="icon" {...props}>
       <SidebarHeader className="bg-sidebar p-0 shrink-0">
-        <AppLogo />
+        <AppLogo isLoading={isNavigating} onNavigateStart={() => setIsNavigating(true)} />
         <NavUser user={user} />
       </SidebarHeader>
       <SidebarContent className="bg-sidebar p-0 flex-1 overflow-hidden">
@@ -92,6 +99,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           items={navMainItems} 
           selectedClientId={clientID} 
           isOnClientManagement={isOnClientManagement}
+          onNavigateStart={() => setIsNavigating(true)}
         />
       </SidebarContent>
       {/* Settings Section at Bottom */}
