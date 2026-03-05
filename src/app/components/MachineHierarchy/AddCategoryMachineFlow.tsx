@@ -4,8 +4,9 @@ import { useState, useCallback, useEffect, memo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, Trash2, Plus, Loader2, X, Pencil } from "lucide-react";
+import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import MachineImageMapper, { type MachinePosition } from "./MachineImageMapper";
 
 /** Stable component: file preview or upload placeholder with optional remove (X) overlay. */
 const PartImageUpload = memo(function PartImageUpload({
@@ -187,6 +188,8 @@ export interface AddCategoryMachineFlowProps {
     initialData?: CategoryFullPayload | null;
     /** When set, fetch full category and pre-populate form for editing. Ignored if initialData is set. */
     categoryIdForEdit?: string | null;
+    /** Called whenever the "can close" status changes. Parent should use this to guard close actions. */
+    onCloseGuardChange?: (blocked: boolean) => void;
 }
 
 interface MachineGalleryImage {
@@ -209,8 +212,7 @@ interface MachineRow {
 interface SparePartRow {
     id: string;
     name: string;
-    lifeTimeValue: string;
-    lifeTimeUnit: string;
+    klValue: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -230,6 +232,7 @@ export interface CategoryFullPayload {
     _id: string;
     name: string;
     imageUrl?: string | null;
+    machinePositions?: Array<{ machine: string; left: number; top: number; width: number }>;
     machines?: Array<{
         _id: string;
         name: string;
@@ -239,6 +242,7 @@ export interface CategoryFullPayload {
         spareParts?: Array<{
             _id: string;
             name: string;
+            klValue?: string;
             lifeTime?: { value?: number; unit?: string };
             imageUrl?: string | null;
             parts?: Array<{ _id: string; name: string; imageUrl?: string | null }>;
@@ -251,6 +255,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
     categoryImageUrl: string | null;
     categoryId: string;
     machines: MachineRow[];
+    machinePositions: MachinePosition[];
 } {
     const machinesList = payload.machines ?? [];
     const machines: MachineRow[] = machinesList.map((m) => ({
@@ -268,8 +273,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
         spareParts: (m.spareParts ?? []).map((sp) => ({
             id: sp._id,
             name: sp.name ?? "",
-            lifeTimeValue: String(sp.lifeTime?.value ?? 0),
-            lifeTimeUnit: sp.lifeTime?.unit ?? "Hrs",
+            klValue: sp.klValue ?? "",
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
@@ -282,6 +286,13 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             })),
         })),
     }));
+    const machinePositions: MachinePosition[] = (payload.machinePositions ?? []).map((mp) => ({
+        machine: typeof mp.machine === "object" ? (mp.machine as { _id?: string })._id ?? String(mp.machine) : String(mp.machine),
+        left: mp.left,
+        top: mp.top,
+        width: mp.width,
+    }));
+
     return {
         categoryName: payload.name ?? "",
         categoryImageUrl: payload.imageUrl ?? null,
@@ -294,10 +305,11 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 description: "",
                 galleryImages: [],
                 spareParts: [
-                    { id: "sp1", name: "", lifeTimeValue: "0", lifeTimeUnit: "Hrs", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
+                    { id: "sp1", name: "", klValue: "", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
                 ],
             },
         ],
+        machinePositions,
     };
 }
 
@@ -307,6 +319,7 @@ export default function AddCategoryMachineFlow({
     compact = false,
     initialData,
     categoryIdForEdit,
+    onCloseGuardChange,
 }: AddCategoryMachineFlowProps) {
     const [categoryName, setCategoryName] = useState("");
     const [categoryImage, setCategoryImage] = useState<File | null>(null);
@@ -323,7 +336,7 @@ export default function AddCategoryMachineFlow({
             description: "",
             galleryImages: [],
             spareParts: [
-                { id: "sp1", name: "", lifeTimeValue: "0", lifeTimeUnit: "Hrs", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
+                { id: "sp1", name: "", klValue: "", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
             ],
         },
     ]);
@@ -331,6 +344,30 @@ export default function AddCategoryMachineFlow({
     const [editDataLoaded, setEditDataLoaded] = useState(false);
     const machinesSectionRef = useRef<HTMLDivElement>(null);
     const isEditMode = editDataLoaded && (!!categoryIdForEdit || !!initialData);
+
+    const [machinePositions, setMachinePositions] = useState<MachinePosition[]>([]);
+    const [showImageMapper, setShowImageMapper] = useState(false);
+
+    const savedMachines = machines.filter((m) => m.createdId);
+    const hasCategoryImage = !!(categoryImageUrl || categoryImage);
+    const positionsRequired = hasCategoryImage && savedMachines.length > 0;
+    const allPositionsMapped = positionsRequired && savedMachines.every((m) =>
+        machinePositions.some((p) => p.machine === m.createdId)
+    );
+
+    const closeBlocked = positionsRequired && !allPositionsMapped;
+
+    useEffect(() => {
+        onCloseGuardChange?.(closeBlocked);
+    }, [closeBlocked, onCloseGuardChange]);
+
+    const handleAttemptClose = useCallback(() => {
+        if (closeBlocked) {
+            toast.error("Please map all machine positions on the category image before closing.");
+            return;
+        }
+        onComplete?.();
+    }, [closeBlocked, onComplete]);
 
     useEffect(() => {
         if (editDataLoaded) return;
@@ -340,6 +377,7 @@ export default function AddCategoryMachineFlow({
             setCategoryImageUrl(mapped.categoryImageUrl);
             setCategoryId(mapped.categoryId);
             setMachines(mapped.machines);
+            setMachinePositions(mapped.machinePositions);
             setEditDataLoaded(true);
             return;
         }
@@ -358,6 +396,7 @@ export default function AddCategoryMachineFlow({
                 setCategoryImageUrl(mapped.categoryImageUrl);
                 setCategoryId(mapped.categoryId);
                 setMachines(mapped.machines);
+                setMachinePositions(mapped.machinePositions);
                 setEditDataLoaded(true);
             })
             .catch(() => {
@@ -571,8 +610,7 @@ export default function AddCategoryMachineFlow({
                     {
                         id: `sp_${Date.now()}`,
                         name: "",
-                        lifeTimeValue: "0",
-                        lifeTimeUnit: "Hrs",
+                        klValue: "",
                         imageFile: null,
                         parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
                     },
@@ -593,7 +631,7 @@ export default function AddCategoryMachineFlow({
                         description: "",
                         galleryImages: [],
                         spareParts: [
-                            { id: `sp_${Date.now()}`, name: "", lifeTimeValue: "0", lifeTimeUnit: "Hrs", imageFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }] },
+                            { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }] },
                         ],
                     },
                 ];
@@ -680,7 +718,12 @@ export default function AddCategoryMachineFlow({
                 const res = await fetch("/api/machines/add", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, category: categoryId, isActive: true }),
+                    body: JSON.stringify({
+                        name,
+                        category: categoryId,
+                        isActive: true,
+                        description: (m.description ?? "").trim(),
+                    }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -689,13 +732,6 @@ export default function AddCategoryMachineFlow({
                 const data = await res.json();
                 const machineId = data._id;
                 await uploadEntityImage("machine", machineId, m.imageFile!);
-                if ((m.description ?? "").trim()) {
-                    await fetch(`/api/machines/${machineId}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name, description: (m.description ?? "").trim() }),
-                    });
-                }
                 for (const gi of m.galleryImages) {
                     if (gi.file) {
                         await uploadMachineGalleryImage(machineId, gi.file);
@@ -740,8 +776,7 @@ export default function AddCategoryMachineFlow({
                             {
                                 id: `sp_${Date.now()}`,
                                 name: "",
-                                lifeTimeValue: "0",
-                                lifeTimeUnit: "Hrs",
+                                klValue: "",
                                 imageFile: null,
                                 parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
                             },
@@ -829,6 +864,16 @@ export default function AddCategoryMachineFlow({
         );
     }, []);
 
+    const isDuplicateKlValue = useCallback((klValue: string, currentSparePartId?: string) => {
+        const normalized = klValue.trim().toLowerCase();
+        if (!normalized) return false;
+        const matches = machines.flatMap((m) => m.spareParts).filter((sp) => {
+            if (currentSparePartId && sp.id === currentSparePartId) return false;
+            return (sp.klValue || "").trim().toLowerCase() === normalized;
+        });
+        return matches.length > 0;
+    }, [machines]);
+
     const handleDeleteSparePart = useCallback(async (machineRowId: string, sparePartId: string) => {
         const sp = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId);
         if (!sp?.createdId) return;
@@ -876,20 +921,25 @@ export default function AddCategoryMachineFlow({
         const sp = machine?.spareParts.find((s) => s.id === sparePartId);
         if (!sp?.createdId) return;
         const name = sp.name.trim();
+        const klValue = sp.klValue.trim();
         if (!name) {
             toast.error("Spare part name is required");
             return;
         }
+        if (!klValue) {
+            toast.error("KL Value is required");
+            return;
+        }
+        if (isDuplicateKlValue(klValue, sp.id)) {
+            toast.error("KL Value must be unique");
+            return;
+        }
         setLoading(`spare-update-${sparePartId}`);
         try {
-            const lifeTime = {
-                value: parseInt(sp.lifeTimeValue, 10) || 0,
-                unit: sp.lifeTimeUnit || "Hrs",
-            };
             const res = await fetch(`/api/machines/spare-parts/${sp.createdId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, lifeTime }),
+                body: JSON.stringify({ name, klValue }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -928,7 +978,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, onSuccess]);
 
     const handleUpdatePart = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
@@ -1006,7 +1056,9 @@ export default function AddCategoryMachineFlow({
             toast.error("Save the machine first");
             return;
         }
-        const validSpareParts = machine.spareParts.filter((sp) => sp.name.trim() && sp.imageFile && !sp.createdId);
+        const validSpareParts = machine.spareParts.filter(
+            (sp) => sp.name.trim() && sp.klValue.trim() && sp.imageFile && !sp.createdId
+        );
         if (validSpareParts.length === 0) {
             toast.error("Add at least one spare part with name and image to save");
             return;
@@ -1015,14 +1067,14 @@ export default function AddCategoryMachineFlow({
         try {
             for (const sp of validSpareParts) {
                 const name = sp.name.trim();
-                const lifeTime = {
-                    value: parseInt(sp.lifeTimeValue, 10) || 0,
-                    unit: sp.lifeTimeUnit || "Hrs",
-                };
+                const klValue = sp.klValue.trim();
+                if (isDuplicateKlValue(klValue, sp.id)) {
+                    throw new Error(`KL Value "${klValue}" must be unique`);
+                }
                 const res = await fetch("/api/machines/spare-parts", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, machineID: machine.createdId, lifeTime }),
+                    body: JSON.stringify({ name, klValue, machineID: machine.createdId }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -1059,8 +1111,7 @@ export default function AddCategoryMachineFlow({
                                   {
                                       id: `sp_${Date.now()}`,
                                       name: "",
-                                      lifeTimeValue: "0",
-                                      lifeTimeUnit: "Hrs",
+                                      klValue: "",
                                       imageFile: null,
                                       parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
                                   },
@@ -1076,7 +1127,24 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, onSuccess]);
+
+    const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
+        if (!categoryId) return;
+        const res = await fetch(`/api/machines/machine-category/${categoryId}/positions`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machinePositions: positions }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to save positions");
+        }
+        setMachinePositions(positions);
+        setShowImageMapper(false);
+        toast.success("Machine positions saved successfully.");
+        onSuccess?.();
+    }, [categoryId, onSuccess]);
 
     const containerClass = compact
         ? "flex flex-col gap-5"
@@ -1410,21 +1478,13 @@ export default function AddCategoryMachineFlow({
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
-                                                    <Label className="text-[#a1a1a1] text-[11px]">Lifetime (value / unit)</Label>
-                                                    <div className="flex gap-1.5">
-                                                        <Input
-                                                            value={sp.lifeTimeValue}
-                                                            onChange={(e) => updateSparePart(m.id, sp.id, "lifeTimeValue", e.target.value)}
-                                                            placeholder="0"
-                                                            className="bg-[#0d0d0d] border-[#404040] h-[36px] rounded-[6px] px-2 text-white text-[12px]"
-                                                        />
-                                                        <Input
-                                                            value={sp.lifeTimeUnit}
-                                                            onChange={(e) => updateSparePart(m.id, sp.id, "lifeTimeUnit", e.target.value)}
-                                                            placeholder="Hrs"
-                                                            className="bg-[#0d0d0d] border-[#404040] h-[36px] rounded-[6px] px-2 text-white text-[12px] w-16"
-                                                        />
-                                                    </div>
+                                                    <Label className="text-[#a1a1a1] text-[11px]">KL Value (Model Number)</Label>
+                                                    <Input
+                                                        value={sp.klValue}
+                                                        onChange={(e) => updateSparePart(m.id, sp.id, "klValue", e.target.value)}
+                                                        placeholder="Unique ID"
+                                                        className="bg-[#0d0d0d] border-[#404040] h-[36px] rounded-[6px] px-2 text-white text-[12px] placeholder:text-[#525252]"
+                                                    />
                                                 </div>
                                             </div>
                                             <ImageUploadBox
@@ -1456,7 +1516,8 @@ export default function AddCategoryMachineFlow({
                                                         onClick={() => handleUpdateSparePart(m.id, sp.id)}
                                                         disabled={
                                                             loading === `spare-update-${sp.id}` ||
-                                                            !sp.name.trim()
+                                                            !sp.name.trim() ||
+                                                            !sp.klValue.trim()
                                                         }
                                                         className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] w-fit text-xs"
                                                     >
@@ -1575,7 +1636,7 @@ export default function AddCategoryMachineFlow({
                                         onClick={() => handleSaveSparePartsAndParts(m.id)}
                                         disabled={
                                             loading === `spare-${m.id}` ||
-                                            m.spareParts.every((s) => s.createdId || !s.name.trim() || !s.imageFile)
+                                            m.spareParts.every((s) => s.createdId || !s.name.trim() || !s.klValue.trim() || !s.imageFile)
                                         }
                                         className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] w-fit"
                                     >
@@ -1607,18 +1668,86 @@ export default function AddCategoryMachineFlow({
                 </div>
             )}
 
-            {/* Done - close modal when user is finished */}
-            {categoryId && onComplete && (
-                <div className="border-t border-[#262626] pt-5 flex justify-end">
+            {/* 3. Map Machine Positions - shown when category image + saved machines exist */}
+            {categoryId && hasCategoryImage && savedMachines.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-[#262626] pt-5">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-white text-base font-medium">3. Map Machine Positions</h3>
+                        {allPositionsMapped && (
+                            <span className="text-[#22c55e] text-xs font-medium flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" /> All mapped
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-[#a1a1a1] text-sm">
+                        Associate each machine with its location on the category image. This is required before closing.
+                    </p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {savedMachines.map((m) => {
+                            const isMapped = machinePositions.some((p) => p.machine === m.createdId);
+                            return (
+                                <div
+                                    key={m.id}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border ${
+                                        isMapped
+                                            ? "border-[#22c55e]/40 bg-[#22c55e]/10 text-[#22c55e]"
+                                            : "border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444]"
+                                    }`}
+                                >
+                                    <MapPin className="w-3 h-3" />
+                                    {m.name || "Unnamed"}
+                                    <span className="ml-1 text-[10px] opacity-70">
+                                        {isMapped ? "mapped" : "not mapped"}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
                     <Button
                         type="button"
-                        onClick={() => onComplete()}
+                        onClick={() => setShowImageMapper(true)}
+                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] w-fit flex items-center gap-2"
+                    >
+                        <MapPin className="w-4 h-4" />
+                        {allPositionsMapped ? "Edit Machine Positions" : "Open Image Mapper"}
+                    </Button>
+                </div>
+            )}
+
+            {/* Done - close modal when user is finished */}
+            {categoryId && onComplete && (
+                <div className="border-t border-[#262626] pt-5 flex justify-end gap-3">
+                    {positionsRequired && !allPositionsMapped && (
+                        <span className="text-[#ef4444] text-xs self-center mr-auto">
+                            Map all machine positions before closing
+                        </span>
+                    )}
+                    <Button
+                        type="button"
+                        onClick={handleAttemptClose}
                         variant="outline"
                         className="border-[#404040] text-white hover:bg-[#262626] rounded-[10px]"
                     >
                         Done
                     </Button>
                 </div>
+            )}
+
+            {/* Full-screen Image Mapper overlay */}
+            {showImageMapper && categoryId && (categoryImageUrl || categoryImage) && (
+                <MachineImageMapper
+                    categoryImageUrl={
+                        categoryImageUrl || (categoryImage ? URL.createObjectURL(categoryImage) : "")
+                    }
+                    machines={savedMachines.map((m) => ({
+                        id: m.createdId!,
+                        name: m.name,
+                        imageUrl: m.imageUrl,
+                    }))}
+                    initialPositions={machinePositions}
+                    onSave={handleSavePositions}
+                    onClose={() => setShowImageMapper(false)}
+                />
             )}
         </div>
     );

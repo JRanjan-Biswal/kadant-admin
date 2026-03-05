@@ -1,11 +1,16 @@
 "use client";
 
 import React from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface InsightSectionProps {
     title: string;
     onEdit?: () => void;
+    isEditing?: boolean;
+    onSave?: () => void;
+    onCancel?: () => void;
+    saving?: boolean;
     children: React.ReactNode;
     className?: string;
 }
@@ -13,6 +18,10 @@ interface InsightSectionProps {
 const InsightSection: React.FC<InsightSectionProps> = ({
     title,
     onEdit,
+    isEditing,
+    onSave,
+    onCancel,
+    saving,
     children,
     className = "",
 }) => {
@@ -22,15 +31,39 @@ const InsightSection: React.FC<InsightSectionProps> = ({
         >
             <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-                {onEdit && (
+                {isEditing ? (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={onCancel}
+                            disabled={saving}
+                            className="border-border"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={onSave}
+                            disabled={saving}
+                            className="gap-2"
+                        >
+                            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                            Save
+                        </Button>
+                    </div>
+                ) : onEdit ? (
                     <button
+                        type="button"
                         onClick={onEdit}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer"
                     >
                         <Pencil className="w-3.5 h-3.5" />
                         Edit Section
                     </button>
-                )}
+                ) : null}
             </div>
             {children}
         </div>

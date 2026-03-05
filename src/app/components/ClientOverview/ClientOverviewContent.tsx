@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, Fragment } from "react";
+import { useState, useMemo, useCallback, Fragment, useRef } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
@@ -120,6 +120,7 @@ export default function ClientOverviewContent({
     const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
     const [loadingParts, setLoadingParts] = useState(false);
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    const editCloseBlockedRef = useRef(false);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -699,16 +700,36 @@ export default function ClientOverviewContent({
             </div>
 
             {/* Edit Category modal – full hierarchy pre-populated */}
-            <Dialog open={!!editingCategoryId} onOpenChange={(open) => !open && setEditingCategoryId(null)}>
+            <Dialog open={!!editingCategoryId} onOpenChange={(open) => {
+                if (!open && editCloseBlockedRef.current) {
+                    toast.error("Please associate all machine positions with the category image before closing.");
+                    return;
+                }
+                if (!open) { editCloseBlockedRef.current = false; setEditingCategoryId(null); }
+            }}>
                 <DialogContent
                     className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                     showCloseButton={false}
+                    onInteractOutside={(e) => { if (editCloseBlockedRef.current) e.preventDefault(); }}
+                    onEscapeKeyDown={(e) => {
+                        if (editCloseBlockedRef.current) {
+                            e.preventDefault();
+                            toast.error("Please associate all machine positions with the category image before closing.");
+                        }
+                    }}
                 >
                     <div className="bg-[#171717] border-b border-[#262626] flex h-[64px] items-center justify-between px-6 shrink-0">
                         <h2 className="text-white text-[20px] font-medium">Edit Category, Machine, Spare Parts &amp; Parts</h2>
                         <button
                             type="button"
-                            onClick={() => setEditingCategoryId(null)}
+                            onClick={() => {
+                                if (editCloseBlockedRef.current) {
+                                    toast.error("Please associate all machine positions with the category image before closing.");
+                                    return;
+                                }
+                                editCloseBlockedRef.current = false;
+                                setEditingCategoryId(null);
+                            }}
                             className="w-8 h-8 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
                             aria-label="Close"
                         >
@@ -721,7 +742,8 @@ export default function ClientOverviewContent({
                                 compact={false}
                                 categoryIdForEdit={editingCategoryId}
                                 onSuccess={() => router.refresh()}
-                                onComplete={() => setEditingCategoryId(null)}
+                                onComplete={() => { editCloseBlockedRef.current = false; setEditingCategoryId(null); }}
+                                onCloseGuardChange={(blocked) => { editCloseBlockedRef.current = blocked; }}
                             />
                         )}
                     </div>
