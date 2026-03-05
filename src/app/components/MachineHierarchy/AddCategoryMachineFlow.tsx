@@ -201,6 +201,7 @@ interface MachineGalleryImage {
 interface MachineRow {
     id: string;
     name: string;
+    installationDate: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -236,6 +237,7 @@ export interface CategoryFullPayload {
     machines?: Array<{
         _id: string;
         name: string;
+        installationDate?: string | null;
         imageUrl?: string | null;
         description?: string | null;
         galleryWithUrls?: Array<{ imageName?: string; version?: number; imageUrl?: string }>;
@@ -261,6 +263,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
     const machines: MachineRow[] = machinesList.map((m) => ({
         id: m._id,
         name: m.name ?? "",
+        installationDate: m.installationDate ? new Date(m.installationDate).toISOString().slice(0, 10) : "",
         imageFile: null,
         createdId: m._id,
         imageUrl: m.imageUrl ?? null,
@@ -301,6 +304,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             {
                 id: "m1",
                 name: "",
+                installationDate: "",
                 imageFile: null,
                 description: "",
                 galleryImages: [],
@@ -332,6 +336,7 @@ export default function AddCategoryMachineFlow({
         {
             id: "m1",
             name: "",
+            installationDate: "",
             imageFile: null,
             description: "",
             galleryImages: [],
@@ -557,7 +562,11 @@ export default function AddCategoryMachineFlow({
             const res = await fetch(`/api/machines/${machine.createdId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, description: machine.description ?? "" }),
+                body: JSON.stringify({
+                    name,
+                    description: machine.description ?? "",
+                    installationDate: machine.installationDate || null,
+                }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -603,6 +612,7 @@ export default function AddCategoryMachineFlow({
             {
                 id: `m_${Date.now()}`,
                 name: "",
+                installationDate: "",
                 imageFile: null,
                 description: "",
                 galleryImages: [],
@@ -627,6 +637,7 @@ export default function AddCategoryMachineFlow({
                     {
                         id: `m_${Date.now()}`,
                         name: "",
+                        installationDate: "",
                         imageFile: null,
                         description: "",
                         galleryImages: [],
@@ -723,6 +734,7 @@ export default function AddCategoryMachineFlow({
                         category: categoryId,
                         isActive: true,
                         description: (m.description ?? "").trim(),
+                        installationDate: m.installationDate || null,
                     }),
                 });
                 if (!res.ok) {
@@ -1314,6 +1326,15 @@ export default function AddCategoryMachineFlow({
                                         onChange={(e) => updateMachine(m.id, "name", e.target.value)}
                                         placeholder="e.g. Hydrapulper"
                                         className="bg-[#171717] border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252]"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[#a1a1a1] text-[12px]">Installation Date</Label>
+                                    <Input
+                                        type="date"
+                                        value={m.installationDate || ""}
+                                        onChange={(e) => updateMachine(m.id, "installationDate", e.target.value)}
+                                        className="bg-[#171717] border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px]"
                                     />
                                 </div>
                                 <ImageUploadBox

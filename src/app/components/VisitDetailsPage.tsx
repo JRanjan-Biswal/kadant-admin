@@ -85,13 +85,9 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
         }
     }, [clientID]);
 
-    useEffect(() => {
-        fetchSiteVisits();
-    }, [fetchSiteVisits]);
+    useEffect(() => { fetchSiteVisits() }, [fetchSiteVisits]);
 
-    const handleFilterChange = (period: string) => {
-        setFilterPeriod(period);
-    };
+    const handleFilterChange = (period: string) => { setFilterPeriod(period) };
 
     const getFilteredHistory = () => {
         if (filterPeriod === "all") return visitHistory;
@@ -110,26 +106,6 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             const visitDate = parseISO(visit.lastVisitOn);
             return visitDate >= cutoffDate;
         });
-    };
-
-    const getVisitTypeBadge = (visitType: string[]) => {
-        if (!visitType || visitType.length === 0) return null;
-        const type = visitType[0];
-
-        if (type === "Process Audit") {
-            return (
-                <div className="bg-[rgba(255,105,0,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap">
-                    <p className="text-[#ff8904] text-[13px] leading-[14px] font-normal">Process Audit</p>
-                </div>
-            );
-        } else if (type === "Mechanical Audit") {
-            return (
-                <div className="bg-[rgba(43,127,255,0.2)] flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap">
-                    <p className="text-[#51a2ff] text-[13px] leading-[14px] font-normal">Mechanical Audit</p>
-                </div>
-            );
-        }
-        return null;
     };
 
     const handleViewDetail = (visitID: string) => {
@@ -389,8 +365,20 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                     </div>
                                 </div>
                                 <div className="flex justify-center items-center self-stretch w-[180px]">
-                                    <div className="flex h-full items-center justify-center px-3 py-4">
-                                        {getVisitTypeBadge(visit.visitType || [])}
+                                    <div className="block h-full items-center justify-center px-3 py-4">
+                                        {
+                                            (visit.visitType?.length) ? (
+                                                visit.visitType.map((type, index) => (
+                                                    <div className="flex gap-2" key={index}>
+                                                        <div className={`${type === "Process Audit" ? "bg-[rgba(255,105,0,0.2)]" : "bg-[rgba(43,127,255,0.2)]"} ${index == 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
+                                                            <p className="text-[#ff8904] text-[13px] leading-[14px] font-normal">{type}</p>
+                                                        </div>
+                                                    </div>
+                                                ))
+
+                                            ) 
+                                            : null
+                                        }
                                     </div>
                                 </div>
                                 <div className="flex justify-center items-center self-stretch">

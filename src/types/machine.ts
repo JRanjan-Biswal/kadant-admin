@@ -3,6 +3,10 @@ export interface Machine {
     name: string;
     category: string;
     isActive: boolean;
+    status?: "healthy" | "warning" | "critical";
+    healthPercentage?: number;
+    description?: string;
+    installationDate?: string | null;
     createdAt: string;
     updatedAt: string;
 }

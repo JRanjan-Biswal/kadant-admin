@@ -598,7 +598,17 @@ export default function ClientOverviewContent({
                                                                                 </div>
                                                                             </td>
                                                                             <td className="py-3 px-4">
-                                                                                <Badge className="bg-[#00a82d]/20 text-[#00a82d] border border-[#00a82d]/40 text-xs rounded-2xl">Active</Badge>
+                                                                                <div className="flex flex-col gap-1.5">
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        {getStatusIcon(machine.status)}
+                                                                                        <Badge className={`${getStatusColor(machine.status)} text-xs border font-medium rounded-2xl`}>
+                                                                                            {getStatusText(machine.status)}
+                                                                                        </Badge>
+                                                                                    </div>
+                                                                                    <Badge className={`text-xs border w-fit ${machine.isActive !== false ? "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40" : "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40"}`}>
+                                                                                        {machine.isActive !== false ? "Active" : "Inactive"}
+                                                                                    </Badge>
+                                                                                </div>
                                                                             </td>
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
                                                                             <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>

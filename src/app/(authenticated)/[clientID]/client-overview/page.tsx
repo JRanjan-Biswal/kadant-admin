@@ -114,12 +114,42 @@ export default async function ClientOverview({ params }: PageProps) {
         redirect('/client-management');
     }
 
+    const machineHealthMap = new Map<
+        string,
+        { status: "healthy" | "warning" | "critical"; healthPercentage: number }
+    >();
+
+    ((clientDetails as { machines?: Array<{ machine?: { _id?: string }, status?: "healthy" | "warning" | "critical", healthPercentage?: number }> }).machines || [])
+        .forEach((clientMachine) => {
+            const machineId = clientMachine?.machine?._id;
+            if (!machineId) return;
+            machineHealthMap.set(machineId.toString(), {
+                status: clientMachine?.status || "healthy",
+                healthPercentage:
+                    typeof clientMachine?.healthPercentage === "number"
+                        ? clientMachine.healthPercentage
+                        : 100,
+            });
+        });
+
+    const categoriesWithMachineHealth = (categories || []).map((category: { machines?: Array<{ _id: string }> }) => ({
+        ...category,
+        machines: (category.machines || []).map((machine: { _id: string }) => {
+            const health = machineHealthMap.get(machine._id?.toString());
+            return {
+                ...machine,
+                status: health?.status || "healthy",
+                healthPercentage: health?.healthPercentage ?? 100,
+            };
+        }),
+    }));
+
     return (
         <ClientOverviewContent 
             clientDetails={clientDetails}
             allClients={allClients}
             currentClientId={clientID}
-            categories={categories}
+            categories={categoriesWithMachineHealth}
         />
     );
 }

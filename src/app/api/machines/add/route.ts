@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, category, isActive, description } = body;
+        const { name, category, isActive, description, installationDate } = body;
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/add`, {
             method: "POST",
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${currentUser.accessToken}`,
             },
-            body: JSON.stringify({ name, category, isActive, description }),
+            body: JSON.stringify({ name, category, isActive, description, installationDate }),
         });
 
         if (!response.ok) {
