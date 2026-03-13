@@ -24,6 +24,7 @@ export interface Client {
         perUnit: string;
     }
     facilityImage?: string;
+    facilityImageUrl?: string;
     createdAt: string;
     updatedAt: string;
     // Extended properties from backend

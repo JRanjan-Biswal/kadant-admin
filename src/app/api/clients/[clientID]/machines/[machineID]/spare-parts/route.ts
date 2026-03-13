@@ -20,22 +20,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
         const { clientID, machineID } = await context.params;
 
-        const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientID}/machines/${machineID}/spare-parts`,
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.accessToken}`,
-                },
-            }
-        );
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client/${clientID}/machines/${machineID}/spare-parts`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.accessToken}`,
+            },
+        });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`) }
 
         const data = await response.json();
+        console.log(data, "data");
         return NextResponse.json(data);
     } catch (error) {
         console.error("Error fetching spare parts:", error);

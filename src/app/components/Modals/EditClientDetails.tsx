@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 
 interface EditClientDetailsProps {
     client: Client;
@@ -47,7 +48,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
     const [isOpen, setIsOpen] = useState(false);
     const { data: session } = useSession();
     const [isReadOnly, setIsReadOnly] = useState(false);
-    const [facilityImage, setFacilityImage] = useState<string | null>(client?.facilityImage || null);
+    const [facilityImage, setFacilityImage] = useState<string | null>(client?.facilityImageUrl || null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     useEffect(() => {
@@ -355,8 +356,10 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             <div className="relative shrink-0">
                                 <div className="w-40 h-24 border border-border rounded-md overflow-hidden">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={facilityImage}
+                                    <Image
+                                        width={160}
+                                        height={90}
+                                        src={facilityImage || ''}
                                         alt="Facility"
                                         className="w-full h-full object-cover"
                                     />

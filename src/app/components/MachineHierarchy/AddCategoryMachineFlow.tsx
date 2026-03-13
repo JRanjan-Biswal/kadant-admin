@@ -1360,7 +1360,7 @@ export default function AddCategoryMachineFlow({
                                     className="bg-[#171717] border border-[#404040] rounded-[8px] px-3 py-2 text-white text-[13px] placeholder:text-[#525252] resize-y min-h-[60px]"
                                 />
                             </div>
-                            <div className="flex flex-col gap-2">
+                            {/* <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-[#a1a1a1] text-[12px]">Additional images</Label>
                                     <Button
@@ -1415,7 +1415,7 @@ export default function AddCategoryMachineFlow({
                                         ))}
                                     </div>
                                 )}
-                            </div>
+                            </div> */}
                                             {m.createdId && (
                                                 <div className="flex items-center gap-2">
                                                     <Button

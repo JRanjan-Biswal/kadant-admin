@@ -10,6 +10,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { X, GripVertical, Check, Loader2, RotateCcw, ChevronDown } from "lucide-react";
+import Image from "next/image";
 
 export interface MachinePosition {
     machine: string;
@@ -434,7 +435,9 @@ function MachineImageMapperContent({
                     }}
                 >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
+                        width={1500}
+                        height={1500}
                         src={categoryImageUrl}
                         alt="Category"
                         draggable={false}
@@ -442,6 +445,7 @@ function MachineImageMapperContent({
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
+                            objectPosition: "bottom",
                             pointerEvents: "none",
                             userSelect: "none",
                         }}
