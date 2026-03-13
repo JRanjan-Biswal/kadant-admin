@@ -343,7 +343,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
     return (
         <div className="flex flex-col gap-4 p-4 pb-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-foreground">Machine Insights</h1>
+                <h1 className="text-[28px] leading-[42px] font-lato font-normal text-[#F3F4F6]">Machine Insights</h1>
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">Select Category</span>

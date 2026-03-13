@@ -19,7 +19,7 @@ const SparePartSelector: React.FC<SparePartSelectorProps> = ({
     onSelect,
 }) => {
     return (
-        <div className="bg-card border border-border rounded-xl px-6 py-4">
+        <div className="bg-[#171717] border border-[#262626] rounded-[10px] px-6 py-4">
             <p className="text-sm text-muted-foreground font-medium mb-3">
                 Select Spare Part
             </p>
@@ -32,8 +32,8 @@ const SparePartSelector: React.FC<SparePartSelectorProps> = ({
                     >
                         <span
                             className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${selectedId === part.id
-                                    ? "border-orange bg-transparent"
-                                    : "border-muted-foreground bg-transparent"
+                                ? "border-orange bg-transparent"
+                                : "border-muted-foreground bg-transparent"
                                 }`}
                         >
                             {selectedId === part.id && (
@@ -42,8 +42,8 @@ const SparePartSelector: React.FC<SparePartSelectorProps> = ({
                         </span>
                         <span
                             className={`text-sm transition-colors ${selectedId === part.id
-                                    ? "text-foreground font-medium"
-                                    : "text-muted-foreground group-hover:text-foreground"
+                                ? "text-foreground font-medium"
+                                : "text-[#717171] group-hover:text-foreground"
                                 }`}
                         >
                             {part.name}
