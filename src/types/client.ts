@@ -5,7 +5,10 @@ export interface Client {
     name: string;
     isActive: boolean;
     clientOwnership: Admin;
+    /** Legacy string region field (old data). Use `getClientRegion(client)` helper to resolve. */
     region?: string;
+    /** ObjectId ref to Regions collection (new data). Resolved to string via helper. */
+    regions?: string;
     customer?: string;
     location: {
         address: string;

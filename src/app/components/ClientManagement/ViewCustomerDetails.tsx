@@ -16,11 +16,13 @@ import {
 } from "lucide-react";
 import ChangeIdModal from "./modals/ChangeIdModal";
 import ChangePasswordModal from "./modals/ChangePasswordModal";
+import ChangeRegionModal from "./modals/ChangeRegionModal";
 import ConfirmationDialog from "./modals/ConfirmationDialog";
 import { 
     updateClientUsername, 
     updateClientPassword, 
-    updateClientVisibility 
+    updateClientVisibility,
+    updateClientRegion,
 } from "@/actions/update-client-credentials";
 
 interface ViewCustomerDetailsProps {
@@ -135,10 +137,12 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
             ? client.clientOwnership.email 
             : "N/A"
     );
+    const [currentRegion, setCurrentRegion] = useState(client.region || "");
     
     // Modal states
     const [showChangeIdModal, setShowChangeIdModal] = useState(false);
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [showChangeRegionModal, setShowChangeRegionModal] = useState(false);
     const [showVisibilityConfirmation, setShowVisibilityConfirmation] = useState(false);
     const [pendingVisibilityChange, setPendingVisibilityChange] = useState<boolean | null>(null);
     
@@ -170,6 +174,17 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
             toast.success(result.message || "Password updated successfully");
         } else {
             toast.error(result.error || "Failed to update password");
+            throw new Error(result.error);
+        }
+    };
+
+    const handleSaveRegion = async (region: string) => {
+        const result = await updateClientRegion(client._id, region);
+        if (result.success) {
+            setCurrentRegion(region);
+            toast.success(result.message || "Region updated successfully");
+        } else {
+            toast.error(result.error || "Failed to update region");
             throw new Error(result.error);
         }
     };
@@ -255,7 +270,7 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                 <InfoCard 
                                     icon={Globe} 
                                     label="Region" 
-                                    value={client.region || "N/A"}
+                                    value={currentRegion || "N/A"}
                                     iconColor="text-[#d45815]"
                                 />
                                 
@@ -307,6 +322,11 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                     value="••••••••••"
                                     onEdit={handleEditPassword}
                                 />
+                                <AccountRow
+                                    label="Change Region"
+                                    value={currentRegion || "Not set"}
+                                    onEdit={() => setShowChangeRegionModal(true)}
+                                />
                                 <div className="flex items-center justify-between">
                                     <span className="text-[#a1a1a1] text-base leading-6">Account Visibility</span>
                                     <VisibilityToggle 
@@ -333,6 +353,13 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                 open={showChangePasswordModal}
                 onOpenChange={setShowChangePasswordModal}
                 onSave={handleSavePassword}
+            />
+
+            <ChangeRegionModal
+                open={showChangeRegionModal}
+                onOpenChange={setShowChangeRegionModal}
+                currentRegion={currentRegion}
+                onSave={handleSaveRegion}
             />
 
             <ConfirmationDialog

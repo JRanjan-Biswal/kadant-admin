@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, memo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin } from "lucide-react";
+import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video } from "lucide-react";
 import { toast } from "sonner";
 import MachineImageMapper, { type MachinePosition } from "./MachineImageMapper";
 
@@ -179,6 +179,110 @@ const ImageUploadBox = memo(function ImageUploadBox({
     );
 });
 
+/** Video upload with optional existing URL, compact layout, and remove/replace overlay. */
+const VideoUploadBox = memo(function VideoUploadBox({
+    file,
+    onFileChange,
+    label,
+    existingUrl,
+    onDelete,
+    isDeleting,
+}: {
+    file: File | null;
+    onFileChange: (f: File | null) => void;
+    label: string;
+    existingUrl?: string | null;
+    onDelete?: () => void;
+    isDeleting?: boolean;
+}) {
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        if (!file) {
+            setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    const showPreview = !!previewUrl || (!!existingUrl && !file);
+    const previewSrc = previewUrl || existingUrl || null;
+    const handleRemove = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (file) {
+            onFileChange(null);
+        } else if (existingUrl && onDelete) {
+            onDelete();
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <Label className="text-[#a1a1a1] text-[12px]">{label}</Label>
+            {showPreview && previewSrc ? (
+                <div className="border border-[#404040] rounded-[8px] overflow-hidden bg-[#171717] relative group">
+                    <video
+                        src={previewSrc}
+                        controls
+                        className="w-full max-h-[160px] object-contain"
+                        preload="metadata"
+                    />
+                    {file && (
+                        <span className="text-white text-[10px] truncate max-w-full block px-2 py-1 bg-black/60">
+                            {file.name}
+                        </span>
+                    )}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                inputRef.current?.click();
+                            }}
+                            className="flex items-center justify-center w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                            title="Replace video"
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleRemove}
+                            disabled={isDeleting}
+                            className="flex items-center justify-center w-7 h-7 rounded-full bg-black/60 hover:bg-[#bf1e21] text-white disabled:opacity-50"
+                            title="Remove video"
+                        >
+                            {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                        </button>
+                    </div>
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+                    />
+                </div>
+            ) : (
+                <label className="border border-dashed border-[#404040] rounded-[8px] flex items-center justify-center overflow-hidden bg-[#171717] cursor-pointer hover:border-[#505050] min-h-[80px]">
+                    <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+                    />
+                    <span className="text-[#a1a1a1] text-[12px] flex items-center gap-2 py-4">
+                        <Video className="w-4 h-4" /> Upload Video (MP4, WebM, max 50MB)
+                    </span>
+                </label>
+            )}
+        </div>
+    );
+});
+
 export interface AddCategoryMachineFlowProps {
     onSuccess?: () => void;
     onComplete?: () => void;
@@ -201,6 +305,7 @@ interface MachineGalleryImage {
 interface MachineRow {
     id: string;
     name: string;
+    modelNumber: string;
     installationDate: string;
     imageFile: File | null;
     createdId?: string;
@@ -217,6 +322,8 @@ interface SparePartRow {
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
+    optimalStateVideoFile: File | null;
+    optimalStateVideoUrl?: string | null;
     parts: PartRow[];
 }
 
@@ -226,6 +333,8 @@ interface PartRow {
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
+    optimalStateVideoFile: File | null;
+    optimalStateVideoUrl?: string | null;
 }
 
 /** Full category hierarchy from API (GET machine-category/:id/full). */
@@ -237,6 +346,7 @@ export interface CategoryFullPayload {
     machines?: Array<{
         _id: string;
         name: string;
+        modelNumber?: string | null;
         installationDate?: string | null;
         imageUrl?: string | null;
         description?: string | null;
@@ -247,7 +357,8 @@ export interface CategoryFullPayload {
             klValue?: string;
             lifeTime?: { value?: number; unit?: string };
             imageUrl?: string | null;
-            parts?: Array<{ _id: string; name: string; imageUrl?: string | null }>;
+            optimalStateVideoUrl?: string | null;
+            parts?: Array<{ _id: string; name: string; imageUrl?: string | null; optimalStateVideoUrl?: string | null }>;
         }>;
     }>;
 }
@@ -263,6 +374,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
     const machines: MachineRow[] = machinesList.map((m) => ({
         id: m._id,
         name: m.name ?? "",
+        modelNumber: m.modelNumber ?? "",
         installationDate: m.installationDate ? new Date(m.installationDate).toISOString().slice(0, 10) : "",
         imageFile: null,
         createdId: m._id,
@@ -280,12 +392,16 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
+            optimalStateVideoFile: null,
+            optimalStateVideoUrl: sp.optimalStateVideoUrl ?? null,
             parts: (sp.parts ?? []).map((p) => ({
                 id: p._id,
                 name: p.name ?? "",
                 imageFile: null,
                 createdId: p._id,
                 imageUrl: p.imageUrl ?? null,
+                optimalStateVideoFile: null,
+                optimalStateVideoUrl: p.optimalStateVideoUrl ?? null,
             })),
         })),
     }));
@@ -304,18 +420,32 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             {
                 id: "m1",
                 name: "",
+                modelNumber: "",
                 installationDate: "",
                 imageFile: null,
                 description: "",
                 galleryImages: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
+                    { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
         machinePositions,
     };
 }
+
+const defaultMachineRow = (): MachineRow => ({
+    id: `m_${Date.now()}`,
+    name: "",
+    modelNumber: "",
+    installationDate: "",
+    imageFile: null,
+    description: "",
+    galleryImages: [],
+    spareParts: [
+        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+    ],
+});
 
 export default function AddCategoryMachineFlow({
     onSuccess,
@@ -336,12 +466,13 @@ export default function AddCategoryMachineFlow({
         {
             id: "m1",
             name: "",
+            modelNumber: "",
             installationDate: "",
             imageFile: null,
             description: "",
             galleryImages: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", imageFile: null, parts: [{ id: "p1", name: "", imageFile: null }] },
+                { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -434,6 +565,32 @@ export default function AddCategoryMachineFlow({
         }
         const data = await res.json();
         return data as { imageUrl?: string };
+    }, []);
+
+    const uploadEntityVideo = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
+        const fd = new FormData();
+        fd.append("video", file);
+        fd.append("type", type);
+        fd.append("id", id);
+        const res = await fetch("/api/upload/entity-video", { method: "POST", body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Video upload failed");
+        }
+        const data = await res.json();
+        return data as { optimalStateVideoUrl?: string };
+    }, []);
+
+    const deleteEntityVideo = useCallback(async (type: "sparePart" | "part", id: string) => {
+        const res = await fetch("/api/upload/entity-video", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, id }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Video delete failed");
+        }
     }, []);
 
     const handleAddCategory = useCallback(async () => {
@@ -566,6 +723,7 @@ export default function AddCategoryMachineFlow({
                     name,
                     description: machine.description ?? "",
                     installationDate: machine.installationDate || null,
+                    modelNumber: machine.modelNumber ?? "",
                 }),
             });
             if (!res.ok) {
@@ -607,47 +765,13 @@ export default function AddCategoryMachineFlow({
     }, [machines, uploadEntityImage, uploadMachineGalleryImage, onSuccess]);
 
     const addMachine = useCallback(() => {
-        setMachines((prev) => [
-            ...prev,
-            {
-                id: `m_${Date.now()}`,
-                name: "",
-                installationDate: "",
-                imageFile: null,
-                description: "",
-                galleryImages: [],
-                spareParts: [
-                    {
-                        id: `sp_${Date.now()}`,
-                        name: "",
-                        klValue: "",
-                        imageFile: null,
-                        parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
-                    },
-                ],
-            },
-        ]);
+        setMachines((prev) => [...prev, defaultMachineRow()]);
     }, []);
 
     const removeMachine = useCallback((id: string) => {
         setMachines((prev) => {
             const next = prev.filter((m) => m.id !== id);
-            if (next.length === 0) {
-                return [
-                    {
-                        id: `m_${Date.now()}`,
-                        name: "",
-                        installationDate: "",
-                        imageFile: null,
-                        description: "",
-                        galleryImages: [],
-                        spareParts: [
-                            { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }] },
-                        ],
-                    },
-                ];
-            }
-            return next;
+            return next.length === 0 ? [defaultMachineRow()] : next;
         });
     }, []);
 
@@ -735,6 +859,7 @@ export default function AddCategoryMachineFlow({
                         isActive: true,
                         description: (m.description ?? "").trim(),
                         installationDate: m.installationDate || null,
+                        modelNumber: (m.modelNumber ?? "").trim() || null,
                     }),
                 });
                 if (!res.ok) {
@@ -790,7 +915,8 @@ export default function AddCategoryMachineFlow({
                                 name: "",
                                 klValue: "",
                                 imageFile: null,
-                                parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
+                                optimalStateVideoFile: null,
+                                parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                             },
                           ],
                       }
@@ -832,8 +958,8 @@ export default function AddCategoryMachineFlow({
                           ...m,
                           spareParts: m.spareParts.map((s) =>
                               s.id === sparePartId
-                                  ? { ...s, parts: [...s.parts, { id: `p_${Date.now()}`, name: "", imageFile: null }] }
-                                  : s
+                                  ? { ...s, parts: [...s.parts, { id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] }
+                                                  : s
                           ),
                       }
                     : m
@@ -959,13 +1085,16 @@ export default function AddCategoryMachineFlow({
             }
             if (sp.imageFile) {
                 await uploadEntityImage("sparePart", sp.createdId, sp.imageFile);
+            }
+            if (sp.optimalStateVideoFile) {
+                const vidResult = await uploadEntityVideo("sparePart", sp.createdId, sp.optimalStateVideoFile);
                 setMachines((prev) =>
                     prev.map((m) =>
                         m.id === machineRowId
                             ? {
                                   ...m,
                                   spareParts: m.spareParts.map((s) =>
-                                      s.id === sparePartId ? { ...s, imageUrl: undefined, imageFile: null } : s
+                                      s.id === sparePartId ? { ...s, imageUrl: undefined, imageFile: null, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? s.optimalStateVideoUrl } : s
                                   ),
                               }
                             : m
@@ -977,7 +1106,7 @@ export default function AddCategoryMachineFlow({
                         m.id === machineRowId
                             ? {
                                   ...m,
-                                  spareParts: m.spareParts.map((s) => (s.id === sparePartId ? { ...s, imageFile: null } : s)),
+                                  spareParts: m.spareParts.map((s) => (s.id === sparePartId ? { ...s, imageFile: null, optimalStateVideoFile: null } : s)),
                               }
                             : m
                     )
@@ -990,7 +1119,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, isDuplicateKlValue, uploadEntityImage, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, onSuccess]);
 
     const handleUpdatePart = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
@@ -1015,6 +1144,9 @@ export default function AddCategoryMachineFlow({
             }
             if (pt.imageFile) {
                 await uploadEntityImage("part", pt.createdId, pt.imageFile);
+            }
+            if (pt.optimalStateVideoFile) {
+                const vidResult = await uploadEntityVideo("part", pt.createdId, pt.optimalStateVideoFile);
                 setMachines((prev) =>
                     prev.map((m) =>
                         m.id === machineRowId
@@ -1025,7 +1157,7 @@ export default function AddCategoryMachineFlow({
                                           ? {
                                                 ...s,
                                                 parts: s.parts.map((p) =>
-                                                    p.id === partId ? { ...p, imageUrl: undefined, imageFile: null } : p
+                                                    p.id === partId ? { ...p, imageUrl: undefined, imageFile: null, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? p.optimalStateVideoUrl } : p
                                                 ),
                                             }
                                           : s
@@ -1044,7 +1176,7 @@ export default function AddCategoryMachineFlow({
                                       s.id === sparePartId
                                           ? {
                                                 ...s,
-                                                parts: s.parts.map((p) => (p.id === partId ? { ...p, imageFile: null } : p)),
+                                                parts: s.parts.map((p) => (p.id === partId ? { ...p, imageFile: null, optimalStateVideoFile: null } : p)),
                                             }
                                           : s
                                   ),
@@ -1060,7 +1192,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, onSuccess]);
+    }, [machines, uploadEntityImage, uploadEntityVideo, onSuccess]);
 
     const handleSaveSparePartsAndParts = useCallback(async (machineRowId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
@@ -1094,6 +1226,9 @@ export default function AddCategoryMachineFlow({
                 }
                 const spData = await res.json();
                 await uploadEntityImage("sparePart", spData._id, sp.imageFile!);
+                if (sp.optimalStateVideoFile) {
+                    await uploadEntityVideo("sparePart", spData._id, sp.optimalStateVideoFile);
+                }
                 const validParts = sp.parts.filter((pt) => pt.name.trim() && pt.imageFile);
                 for (const pt of validParts) {
                     const partName = pt.name.trim();
@@ -1112,6 +1247,9 @@ export default function AddCategoryMachineFlow({
                     }
                     const partData = await partRes.json();
                     await uploadEntityImage("part", partData._id, pt.imageFile!);
+                    if (pt.optimalStateVideoFile) {
+                        await uploadEntityVideo("part", partData._id, pt.optimalStateVideoFile);
+                    }
                 }
             }
             setMachines((prev) =>
@@ -1125,7 +1263,8 @@ export default function AddCategoryMachineFlow({
                                       name: "",
                                       klValue: "",
                                       imageFile: null,
-                                      parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null }],
+                                      optimalStateVideoFile: null,
+                                      parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                                   },
                               ],
                           }
@@ -1139,7 +1278,66 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, isDuplicateKlValue, uploadEntityImage, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, onSuccess]);
+
+    const handleDeleteSparePartVideo = useCallback(async (machineRowId: string, sparePartId: string) => {
+        const sp = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId);
+        if (!sp?.createdId || !sp.optimalStateVideoUrl) return;
+        setLoading(`delete-sp-video-${sparePartId}`);
+        try {
+            await deleteEntityVideo("sparePart", sp.createdId);
+            setMachines((prev) =>
+                prev.map((m) =>
+                    m.id === machineRowId
+                        ? {
+                              ...m,
+                              spareParts: m.spareParts.map((s) =>
+                                  s.id === sparePartId ? { ...s, optimalStateVideoUrl: null, optimalStateVideoFile: null } : s
+                              ),
+                          }
+                        : m
+                )
+            );
+            toast.success("Spare part video deleted.");
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to delete video");
+        } finally {
+            setLoading(null);
+        }
+    }, [machines, deleteEntityVideo]);
+
+    const handleDeletePartVideo = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
+        const pt = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId)?.parts.find((p) => p.id === partId);
+        if (!pt?.createdId || !pt.optimalStateVideoUrl) return;
+        setLoading(`delete-pt-video-${partId}`);
+        try {
+            await deleteEntityVideo("part", pt.createdId);
+            setMachines((prev) =>
+                prev.map((m) =>
+                    m.id === machineRowId
+                        ? {
+                              ...m,
+                              spareParts: m.spareParts.map((s) =>
+                                  s.id === sparePartId
+                                      ? {
+                                            ...s,
+                                            parts: s.parts.map((p) =>
+                                                p.id === partId ? { ...p, optimalStateVideoUrl: null, optimalStateVideoFile: null } : p
+                                            ),
+                                        }
+                                      : s
+                              ),
+                          }
+                        : m
+                )
+            );
+            toast.success("Part video deleted.");
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to delete video");
+        } finally {
+            setLoading(null);
+        }
+    }, [machines, deleteEntityVideo]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
         if (!categoryId) return;
@@ -1325,6 +1523,15 @@ export default function AddCategoryMachineFlow({
                                         value={m.name}
                                         onChange={(e) => updateMachine(m.id, "name", e.target.value)}
                                         placeholder="e.g. Hydrapulper"
+                                        className="bg-[#171717] border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252]"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[#a1a1a1] text-[12px]">Model Number</Label>
+                                    <Input
+                                        value={m.modelNumber}
+                                        onChange={(e) => updateMachine(m.id, "modelNumber", e.target.value)}
+                                        placeholder="e.g. KHP-3200"
                                         className="bg-[#171717] border-[#404040] h-[40px] rounded-[8px] px-3 text-white text-[13px] placeholder:text-[#525252]"
                                     />
                                 </div>
@@ -1529,6 +1736,14 @@ export default function AddCategoryMachineFlow({
                                                     )
                                                 }
                                             />
+                                            <VideoUploadBox
+                                                file={sp.optimalStateVideoFile}
+                                                onFileChange={(f) => updateSparePart(m.id, sp.id, "optimalStateVideoFile", f)}
+                                                label="Optimal State Spare Part (Video)"
+                                                existingUrl={sp.optimalStateVideoUrl}
+                                                onDelete={() => sp.createdId ? handleDeleteSparePartVideo(m.id, sp.id) : undefined}
+                                                isDeleting={loading === `delete-sp-video-${sp.id}`}
+                                            />
                                             {sp.createdId && (
                                                 <div className="flex items-center gap-2">
                                                     <Button
@@ -1576,76 +1791,86 @@ export default function AddCategoryMachineFlow({
                                                     </Button>
                                                 </div>
                                                 {sp.parts.map((pt) => (
-                                                    <div key={pt.id} className="flex items-center gap-2 bg-[#0d0d0d] rounded-[6px] p-2">
-                                                        <Input
-                                                            value={pt.name}
-                                                            onChange={(e) => updatePart(m.id, sp.id, pt.id, "name", e.target.value)}
-                                                            placeholder="e.g. Power Saver, Foil"
-                                                            className="bg-[#0a0a0a] border-[#404040] h-[32px] rounded-[4px] px-2 text-white text-[11px] flex-1"
-                                                        />
-                                                        <PartImageUpload
-                                                            file={pt.imageFile}
-                                                            onFileChange={(f) => updatePart(m.id, sp.id, pt.id, "imageFile", f)}
-                                                            existingUrl={pt.imageUrl}
-                                                            onClearExisting={() =>
-                                                                setMachines((prev) =>
-                                                                    prev.map((x) =>
-                                                                        x.id === m.id
-                                                                            ? {
-                                                                                  ...x,
-                                                                                  spareParts: x.spareParts.map((s) =>
-                                                                                      s.id === sp.id
-                                                                                          ? {
-                                                                                                ...s,
-                                                                                                parts: s.parts.map((p) =>
-                                                                                                    p.id === pt.id ? { ...p, imageFile: null, imageUrl: null } : p
-                                                                                                ),
-                                                                                            }
-                                                                                          : s
-                                                                                  ),
-                                                                              }
-                                                                            : x
+                                                    <div key={pt.id} className="flex flex-col gap-2 bg-[#0d0d0d] rounded-[6px] p-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                value={pt.name}
+                                                                onChange={(e) => updatePart(m.id, sp.id, pt.id, "name", e.target.value)}
+                                                                placeholder="e.g. Power Saver, Foil"
+                                                                className="bg-[#0a0a0a] border-[#404040] h-[32px] rounded-[4px] px-2 text-white text-[11px] flex-1"
+                                                            />
+                                                            <PartImageUpload
+                                                                file={pt.imageFile}
+                                                                onFileChange={(f) => updatePart(m.id, sp.id, pt.id, "imageFile", f)}
+                                                                existingUrl={pt.imageUrl}
+                                                                onClearExisting={() =>
+                                                                    setMachines((prev) =>
+                                                                        prev.map((x) =>
+                                                                            x.id === m.id
+                                                                                ? {
+                                                                                      ...x,
+                                                                                      spareParts: x.spareParts.map((s) =>
+                                                                                          s.id === sp.id
+                                                                                              ? {
+                                                                                                    ...s,
+                                                                                                    parts: s.parts.map((p) =>
+                                                                                                        p.id === pt.id ? { ...p, imageFile: null, imageUrl: null } : p
+                                                                                                    ),
+                                                                                                }
+                                                                                              : s
+                                                                                      ),
+                                                                                  }
+                                                                                : x
+                                                                        )
                                                                     )
-                                                                )
-                                                            }
-                                                        />
-                                                        {pt.createdId ? (
-                                                            <>
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleUpdatePart(m.id, sp.id, pt.id)}
-                                                                    disabled={loading === `part-update-${pt.id}` || !pt.name.trim()}
-                                                                    className="h-8 px-2 text-[#d45815] hover:bg-[#d45815]/10 text-xs"
-                                                                >
-                                                                    {loading === `part-update-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update"}
-                                                                </Button>
-                                                                {isEditMode && (
+                                                                }
+                                                            />
+                                                            {pt.createdId ? (
+                                                                <>
                                                                     <Button
                                                                         type="button"
                                                                         size="sm"
                                                                         variant="ghost"
-                                                                        onClick={() => handleDeletePart(m.id, sp.id, pt.id)}
-                                                                        disabled={loading === `delete-part-${pt.id}`}
-                                                                        className="h-8 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
-                                                                        title="Delete part"
+                                                                        onClick={() => handleUpdatePart(m.id, sp.id, pt.id)}
+                                                                        disabled={loading === `part-update-${pt.id}` || !pt.name.trim()}
+                                                                        className="h-8 px-2 text-[#d45815] hover:bg-[#d45815]/10 text-xs"
                                                                     >
-                                                                        {loading === `delete-part-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                                        {loading === `part-update-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update"}
                                                                     </Button>
-                                                                )}
-                                                            </>
-                                                        ) : null}
-                                                        {!pt.createdId && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removePart(m.id, sp.id, pt.id)}
-                                                                className="p-1 text-[#737373] hover:text-red-400 shrink-0"
-                                                                title="Remove part"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        )}
+                                                                    {isEditMode && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            onClick={() => handleDeletePart(m.id, sp.id, pt.id)}
+                                                                            disabled={loading === `delete-part-${pt.id}`}
+                                                                            className="h-8 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
+                                                                            title="Delete part"
+                                                                        >
+                                                                            {loading === `delete-part-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                                        </Button>
+                                                                    )}
+                                                                </>
+                                                            ) : null}
+                                                            {!pt.createdId && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removePart(m.id, sp.id, pt.id)}
+                                                                    className="p-1 text-[#737373] hover:text-red-400 shrink-0"
+                                                                    title="Remove part"
+                                                                >
+                                                                    <X className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <VideoUploadBox
+                                                            file={pt.optimalStateVideoFile}
+                                                            onFileChange={(f) => updatePart(m.id, sp.id, pt.id, "optimalStateVideoFile", f)}
+                                                            label="Optimal State Part (Video)"
+                                                            existingUrl={pt.optimalStateVideoUrl}
+                                                            onDelete={() => pt.createdId ? handleDeletePartVideo(m.id, sp.id, pt.id) : undefined}
+                                                            isDeleting={loading === `delete-pt-video-${pt.id}`}
+                                                        />
                                                     </div>
                                                 ))}
                                             </div>

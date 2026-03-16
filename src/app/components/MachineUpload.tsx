@@ -45,15 +45,15 @@ const clientUploadData: ClientUploadData = {
     id: "client-1",
     clientName: "Sri Andal Paper Mill",
     sections: [
-        {
-            id: "sec-onboarding",
-            title: "Onboarding Images",
-            zones: [
-                { id: "onb-1", label: "Onboarding", highlightText: "Onboarding" },
-                { id: "onb-2", label: "Onboarding", highlightText: "Onboarding" },
-                { id: "onb-3", label: "Onboarding", highlightText: "Onboarding" },
-            ],
-        },
+        // {
+        //     id: "sec-onboarding",
+        //     title: "Onboarding Images",
+        //     zones: [
+        //         { id: "onb-1", label: "Onboarding", highlightText: "Onboarding" },
+        //         { id: "onb-2", label: "Onboarding", highlightText: "Onboarding" },
+        //         { id: "onb-3", label: "Onboarding", highlightText: "Onboarding" },
+        //     ],
+        // },
         {
             id: "sec-business",
             title: "Business Images",

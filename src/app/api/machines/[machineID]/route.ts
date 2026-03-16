@@ -47,7 +47,7 @@ export async function PUT(
         }
         const { machineID } = await params;
         const body = await request.json();
-        const { name, isActive, description, installationDate } = body;
+        const { name, isActive, description, installationDate, modelNumber } = body;
 
         const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/machines/${machineID}`,
@@ -57,7 +57,7 @@ export async function PUT(
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${currentUser.accessToken}`,
                 },
-                body: JSON.stringify({ name, isActive, description, installationDate }),
+                body: JSON.stringify({ name, isActive, description, installationDate, modelNumber }),
             }
         );
 

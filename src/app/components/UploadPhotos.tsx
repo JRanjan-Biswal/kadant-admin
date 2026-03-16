@@ -20,7 +20,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
                     <h1 className="text-2xl text-foreground font-bold">Upload Image</h1>
                     <p className="text-sm text-muted-foreground mt-1">Upload and manage your business imagery here</p>
                 </div>
-                <div className="flex items-center gap-4">
+                {/* <div className="flex items-center gap-4">
                     <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">Select Region and Customer</span>
                         <div className="flex items-center gap-3">
@@ -45,7 +45,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
                             </Select>
                         </div>
                     </div>
-                </div>
+                </div> */}
             </div>
 
             {/* ── Tab Bar ── */}
