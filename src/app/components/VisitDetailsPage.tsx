@@ -1,7 +1,8 @@
 "use client";
 
-import { format, differenceInDays, parseISO } from "date-fns";
+import { format, differenceInDays, parseISO, startOfDay } from "date-fns";
 import ScheduleNextVisit from "@/app/components/Modals/ScheduleNextVisit";
+import AddVisitDataModal from "@/app/components/Modals/AddVisitDataModal";
 import EditVisitDataModal from "@/app/components/Modals/EditVisitDataModal";
 import { useEffect, useState, useCallback } from "react";
 import { SiteVisit } from "@/types/visit-details";
@@ -47,17 +48,19 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             });
             const data = await response.json();
 
-            // Filter scheduled visits (future dates)
             const now = new Date();
+            const todayStart = startOfDay(now);
+
+            // Filter scheduled visits (today + future dates)
             const scheduled = data
                 .filter((visit: SiteVisit) => {
                     if (!visit.nextScheduledVisit) return false;
                     const scheduledDate = parseISO(visit.nextScheduledVisit);
-                    return scheduledDate >= now;
+                    return scheduledDate >= todayStart;
                 })
                 .map((visit: SiteVisit) => {
                     const scheduledDate = parseISO(visit.nextScheduledVisit);
-                    const daysUntil = differenceInDays(scheduledDate, now);
+                    const daysUntil = differenceInDays(scheduledDate, todayStart);
                     return { ...visit, daysUntil };
                 })
                 .sort((a: ScheduledVisit, b: ScheduledVisit) => {
@@ -66,15 +69,18 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 });
             setScheduledVisits(scheduled);
 
-            // Filter visit history (past visits)
+            // Filter visit history: past visits + visits with no lastVisitOn not in scheduled list
+            const scheduledIds = new Set(scheduled.map((v: ScheduledVisit) => v._id));
             const history = data
                 .filter((visit: SiteVisit) => {
-                    if (!visit.lastVisitOn) return false;
-                    const visitDate = parseISO(visit.lastVisitOn);
-                    return visitDate < now;
+                    if (scheduledIds.has(visit._id)) return false;
+                    if (!visit.lastVisitOn) return true; // no date → show as "Not Visited"
+                    return parseISO(visit.lastVisitOn) < now;
                 })
                 .sort((a: SiteVisit, b: SiteVisit) => {
-                    if (!a.lastVisitOn || !b.lastVisitOn) return 0;
+                    if (!a.lastVisitOn && !b.lastVisitOn) return 0;
+                    if (!a.lastVisitOn) return 1;
+                    if (!b.lastVisitOn) return -1;
                     return parseISO(b.lastVisitOn).getTime() - parseISO(a.lastVisitOn).getTime();
                 });
             setVisitHistory(history);
@@ -137,7 +143,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                         </h1>
                     </div>
                     <div className="flex-1 flex gap-3 items-center justify-end">
-                        <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                        <AddVisitDataModal clientID={clientID} onSuccess={fetchSiteVisits}>
                             <Button
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
                                 variant="ghost"
@@ -145,7 +151,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                 <FaPlus className="w-4 h-4" />
                                 <span className="text-base leading-6">Add Visit Data</span>
                             </Button>
-                        </ScheduleNextVisit>
+                        </AddVisitDataModal>
                         <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
                             <Button
                                 className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
@@ -333,7 +339,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                     {/* Table Rows */}
                     {getFilteredHistory().map((visit, index) => {
                         const visitDate = visit.lastVisitOn ? parseISO(visit.lastVisitOn) : null;
-                        const dateStr = visitDate ? format(visitDate, "dd MMM yyyy") : "N/A";
+                        const dateStr = visitDate ? format(visitDate, "dd MMM yyyy") : "Not Visited";
 
                         return (
                             <div

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MachineUpload from './MachineUpload';
 import VisitUpload from './VisitUpload';
 
@@ -75,7 +74,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
                 {activeTab === 'machine' ? (
                     <MachineUpload />
                 ) : (
-                    <VisitUpload />
+                    <VisitUpload clientId={clientId} />
                 )}
             </div>
         </div>

@@ -43,6 +43,13 @@ const MACHINE_STATUS_OPTIONS = [
     "Healthy",
 ];
 
+const ACTION_NEEDED_OPTIONS = [
+    "Send to Rebuild",
+    "Order Now",
+    "Needs Repair",
+    "Monitor",
+];
+
 function isVideoUrl(url: string): boolean {
     return /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) || /video\//i.test(url);
 }
@@ -112,6 +119,8 @@ export default function EditVisitDataModal({
         machineName: "",
         sparePartName: "",
         status: "",
+        conditionAlert: "",
+        actionNeeded: "",
         optimalStateMediaUrls: [] as string[],
         currentVisitMediaUrls: [] as string[],
     });
@@ -263,6 +272,8 @@ export default function EditVisitDataModal({
                 machineName: newMachineIssue.machineName,
                 sparePartName: newMachineIssue.sparePartName,
                 status: newMachineIssue.status,
+                conditionAlert: newMachineIssue.conditionAlert,
+                actionNeeded: newMachineIssue.actionNeeded,
                 optimalStateMediaUrls: newMachineIssue.optimalStateMediaUrls ?? [],
                 currentVisitMediaUrls: newMachineIssue.currentVisitMediaUrls ?? [],
             },
@@ -273,6 +284,8 @@ export default function EditVisitDataModal({
             machineName: "",
             sparePartName: "",
             status: "",
+            conditionAlert: "",
+            actionNeeded: "",
             optimalStateMediaUrls: [],
             currentVisitMediaUrls: [],
         });
@@ -618,6 +631,18 @@ export default function EditVisitDataModal({
                                                 <X className="w-4 h-4" />
                                             </Button>
                                         </div>
+                                        {issue.conditionAlert && (
+                                            <div>
+                                                <p className="text-[#a1a1a1] text-[12px] mb-1">Condition Alert</p>
+                                                <p className="text-[#d4d4d4] text-[13px]">{issue.conditionAlert}</p>
+                                            </div>
+                                        )}
+                                        {issue.actionNeeded && (
+                                            <div>
+                                                <p className="text-[#a1a1a1] text-[12px] mb-1">Action Needed</p>
+                                                <span className="inline-block text-[#ff6900] text-[13px] font-medium border border-[#ff6900] rounded-full px-3 py-0.5">{issue.actionNeeded}</span>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-1">
                                                 <p className="text-[#a1a1a1] text-[12px]">Optimal state</p>
@@ -734,6 +759,36 @@ export default function EditVisitDataModal({
                                                 </Select>
                                             </div>
                                         </div>
+                                        {/* Condition Alert */}
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-white text-[14px]">Condition Alert</Label>
+                                            <textarea
+                                                value={newMachineIssue.conditionAlert}
+                                                onChange={(e) => setNewMachineIssue((p) => ({ ...p, conditionAlert: e.target.value }))}
+                                                rows={2}
+                                                className="bg-[#171717] border border-[#404040] rounded-[10px] px-4 py-3 text-white text-[14px] placeholder:text-[#525252] focus-visible:ring-0 resize-none outline-none"
+                                                placeholder="Describe the condition..."
+                                            />
+                                        </div>
+                                        {/* Action Needed */}
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-white text-[14px]">Action Needed</Label>
+                                            <Select
+                                                value={newMachineIssue.actionNeeded}
+                                                onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, actionNeeded: v }))}
+                                            >
+                                                <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                    <SelectValue placeholder="Select action" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-[#262626] border-[#404040]">
+                                                    {ACTION_NEEDED_OPTIONS.map((opt) => (
+                                                        <SelectItem key={opt} value={opt} className="text-white hover:bg-[#404040]">
+                                                            {opt}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-2">
                                                 <Label className="text-white text-[14px]">Optimal state</Label>
@@ -790,7 +845,7 @@ export default function EditVisitDataModal({
                                                 variant="outline"
                                                 onClick={() => {
                                                     setShowAddMachineIssue(false);
-                                                    setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [] });
+                                                    setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", conditionAlert: "", actionNeeded: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [] });
                                                     setSpareParts([]);
                                                 }}
                                                 className="bg-[#262626] border-[#404040] text-white hover:bg-[#333] rounded-[10px] h-9 px-4"

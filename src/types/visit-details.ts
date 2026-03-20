@@ -20,6 +20,8 @@ export interface MachineIssue {
     machineName?: string;
     sparePartName?: string;
     status?: string;
+    conditionAlert?: string;
+    actionNeeded?: string;
     optimalStateMediaUrls?: string[];
     currentVisitMediaUrls?: string[];
 }
