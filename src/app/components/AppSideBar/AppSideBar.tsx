@@ -28,10 +28,10 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const params = useParams();
   const pathname = usePathname();
   const clientID = params?.clientID as string | undefined;
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingUrl, setNavigatingUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsNavigating(false);
+    setNavigatingUrl(null);
   }, [pathname]);
 
   // Check if we're on a page with a selected client
@@ -98,7 +98,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
     <Sidebar className="bg-sidebar border-r border-[#262626] w-[255px] flex flex-col" collapsible="icon" {...props}>
       <SidebarHeader className="bg-sidebar p-0 shrink-0">
-        <AppLogo isLoading={isNavigating} onNavigateStart={() => setIsNavigating(true)} />
+        <AppLogo />
         <NavUser user={user} />
       </SidebarHeader>
       <SidebarContent className="bg-sidebar p-0 flex-1 overflow-hidden">
@@ -106,7 +106,8 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           items={navMainItems}
           selectedClientId={clientID}
           isOnClientManagement={isOnClientManagement}
-          onNavigateStart={() => setIsNavigating(true)}
+          navigatingUrl={navigatingUrl}
+          onNavigateStart={(url: string) => setNavigatingUrl(url)}
         />
       </SidebarContent>
       {/* Settings Section at Bottom */}

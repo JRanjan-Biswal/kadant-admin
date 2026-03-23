@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Lock } from "lucide-react";
+import { Lock, Loader2 } from "lucide-react";
 
 interface NavItem {
   title: string;
@@ -26,12 +26,14 @@ interface NavItem {
 
 export function NavMain({
   items,
+  navigatingUrl,
   onNavigateStart,
 }: {
   items: NavItem[];
   selectedClientId?: string;
   isOnClientManagement?: boolean;
-  onNavigateStart?: () => void;
+  navigatingUrl?: string | null;
+  onNavigateStart?: (url: string) => void;
 }) {
   const pathname = usePathname();
 
@@ -82,12 +84,14 @@ export function NavMain({
             );
           }
 
+          const isLoadingThis = navigatingUrl === item.url && !isActive;
+
           return (
             <Link
               key={item.title}
               href={item.url}
               className="block"
-              onClick={() => onNavigateStart?.()}
+              onClick={() => onNavigateStart?.(item.url)}
             >
               <div
                 className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${isActive
@@ -95,11 +99,13 @@ export function NavMain({
                     : 'hover:bg-sidebar-accent'
                   }`}
               >
-                {item.icon && (
-                  <div className="relative shrink-0 size-[20px]">
+                <div className="relative shrink-0 size-[20px]">
+                  {isLoadingThis ? (
+                    <Loader2 className="w-5 h-5 text-[#6a7282] animate-spin" />
+                  ) : item.icon ? (
                     <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#6a7282]'}`} />
-                  </div>
-                )}
+                  ) : null}
+                </div>
                 <span
                   className={`font-lato leading-[20px] text-[15px] ${isActive
                       ? 'font-bold text-white'

@@ -14,7 +14,6 @@ import { HiOutlineUser } from "react-icons/hi2";
 import { HiOutlineDocumentText } from "react-icons/hi2";
 import { HiOutlineEye } from "react-icons/hi2";
 import { TbEdit } from "react-icons/tb";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
@@ -28,13 +27,14 @@ interface ScheduledVisit extends SiteVisit {
 }
 
 const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
-    const router = useRouter();
     const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
     const [visitHistory, setVisitHistory] = useState<SiteVisit[]>([]);
     const [filterPeriod, setFilterPeriod] = useState<string>("all");
     const [loading, setLoading] = useState(true);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
+    const [viewModalOpen, setViewModalOpen] = useState(false);
+    const [viewingVisitId, setViewingVisitId] = useState<string | null>(null);
 
     const fetchSiteVisits = useCallback(async () => {
         setLoading(true);
@@ -115,7 +115,8 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     };
 
     const handleViewDetail = (visitID: string) => {
-        router.push(`/${clientID}/visit-details/${visitID}`);
+        setViewingVisitId(visitID);
+        setViewModalOpen(true);
     };
 
     const handleEdit = (visitID: string) => {
@@ -176,67 +177,84 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                             </p>
                         </div>
                     </div>
-                    <div className="flex gap-3 items-center px-3">
-                        {scheduledVisits.slice(0, 4).map((visit, index) => {
-                            const scheduledDate = visit.nextScheduledVisit ? parseISO(visit.nextScheduledVisit) : null;
-                            const timeStr = scheduledDate ? format(scheduledDate, "h:mm a") : "";
-                            const dateStr = scheduledDate ? format(scheduledDate, "dd MMM yyyy") : "";
-
-                            return (
-                                <div
-                                    key={visit._id || index}
-                                    className="bg-[rgba(38,38,38,0.3)] border border-[#404040] flex flex-col gap-3 items-start p-[21px] rounded-[10px] w-[270.25px]"
+                    {scheduledVisits.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-4">
+                            <LuCalendar className="w-10 h-10 text-[#404040]" />
+                            <p className="text-[#a1a1a1] text-[16px] leading-[24px]">
+                                No upcoming visits scheduled
+                            </p>
+                            <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                                <Button
+                                    className="bg-[#ff6900] hover:bg-[#ff6900]/90 flex gap-2 items-center px-5 py-2.5 rounded-[10px] h-auto text-white"
                                 >
-                                    <div className="flex items-center justify-between w-full">
-                                        <div className="bg-[rgba(38,38,38,0.5)] border border-[rgba(64,64,64,0.5)] rounded-full h-[37px] w-[37px] flex items-center justify-center">
-                                            <p className="text-[#ff6900] text-[12px] leading-[16px]">
-                                                {visit.daysUntil !== undefined ? `${visit.daysUntil}d` : "3d"}
-                                            </p>
-                                        </div>
-                                        <div className="bg-[rgba(0,201,80,0.1)] border border-[rgba(0,201,80,0.2)] h-[30px] rounded-full flex gap-1.5 items-center px-[13px] py-0.5">
-                                            <div className="bg-[#05df72] opacity-98 rounded-full w-1.5 h-1.5" />
-                                            <p className="text-[#05df72] text-[12px] leading-[16px] capitalize">confirmed</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-1 h-[52px]">
-                                        <p className="text-[18px] leading-[28px] text-white">{dateStr}</p>
-                                        <div className="flex gap-1.5 h-5 items-center">
-                                            <HiOutlineClock className="w-3.5 h-3.5 text-[#d4d4d4]" />
-                                            <p className="text-[#d4d4d4] text-[14px] leading-5">{timeStr}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 h-[38px]">
-                                        <div className="flex gap-1.5 h-4 items-center">
-                                            <HiOutlineUser className="w-3 h-3 text-[#a1a1a1]" />
-                                            <p className="text-[#a1a1a1] text-[12px] leading-4">
-                                                {visit.assignedEngineer?.name || visit.engineer?.name || "N/A"}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-1.5 h-4 items-center">
-                                            <HiOutlineDocumentText className="w-3 h-3 text-[#a1a1a1]" />
-                                            <p className="text-[#a1a1a1] text-[12px] leading-4">
-                                                {visit.visitType?.[0] || "N/A"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            if (visit.nextScheduledVisit && visit.client?.name) {
-                                                window.open(
-                                                    `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Site+Visit+@+${visit.client.name}&dates=${format(parseISO(visit.nextScheduledVisit), "yyyyMMdd")}/${format(parseISO(visit.nextScheduledVisit), "yyyyMMdd")}&desc=Discuss+Audit+Details`,
-                                                    "_blank"
-                                                );
-                                            }
-                                        }}
-                                        className="bg-[#ff6900] h-9 w-full rounded-[10px] flex items-center justify-center gap-2"
+                                    <LuCalendar className="w-4 h-4" />
+                                    <span className="text-base leading-6">Schedule a Visit</span>
+                                </Button>
+                            </ScheduleNextVisit>
+                        </div>
+                    ) : (
+                        <div className="flex gap-3 items-center px-3">
+                            {scheduledVisits.slice(0, 4).map((visit, index) => {
+                                const scheduledDate = visit.nextScheduledVisit ? parseISO(visit.nextScheduledVisit) : null;
+                                const timeStr = scheduledDate ? format(scheduledDate, "h:mm a") : "";
+                                const dateStr = scheduledDate ? format(scheduledDate, "dd MMM yyyy") : "";
+
+                                return (
+                                    <div
+                                        key={visit._id || index}
+                                        className="bg-[rgba(38,38,38,0.3)] border border-[#404040] flex flex-col gap-3 items-start p-[21px] rounded-[10px] w-[270.25px]"
                                     >
-                                        <CiCalendarDate className="w-4 h-4 text-white" />
-                                        <p className="text-white text-[14px] leading-5">Add to Calendar</p>
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div className="bg-[rgba(38,38,38,0.5)] border border-[rgba(64,64,64,0.5)] rounded-full h-[37px] w-[37px] flex items-center justify-center">
+                                                <p className="text-[#ff6900] text-[12px] leading-[16px]">
+                                                    {visit.daysUntil !== undefined ? `${visit.daysUntil}d` : "3d"}
+                                                </p>
+                                            </div>
+                                            <div className="bg-[rgba(0,201,80,0.1)] border border-[rgba(0,201,80,0.2)] h-[30px] rounded-full flex gap-1.5 items-center px-[13px] py-0.5">
+                                                <div className="bg-[#05df72] opacity-98 rounded-full w-1.5 h-1.5" />
+                                                <p className="text-[#05df72] text-[12px] leading-[16px] capitalize">confirmed</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1 h-[52px]">
+                                            <p className="text-[18px] leading-[28px] text-white">{dateStr}</p>
+                                            <div className="flex gap-1.5 h-5 items-center">
+                                                <HiOutlineClock className="w-3.5 h-3.5 text-[#d4d4d4]" />
+                                                <p className="text-[#d4d4d4] text-[14px] leading-5">{timeStr}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5 h-[38px]">
+                                            <div className="flex gap-1.5 h-4 items-center">
+                                                <HiOutlineUser className="w-3 h-3 text-[#a1a1a1]" />
+                                                <p className="text-[#a1a1a1] text-[12px] leading-4">
+                                                    {visit.assignedEngineer?.name || visit.engineer?.name || "N/A"}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-1.5 h-4 items-center">
+                                                <HiOutlineDocumentText className="w-3 h-3 text-[#a1a1a1]" />
+                                                <p className="text-[#a1a1a1] text-[12px] leading-4">
+                                                    {visit.visitType?.[0] || "N/A"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                if (visit.nextScheduledVisit && visit.client?.name) {
+                                                    window.open(
+                                                        `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Site+Visit+@+${visit.client.name}&dates=${format(parseISO(visit.nextScheduledVisit), "yyyyMMdd")}/${format(parseISO(visit.nextScheduledVisit), "yyyyMMdd")}&desc=Discuss+Audit+Details`,
+                                                        "_blank"
+                                                    );
+                                                }
+                                            }}
+                                            className="bg-[#ff6900] h-9 w-full rounded-[10px] flex items-center justify-center gap-2"
+                                        >
+                                            <CiCalendarDate className="w-4 h-4 text-white" />
+                                            <p className="text-white text-[14px] leading-5">Add to Calendar</p>
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -421,6 +439,15 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 visitId={editingVisitId ?? ""}
                 clientID={clientID}
                 onSuccess={fetchSiteVisits}
+            />
+
+            <EditVisitDataModal
+                open={viewModalOpen}
+                onOpenChange={setViewModalOpen}
+                visitId={viewingVisitId ?? ""}
+                clientID={clientID}
+                onSuccess={fetchSiteVisits}
+                viewOnly
             />
         </div>
     );

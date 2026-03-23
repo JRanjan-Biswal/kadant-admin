@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, Calendar, TriangleAlert, CloudUpload, UserPlus } from "lucide-react";
+import { X, Calendar, TriangleAlert, CloudUpload, UserPlus, Pencil } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -95,6 +95,7 @@ interface EditVisitDataModalProps {
     visitId: string;
     clientID: string;
     onSuccess?: () => void;
+    viewOnly?: boolean;
 }
 
 export default function EditVisitDataModal({
@@ -103,7 +104,9 @@ export default function EditVisitDataModal({
     visitId,
     clientID,
     onSuccess,
+    viewOnly = false,
 }: EditVisitDataModalProps) {
+    const [isViewMode, setIsViewMode] = useState(viewOnly);
     const [, setVisit] = useState<SiteVisit | null>(null);
     const [users, setUsers] = useState<Admin[]>([]);
     const [loadingVisit, setLoadingVisit] = useState(false);
@@ -239,6 +242,10 @@ export default function EditVisitDataModal({
             setLoadingSpareParts(false);
         }
     }, [clientID]);
+
+    useEffect(() => {
+        if (open) setIsViewMode(viewOnly);
+    }, [open, viewOnly]);
 
     useEffect(() => {
         if (open && clientID) fetchClientMachines();
@@ -438,16 +445,28 @@ export default function EditVisitDataModal({
                             <UserPlus className="w-5 h-5 text-[#ff6900]" />
                         </div>
                         <h2 className="text-white text-[24px] leading-[32px] font-normal">
-                            Edit Visit Data
+                            {isViewMode ? "Visit Details" : "Edit Visit Data"}
                         </h2>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => onOpenChange(false)}
-                        className="w-6 h-6 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {isViewMode && (
+                            <button
+                                type="button"
+                                onClick={() => setIsViewMode(false)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Edit
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            className="w-6 h-6 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {loadingVisit ? (
@@ -478,7 +497,8 @@ export default function EditVisitDataModal({
                                                 <Input
                                                     type="date"
                                                     {...field}
-                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0`}
+                                                    disabled={isViewMode}
+                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0 disabled:opacity-70 disabled:cursor-not-allowed`}
                                                 />
                                             )}
                                         />
@@ -499,7 +519,8 @@ export default function EditVisitDataModal({
                                                 id="edit-process-audit"
                                                 checked={visitType.includes("Process Audit")}
                                                 onCheckedChange={() => handleVisitTypeChange("Process Audit")}
-                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                                disabled={isViewMode}
+                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
                                             />
                                             <Label htmlFor="edit-process-audit" className="text-white text-[16px] leading-[24px] font-normal cursor-pointer">
                                                 Process Audit
@@ -510,7 +531,8 @@ export default function EditVisitDataModal({
                                                 id="edit-mechanical-audit"
                                                 checked={visitType.includes("Mechanical Audit")}
                                                 onCheckedChange={() => handleVisitTypeChange("Mechanical Audit")}
-                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                                disabled={isViewMode}
+                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
                                             />
                                             <Label htmlFor="edit-mechanical-audit" className="text-white text-[16px] leading-[24px] font-normal cursor-pointer">
                                                 Mechanical Audit
@@ -531,8 +553,8 @@ export default function EditVisitDataModal({
                                             name="assignedEngineer"
                                             control={control}
                                             render={({ field }) => (
-                                                <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] focus:ring-0`}>
+                                                <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
+                                                    <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] focus:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}>
                                                         <SelectValue placeholder="Select engineer" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#262626] border-[#404040]">
@@ -559,7 +581,8 @@ export default function EditVisitDataModal({
                                             render={({ field }) => (
                                                 <Input
                                                     {...field}
-                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0`}
+                                                    disabled={isViewMode}
+                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}
                                                     placeholder="Enter client name"
                                                 />
                                             )}
@@ -580,7 +603,8 @@ export default function EditVisitDataModal({
                                         render={({ field }) => (
                                             <Input
                                                 {...field}
-                                                className="bg-[#262626] border border-[#404040] h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0"
+                                                disabled={isViewMode}
+                                                className="bg-[#262626] border border-[#404040] h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed"
                                                 placeholder="Designation"
                                             />
                                         )}
@@ -599,13 +623,15 @@ export default function EditVisitDataModal({
                                             Machines Requiring Attention ({machineIssues.length})
                                         </h3>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setShowAddMachineIssue((v) => !v)}
-                                        className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium h-9 px-4 rounded-[10px]"
-                                    >
-                                        {showAddMachineIssue ? "Cancel" : "+ Add Machine Issue"}
-                                    </Button>
+                                    {!isViewMode && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setShowAddMachineIssue((v) => !v)}
+                                            className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium h-9 px-4 rounded-[10px]"
+                                        >
+                                            {showAddMachineIssue ? "Cancel" : "+ Add Machine Issue"}
+                                        </Button>
+                                    )}
                                 </div>
 
                                 {machineIssues.map((issue, index) => (
@@ -621,15 +647,17 @@ export default function EditVisitDataModal({
                                                 )}
                                                 <span className="text-red-500 text-[14px] font-medium">{issue.status || ""}</span>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => removeMachineIssue(index)}
-                                                className="text-[#a1a1a1] hover:text-white h-8"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </Button>
+                                            {!isViewMode && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => removeMachineIssue(index)}
+                                                    className="text-[#a1a1a1] hover:text-white h-8"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                         {issue.conditionAlert && (
                                             <div>
@@ -648,26 +676,38 @@ export default function EditVisitDataModal({
                                                 <p className="text-[#a1a1a1] text-[12px]">Optimal state</p>
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.optimalStateMediaUrls ?? []).map((url, ui) => (
-                                                        <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "optimal", url, false)} />
+                                                        isViewMode
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                                {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                              </div>
+                                                            : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "optimal", url, false)} />
                                                     ))}
-                                                    <UploadMediaBox
-                                                        label="Add"
-                                                        onTrigger={() => { setUploadTarget({ index, type: "optimal" }); existingMediaInputRef.current?.click(); }}
-                                                        uploading={uploadingExisting?.index === index && uploadingExisting?.type === "optimal"}
-                                                    />
+                                                    {!isViewMode && (
+                                                        <UploadMediaBox
+                                                            label="Add"
+                                                            onTrigger={() => { setUploadTarget({ index, type: "optimal" }); existingMediaInputRef.current?.click(); }}
+                                                            uploading={uploadingExisting?.index === index && uploadingExisting?.type === "optimal"}
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <p className="text-[#a1a1a1] text-[12px]">Current Visit</p>
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.currentVisitMediaUrls ?? []).map((url, ui) => (
-                                                        <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "current", url, false)} />
+                                                        isViewMode
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                                {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                              </div>
+                                                            : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "current", url, false)} />
                                                     ))}
-                                                    <UploadMediaBox
-                                                        label="Add"
-                                                        onTrigger={() => { setUploadTarget({ index, type: "current" }); existingMediaInputRef.current?.click(); }}
-                                                        uploading={uploadingExisting?.index === index && uploadingExisting?.type === "current"}
-                                                    />
+                                                    {!isViewMode && (
+                                                        <UploadMediaBox
+                                                            label="Add"
+                                                            onTrigger={() => { setUploadTarget({ index, type: "current" }); existingMediaInputRef.current?.click(); }}
+                                                            uploading={uploadingExisting?.index === index && uploadingExisting?.type === "current"}
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -865,23 +905,25 @@ export default function EditVisitDataModal({
                             </div>
                         </div>
 
-                        <DialogFooter className="border-t border-[#262626] px-8 py-4 flex justify-end gap-4 shrink-0">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => onOpenChange(false)}
-                                className="border border-[#404040] bg-transparent hover:bg-[#262626] text-[#d4d4d4] text-[16px] font-bold px-6 py-3 rounded-[10px] h-auto"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={submitting}
-                                className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[16px] font-bold px-8 py-3 rounded-[10px] h-auto"
-                            >
-                                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Visit"}
-                            </Button>
-                        </DialogFooter>
+                        {!isViewMode && (
+                            <DialogFooter className="border-t border-[#262626] px-8 py-4 flex justify-end gap-4 shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => onOpenChange(false)}
+                                    className="border border-[#404040] bg-transparent hover:bg-[#262626] text-[#d4d4d4] text-[16px] font-bold px-6 py-3 rounded-[10px] h-auto"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[16px] font-bold px-8 py-3 rounded-[10px] h-auto"
+                                >
+                                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Visit"}
+                                </Button>
+                            </DialogFooter>
+                        )}
                     </form>
                 )}
             </DialogContent>
