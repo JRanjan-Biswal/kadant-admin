@@ -484,6 +484,89 @@ export default function AddCategoryMachineFlow({
     const machinesSectionRef = useRef<HTMLDivElement>(null);
     const isEditMode = editDataLoaded && (!!categoryIdForEdit || !!initialData);
 
+    // Snapshot of the persisted row state when the modal first loads edit data.
+    // Used by handleSaveAllEdits to skip PUT calls for rows whose text fields
+    // are unchanged and whose user hasn't picked a new image/video, so a
+    // single image upload doesn't fan out into N spare-part PUTs.
+    type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
+    type BaselineSparePart = { name: string; klValue: string };
+    type BaselinePart = { name: string };
+    const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
+    const sparePartBaselineRef = useRef<Map<string, BaselineSparePart>>(new Map());
+    const partBaselineRef = useRef<Map<string, BaselinePart>>(new Map());
+    const categoryBaselineRef = useRef<{ name: string; imageUrl: string | null }>({ name: "", imageUrl: null });
+
+    const captureBaseline = useCallback((rows: MachineRow[], catName: string, catImageUrl: string | null) => {
+        categoryBaselineRef.current = { name: catName, imageUrl: catImageUrl };
+        machineBaselineRef.current.clear();
+        sparePartBaselineRef.current.clear();
+        partBaselineRef.current.clear();
+        for (const m of rows) {
+            if (m.createdId) {
+                machineBaselineRef.current.set(m.createdId, {
+                    name: m.name || "",
+                    modelNumber: m.modelNumber || "",
+                    description: m.description || "",
+                    installationDate: m.installationDate || "",
+                });
+            }
+            for (const sp of m.spareParts) {
+                if (sp.createdId) {
+                    sparePartBaselineRef.current.set(sp.createdId, {
+                        name: sp.name || "",
+                        klValue: sp.klValue || "",
+                    });
+                }
+                for (const pt of sp.parts) {
+                    if (pt.createdId) {
+                        partBaselineRef.current.set(pt.createdId, { name: pt.name || "" });
+                    }
+                }
+            }
+        }
+    }, []);
+
+    const isMachineDirty = useCallback((m: MachineRow): boolean => {
+        if (!m.createdId) return true;
+        if (m.imageFile) return true;
+        if (m.galleryImages.some((g) => g.file)) return true;
+        const b = machineBaselineRef.current.get(m.createdId);
+        if (!b) return true;
+        return (
+            (m.name || "") !== b.name ||
+            (m.modelNumber || "") !== b.modelNumber ||
+            (m.description || "") !== b.description ||
+            (m.installationDate || "") !== b.installationDate
+        );
+    }, []);
+
+    const isSparePartDirty = useCallback((sp: SparePartRow): boolean => {
+        if (!sp.createdId) return true;
+        if (sp.imageFile) return true;
+        if (sp.optimalStateVideoFile) return true;
+        const b = sparePartBaselineRef.current.get(sp.createdId);
+        if (!b) return true;
+        return (sp.name || "") !== b.name || (sp.klValue || "") !== b.klValue;
+    }, []);
+
+    const isPartDirty = useCallback((pt: PartRow): boolean => {
+        if (!pt.createdId) return true;
+        if (pt.imageFile) return true;
+        if (pt.optimalStateVideoFile) return true;
+        const b = partBaselineRef.current.get(pt.createdId);
+        if (!b) return true;
+        return (pt.name || "") !== b.name;
+    }, []);
+
+    const isCategoryDirty = useCallback((): boolean => {
+        if (categoryEditImage || categoryImage) return true;
+        const b = categoryBaselineRef.current;
+        return (
+            (categoryEditName || "").trim() !== b.name ||
+            (categoryImageUrl || null) !== b.imageUrl
+        );
+    }, [categoryEditImage, categoryEditName, categoryImage, categoryImageUrl]);
+
     const [machinePositions, setMachinePositions] = useState<MachinePosition[]>([]);
     const [showImageMapper, setShowImageMapper] = useState(false);
 
@@ -517,6 +600,7 @@ export default function AddCategoryMachineFlow({
             setCategoryId(mapped.categoryId);
             setMachines(mapped.machines);
             setMachinePositions(mapped.machinePositions);
+            captureBaseline(mapped.machines, mapped.categoryName, mapped.categoryImageUrl);
             setEditDataLoaded(true);
             return;
         }
@@ -536,6 +620,7 @@ export default function AddCategoryMachineFlow({
                 setCategoryId(mapped.categoryId);
                 setMachines(mapped.machines);
                 setMachinePositions(mapped.machinePositions);
+                captureBaseline(mapped.machines, mapped.categoryName, mapped.categoryImageUrl);
                 setEditDataLoaded(true);
             })
             .catch(() => {
@@ -545,7 +630,7 @@ export default function AddCategoryMachineFlow({
                 if (!cancelled) setLoading(null);
             });
         return () => { cancelled = true; };
-    }, [initialData, categoryIdForEdit, editDataLoaded]);
+    }, [initialData, categoryIdForEdit, editDataLoaded, captureBaseline]);
 
     // When edit data has just loaded, scroll machines section into view so pre-populated content is visible
     useEffect(() => {
@@ -1368,7 +1453,7 @@ export default function AddCategoryMachineFlow({
         setLoading("save-all");
         try {
             // 1. Category edits (name and/or new image staged).
-            if (categoryId && (categoryEditName.trim() || categoryEditImage || categoryImage)) {
+            if (categoryId && isCategoryDirty()) {
                 await safe("Category", handleSaveCategoryEdit);
             }
 
@@ -1380,10 +1465,12 @@ export default function AddCategoryMachineFlow({
                 await safe("New machines", handleSaveMachines);
             }
 
-            // 3. Updates to existing machines (run sequentially to avoid
-            //    swamping the upload endpoints with parallel writes).
+            // 3. Updates to existing machines — only dirty rows. Skipping
+            //    unchanged rows is what keeps a single category-image edit
+            //    from cascading into N machine + M spare-part PUT calls.
             for (const m of machines) {
                 if (!m.createdId) continue;
+                if (!isMachineDirty(m)) continue;
                 await safe(`Machine ${m.name || m.id}`, () => handleUpdateMachine(m.id));
             }
 
@@ -1400,24 +1487,26 @@ export default function AddCategoryMachineFlow({
                 }
             }
 
-            // 5. Updates to existing spare parts.
+            // 5. Updates to existing spare parts — only dirty rows.
             for (const m of machines) {
                 if (!m.createdId) continue;
                 for (const sp of m.spareParts) {
                     if (!sp.createdId) continue;
+                    if (!isSparePartDirty(sp)) continue;
                     await safe(`Spare part ${sp.name || sp.id}`, () =>
                         handleUpdateSparePart(m.id, sp.id)
                     );
                 }
             }
 
-            // 6. Updates to existing parts.
+            // 6. Updates to existing parts — only dirty rows.
             for (const m of machines) {
                 if (!m.createdId) continue;
                 for (const sp of m.spareParts) {
                     if (!sp.createdId) continue;
                     for (const pt of sp.parts) {
                         if (!pt.createdId) continue;
+                        if (!isPartDirty(pt)) continue;
                         await safe(`Part ${pt.name || pt.id}`, () =>
                             handleUpdatePart(m.id, sp.id, pt.id)
                         );
@@ -1448,6 +1537,10 @@ export default function AddCategoryMachineFlow({
         handleUpdateSparePart,
         handleUpdatePart,
         onSuccess,
+        isCategoryDirty,
+        isMachineDirty,
+        isSparePartDirty,
+        isPartDirty,
     ]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
