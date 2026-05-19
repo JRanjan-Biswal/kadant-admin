@@ -214,6 +214,12 @@ export default function ClientOverviewContent({
             ? editingSparePart.machine._id
             : editingSparePart.machine || '';
 
+        if (!machineId) {
+            console.error('Missing machineId for spare part', editingSparePart);
+            toast.error('Could not save: missing machine context. Close + reopen the modal.');
+            return;
+        }
+
         try {
             const response = await fetch(`/api/clients/${currentClientId}/machines/${machineId}/spare-parts`, {
                 method: 'PUT',
@@ -657,7 +663,7 @@ export default function ClientOverviewContent({
                                                                                                             <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.lastServiceDate ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.sparePartInstallationDate ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart(sparePart); }} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart({ ...sparePart, machine: machine._id }); }} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
                                                                                                                     <Pencil className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
