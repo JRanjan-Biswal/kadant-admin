@@ -74,11 +74,11 @@ export default function Home() {
           priority
         />
         <div className="flex flex-col gap-[10px] justify-end">
-          <div className="font-lato font-black leading-[120%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
+          <div className="font-lato font-black !text-white leading-[120%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
             <p className="mb-0">From machine health alerts,</p>
             <p>to client service schedules</p>
           </div>
-          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full">
+          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full !text-white">
             Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function Home() {
               <h2 className="text-[48px] font-bold font-montserrat bg-gradient-to-b from-[#eef3ff] to-[#fbfcff] bg-clip-text text-transparent leading-[normal] text-nowrap" style={{ textShadow: '2px 1px 1px rgba(0,0,0,0.25)' }}>
                 Admin Portal
               </h2>
-              <p className="text-[18px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
+              <p className="text-[18px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full !text-white" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
                 Log in to view assigned cases
               </p>
             </div>
@@ -139,7 +139,7 @@ export default function Home() {
                 {/* Forgot Password Link */}
                 <Link
                   href="/forgot-password"
-                  className="text-base font-semibold font-montserrat text-gray-900 leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left"
+                  className="text-base font-semibold font-montserrat text-gray-900 leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left !text-white"
                 >
                   Forgot Password?
                 </Link>
@@ -151,7 +151,7 @@ export default function Home() {
                 disabled={isLoading}
                 variant="default"
                 size="lg"
-                className="w-full mt-[0px] lg:h-[50px] h-[40px] cursor-pointer hover:bg-secondary hover:text-gray-900 font-semibold text-[16px]"
+                className="w-full mt-[0px] lg:h-[50px] h-[40px] cursor-pointer bg-[#d45815] hover:bg-[#c04d12] font-semibold text-[16px]"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -164,8 +164,8 @@ export default function Home() {
               <div className="flex items-center justify-start gap-[5px] p-[10px]">
                 <BiUser color="#fff" size={24} />
                 <Link
-                  href="https://client.healthmonitorapp.online"
-                  className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
+                  href="https://machine-health.vercel.app/"
+                  className="!text-white text-base leading-[24px] font-montserrat font-semibold hover:underline"
                 >
                   Login to Client
                 </Link>

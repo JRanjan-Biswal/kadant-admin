@@ -4,7 +4,7 @@ import {
     Dialog,
     DialogContent,
 } from "@/components/ui/dialog";
-import { Check, Loader2 } from "lucide-react";
+import { SquarePen, Loader2 } from "lucide-react";
 
 interface ConfirmationDialogProps {
     open: boolean;
@@ -43,10 +43,9 @@ export default function ConfirmationDialog({
                 className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[440px]"
             >
                 {/* Header */}
-                <div className="border-b border-[#607797] px-6 py-[17px]">
+                <div className="px-6 py-[17px]">
                     <p className="text-[#1f2937] text-xl leading-8">
-                        {title.prefix}{" "}
-                        <span className="text-[#d45815]">{title.highlight}</span>
+                        {title.prefix} {title.highlight}
                     </p>
                 </div>
 
@@ -64,12 +63,12 @@ export default function ConfirmationDialog({
                         type="button"
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className="bg-[#d45815] text-[#1f2937] px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors flex items-center gap-[9px] disabled:opacity-50"
+                        className="bg-[#1f2937] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#1f2937]/90 transition-colors flex items-center gap-[9px] disabled:opacity-50"
                     >
                         {isLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                            <Check className="w-4 h-4" />
+                            <SquarePen className="w-4 h-4" />
                         )}
                         Yes, Confirm
                     </button>

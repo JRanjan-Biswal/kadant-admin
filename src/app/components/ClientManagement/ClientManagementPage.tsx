@@ -231,40 +231,37 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
                         {displayedClients.map((client) => (
                             <div
                                 key={client._id}
-                                className="bg-white border border-[#96A5BA] rounded-[10px] flex items-stretch gap-0 overflow-hidden"
+                                className="bg-white border border-[#96A5BA] rounded-[10px] flex items-stretch gap-0 overflow-hidden ease-in-out duration-300 scale-100 hover:scale-101 group"
                             >
                                 {/* Company Name — highlighted blue-gray strip */}
-                                <div className="bg-[#DFE6EC] flex flex-col justify-center gap-0.5 px-5 py-3 min-w-[200px] flex-1">
+                                <div className="bg-[#DFE6EC] flex flex-col justify-center gap-0.5 px-5 py-3 min-w-[200px] flex-1" onClick={() => router.push(`/${client._id}/client-overview`)}>
                                     <p className="text-[#6b7280] text-[13px] leading-5">Company Name</p>
-                                    <button
-                                        onClick={() => router.push(`/${client._id}/client-overview`)}
-                                        className="text-[#2D3E5C] text-[15px] font-bold text-left hover:text-[#d45815] transition-colors cursor-pointer truncate"
-                                    >
+                                    <button className="text-[#2D3E5C] text-[15px] font-bold text-left group-hover:text-[#d45815] transition-colors cursor-pointer truncate">
                                         {client.name}
                                     </button>
                                 </div>
 
                                 {/* Remaining fields on white */}
                                 <div className="flex items-center gap-6 flex-[3] px-5 py-3 min-w-0">
-                                    <div className="flex flex-col gap-0.5 flex-[1.4] min-w-0">
+                                    <div className="flex flex-col gap-0.5 flex-[1.4] min-w-0 cursor-pointer" onClick={() => router.push(`/${client._id}/client-overview`)}>
                                         <p className="text-[#6b7280] text-[13px] leading-5">Location</p>
                                         <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
                                             {client.location?.address || "N/A"}
                                         </p>
                                     </div>
-                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0 cursor-pointer" onClick={() => router.push(`/${client._id}/client-overview`)}>
                                         <p className="text-[#6b7280] text-[13px] leading-5">End Product</p>
                                         <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
                                             {client.endProduct || "N/A"}
                                         </p>
                                     </div>
-                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0 cursor-pointer" onClick={() => router.push(`/${client._id}/client-overview`)}>
                                         <p className="text-[#6b7280] text-[13px] leading-5">Owner</p>
                                         <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
                                             {getOwnerName(client)}
                                         </p>
                                     </div>
-                                    <div className="flex flex-col gap-0.5 min-w-[90px]">
+                                    <div className="flex flex-col gap-0.5 min-w-[90px] cursor-pointer" onClick={() => router.push(`/${client._id}/client-overview`)}>
                                         <p className="text-[#6b7280] text-[13px] leading-5">Capacity</p>
                                         <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
                                             {client.capacity || "N/A"}

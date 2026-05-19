@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { FaRegUser } from "react-icons/fa6";
 import { LuCalendarCog, LuBookOpen, LuPackage } from "react-icons/lu";
 import { PiGearFineBold } from "react-icons/pi";
-import { FiUpload } from "react-icons/fi";
 import { LuHistory } from "react-icons/lu";
-import { HiOutlineUserGroup, HiOutlineUsers } from "react-icons/hi";
+import { HiOutlineUserGroup } from "react-icons/hi";
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 import { NavMain } from "@/app/components/AppSideBar/NavMain";
 import { NavUser } from "@/app/components/AppSideBar/NavUser";
@@ -52,13 +53,6 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       alwaysEnabled: true,
     },
     {
-      title: "Team Management",
-      url: "/team-management",
-      icon: HiOutlineUsers,
-      disabled: false,
-      alwaysEnabled: true,
-    },
-    {
       title: "Client Overview",
       url: hasSelectedClient ? `/${clientID}/client-overview` : "#",
       icon: FaRegUser,
@@ -94,12 +88,12 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       icon: LuHistory,
       disabled: !hasSelectedClient,
     },
-    {
-      title: "Upload Images",
-      url: hasSelectedClient ? `/${clientID}/upload-photos` : "#",
-      icon: FiUpload,
-      disabled: !hasSelectedClient,
-    },
+    // {
+    //   title: "Upload Images",
+    //   url: hasSelectedClient ? `/${clientID}/upload-photos` : "#",
+    //   icon: FiUpload,
+    //   disabled: !hasSelectedClient,
+    // },
   ];
 
   return (
@@ -117,17 +111,31 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           onNavigateStart={(url: string) => setNavigatingUrl(url)}
         />
       </SidebarContent>
-      {/* Settings Section at Bottom */}
-      <div className="border-t border-[#f9fafb] flex shrink-0 flex-col items-start justify-center p-[16px]">
-        <button className="flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] hover:bg-sidebar-accent transition-colors">
-          <div className="relative shrink-0 size-[20px]">
-            <PiGearFineBold className="w-5 h-5 text-[#6b7280]" />
-          </div>
-          <span className="font-lato font-normal leading-[24px] text-[16px] text-[#6b7280]">
-            Settings
-          </span>
-        </button>
-      </div>
+      {/* Bottom Section: Access Control (superadmin only) */}
+      {user?.role === "superadmin" && (
+        <div className="border-t border-[#607797] flex shrink-0 flex-col items-start justify-center p-[16px]">
+          <Link
+            href="/access-control"
+            className="block w-full"
+            onClick={() => setNavigatingUrl("/access-control")}
+          >
+            <div
+              className={`flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] transition-all ${
+                pathname === "/access-control"
+                  ? "bg-[#d45815]"
+                  : "bg-[#d45815] hover:bg-[#b8480e]"
+              }`}
+            >
+              <div className="relative shrink-0 size-[20px]">
+                <ShieldCheck className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-lato font-semibold leading-[20px] text-[15px] text-white">
+                Access Control
+              </span>
+            </div>
+          </Link>
+        </div>
+      )}
       <SidebarRail />
     </Sidebar>
   );

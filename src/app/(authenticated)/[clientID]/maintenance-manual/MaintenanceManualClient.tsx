@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import { Download, Upload, Loader2, Search, X, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -80,13 +79,11 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [loadingManuals, setLoadingManuals] = useState(false);
 
-    // Set of machine IDs that belong to *this* client. Used to intersect with
-    // the global category list so unrelated machines never leak into the view.
     const [clientMachineIds, setClientMachineIds] = useState<Set<string>>(new Set());
 
+    const [uploadPrefill, setUploadPrefill] = useState<SearchResult | null>(null);
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    // ── Fetch categories + this client's machines in parallel ──
     useEffect(() => {
         let cancelled = false;
         setLoadingCategories(true);
@@ -133,7 +130,6 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
         return () => { cancelled = true; };
     }, [clientID]);
 
-    // ── Fetch manuals ──
     const fetchManuals = useCallback(() => {
         setLoadingManuals(true);
         fetch("/api/machines/maintenance-manuals")
@@ -150,17 +146,20 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
         fetchManuals();
     }, [fetchManuals]);
 
-    // ── Derived data ──
     const selectedCategory = categories.find((c) => c._id === selectedCategoryId);
-    // Restrict category machines to the ones this client actually has, so
-    // global machines under the same category never leak into this client's view.
     const machinesInCategory = (selectedCategory?.machines ?? []).filter((m) =>
         clientMachineIds.has(m._id)
     );
 
-    const categoryMachineIds = new Set(machinesInCategory.map((m) => m._id));
-    const machineMap = Object.fromEntries(machinesInCategory.map((m) => [m._id, m]));
-    const manualsInCategory = manuals.filter((m) => m.machine?._id && categoryMachineIds.has(m.machine._id));
+    // Map machineId -> first manual for that machine (machine-level manuals only, no sparePart)
+    const manualByMachineId = new Map<string, ApiManual>();
+    for (const m of manuals) {
+        if (!m.machine?._id) continue;
+        if (m.sparePart) continue;
+        if (!manualByMachineId.has(m.machine._id)) {
+            manualByMachineId.set(m.machine._id, m);
+        }
+    }
 
     const handleDeleteManual = async (manualId: string) => {
         if (!confirm("Delete this manual?")) return;
@@ -174,30 +173,35 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
         }
     };
 
+    const openUploadFor = (machine: ApiMachine) => {
+        setUploadPrefill({
+            type: "machine",
+            _id: machine._id,
+            machineId: machine._id,
+            label: machine.name,
+            modelNumber: machine.modelNumber ?? undefined,
+            categoryName: selectedCategory?.name,
+        });
+        setShowUploadModal(true);
+    };
+
+    const machineCount = machinesInCategory.length;
+
     return (
         <div className="flex flex-col gap-6 p-4 pb-8 animate-fadeIn">
             {/* ── Header ── */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                    <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">
-                        Maintenance Manual
-                    </h1>
-                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280] mt-1">
-                        Access and download maintenance manuals for all equipment
-                    </p>
-                </div>
-                <Button
-                    onClick={() => setShowUploadModal(true)}
-                    className="bg-orange hover:bg-orange-light text-white rounded-[10px] flex items-center gap-2"
-                >
-                    <Upload className="w-4 h-4" />
-                    Upload Manual
-                </Button>
+            <div>
+                <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">
+                    Maintenance Manual
+                </h1>
+                <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280] mt-1">
+                    Access and download maintenance manuals for all equipment
+                </p>
             </div>
 
             {/* ── Category Selector ── */}
             <div className="flex flex-col gap-2">
-                <label className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
+                <label className="text-[14px] leading-[21px] font-lato font-normal text-[#6b7280]">
                     Select Category
                 </label>
                 {loadingCategories ? (
@@ -207,7 +211,7 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                     </div>
                 ) : (
                     <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                        <SelectTrigger className="w-full max-w-[300px] h-11 bg-[#96A5BA] border-[#607797]">
+                        <SelectTrigger className="w-full max-w-[280px] h-10 bg-[#DFE6EC] border-[#C5D1DC] text-[#2D3E5C] rounded-[8px]">
                             <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -221,95 +225,78 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                 )}
             </div>
 
-            {/* ── Manual Count ── */}
-            <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
+            {/* ── Count ── */}
+            <p className="text-[15px] leading-[22px] font-lato font-normal text-[#6b7280]">
                 Showing{" "}
-                <span className="text-orange font-normal">
-                    {manualsInCategory.length} Manual{manualsInCategory.length !== 1 ? "s" : ""}
+                <span className="text-orange font-medium">
+                    {machineCount} Machine{machineCount !== 1 ? "s" : ""}
                 </span>{" "}
                 in {selectedCategory?.name ?? "—"}
             </p>
 
-            {/* ── Manual Cards Grid ── */}
+            {/* ── Machine Rows ── */}
             {loadingManuals && manuals.length === 0 ? (
                 <div className="flex items-center gap-2 text-[#6b7280] py-8">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading manuals...
+                    Loading...
                 </div>
-            ) : manualsInCategory.length === 0 ? (
-                <p className="text-[#4b5563] text-sm py-8">No manuals found in this category.</p>
+            ) : machineCount === 0 ? (
+                <p className="text-[#4b5563] text-sm py-8">No machines in this category.</p>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    {manualsInCategory.map((manual) => {
-                        const machine = machineMap[manual.machine!._id];
-                        const machineImage = machine?.imageUrl ?? manual.machine?.imageUrl ?? null;
-                        const machineName = machine?.name ?? manual.machine?.name ?? "Unknown";
-                        const modelNumber = machine?.modelNumber ?? manual.machine?.modelNumber ?? null;
+                <div className="flex flex-col gap-3">
+                    {machinesInCategory.map((machine, idx) => {
+                        const manual = manualByMachineId.get(machine._id);
+                        const hasManual = !!manual;
 
                         return (
                             <div
-                                key={manual._id}
-                                className="group rounded-xl border border-[#607797] bg-[#DFE6EC] overflow-hidden transition-all duration-200 hover:border-orange/50 hover:shadow-lg hover:shadow-orange/5"
+                                key={machine._id}
+                                className="flex items-center justify-between gap-4 rounded-[12px] border border-[#C5D1DC] bg-white px-5 py-4 transition-colors hover:border-orange/40"
                             >
-                                {/* Machine Image */}
-                                <div className="relative w-full aspect-[4/3] bg-[#e5e7eb] overflow-hidden">
-                                    {machineImage ? (
-                                        <Image
-                                            src={machineImage}
-                                            alt={`${machineName}${modelNumber ? ` - ${modelNumber}` : ""}`}
-                                            fill
-                                            className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                        />
-                                    ) : (
-                                        <div className="flex items-center justify-center h-full text-[#4b5563] text-sm">
-                                            No image
-                                        </div>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="text-[16px] leading-[24px] font-lato font-semibold text-[#2D3E5C] shrink-0">
+                                        {idx + 1}.
+                                    </span>
+                                    <span className="text-[16px] leading-[24px] font-lato font-semibold text-[#2D3E5C] truncate">
+                                        {machine.name}
+                                    </span>
+                                    {machine.modelNumber && (
+                                        <span className="text-[15px] leading-[22px] font-lato font-normal text-[#6b7280] shrink-0">
+                                            ( {machine.modelNumber} )
+                                        </span>
                                     )}
                                 </div>
 
-                                {/* Card Info */}
-                                <div className="p-4 flex flex-col gap-3">
-                                    <div>
-                                        <h3 className="text-[18px] leading-[28px] font-normal text-[#1f2937]">
-                                            {machineName}
-                                        </h3>
-                                        {modelNumber && (
-                                            <p className="text-[14px] leading-[21px] font-normal text-[#6b7280]">
-                                                Model: {modelNumber}
-                                            </p>
-                                        )}
-                                        {manual.sparePart?.name && (
-                                            <p className="text-[13px] leading-[20px] font-normal text-[#6b7280]">
-                                                Spare Part: {manual.sparePart.name}
-                                                {manual.sparePart.klValue && ` (${manual.sparePart.klValue})`}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Download + Delete */}
-                                    <div className="flex items-center gap-2">
-                                        <a
-                                            href={manual.fileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] bg-orange hover:bg-orange-light text-white text-sm font-medium transition-colors duration-200 cursor-pointer flex-1 min-w-0"
-                                        >
-                                            <Download className="w-4 h-4 shrink-0" />
-                                            <span className="truncate">Download Manual</span>
-                                        </a>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {hasManual ? (
+                                        <>
+                                            <a
+                                                href={manual!.fileUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] border border-[#C5D1DC] bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#2D3E5C] text-[14px] leading-[21px] font-lato font-medium transition-colors"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Get Manual
+                                            </a>
+                                            <button
+                                                onClick={() => handleDeleteManual(manual!._id)}
+                                                className="p-2 rounded-[8px] text-[#6b7280] hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                title="Delete manual"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    ) : (
                                         <button
-                                            onClick={() => handleDeleteManual(manual._id)}
-                                            className="p-2.5 rounded-[10px] text-[#6b7280] hover:text-red-400 hover:bg-red-400/10 shrink-0 transition-colors"
-                                            title="Delete manual"
+                                            onClick={() => openUploadFor(machine)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] border border-dashed border-[#C5D1DC] bg-white hover:bg-[#F1F5F9] text-[#6b7280] hover:text-orange text-[14px] leading-[21px] font-lato font-medium transition-colors"
+                                            title="No manual yet — upload"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Upload className="w-4 h-4" />
+                                            Upload Manual
                                         </button>
-                                    </div>
-
-                                    <p className="text-[12px] text-[#4b5563] truncate" title={manual.originalName}>
-                                        {manual.originalName}
-                                    </p>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -320,9 +307,14 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
             {/* ── Upload Modal ── */}
             <UploadManualModal
                 open={showUploadModal}
-                onClose={() => setShowUploadModal(false)}
+                prefill={uploadPrefill}
+                onClose={() => {
+                    setShowUploadModal(false);
+                    setUploadPrefill(null);
+                }}
                 onSuccess={() => {
                     setShowUploadModal(false);
+                    setUploadPrefill(null);
                     fetchManuals();
                 }}
             />
@@ -334,10 +326,12 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
 
 function UploadManualModal({
     open,
+    prefill,
     onClose,
     onSuccess,
 }: {
     open: boolean;
+    prefill: SearchResult | null;
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -360,10 +354,13 @@ function UploadManualModal({
     }, []);
 
     useEffect(() => {
-        if (!open) resetState();
-    }, [open, resetState]);
+        if (!open) {
+            resetState();
+        } else if (prefill) {
+            setSelectedItem(prefill);
+        }
+    }, [open, prefill, resetState]);
 
-    // ── Debounced search ──
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         const q = searchQuery.trim();
@@ -435,7 +432,6 @@ function UploadManualModal({
                 </DialogHeader>
 
                 <div className="flex flex-col gap-5 pt-2">
-                    {/* ── Search or selected ── */}
                     {selectedItem ? (
                         <div className="flex flex-col gap-2">
                             <Label className="text-[#6b7280] text-sm">Selected</Label>
@@ -482,14 +478,13 @@ function UploadManualModal({
                                 )}
                             </div>
 
-                            {/* ── Search Results ── */}
                             {searchResults.length > 0 && (
                                 <div className="bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] max-h-[240px] overflow-y-auto divide-y divide-[#d1d5db]">
                                     {searchResults.map((item) => (
                                         <button
                                             key={`${item.type}-${item._id}`}
                                             onClick={() => handleSelect(item)}
-                                            className="w-full text-left px-4 py-3 hover:bg-[#363636] transition-colors flex items-center gap-3"
+                                            className="w-full text-left px-4 py-3 hover:bg-[#d1d5db] transition-colors flex items-center gap-3"
                                         >
                                             <div className="w-8 h-8 rounded-md bg-[#d1d5db] flex items-center justify-center shrink-0">
                                                 <FileText className="w-4 h-4 text-[#6b7280]" />
@@ -515,7 +510,6 @@ function UploadManualModal({
                         </div>
                     )}
 
-                    {/* ── File Upload ── */}
                     <div className="flex flex-col gap-2">
                         <Label className="text-[#6b7280] text-sm">Manual File (PDF, DOC, DOCX)</Label>
                         {file ? (
@@ -550,7 +544,6 @@ function UploadManualModal({
                         )}
                     </div>
 
-                    {/* ── Upload Button ── */}
                     <Button
                         onClick={handleUpload}
                         disabled={!selectedItem || !file || uploading}

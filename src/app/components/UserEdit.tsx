@@ -188,7 +188,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                             />
                             <Button
                                 variant="outline"
-                                className="bg-base-2 text-gray-900 w-full cursor-pointer hover:bg-black hover:text-gray-900"
+                                className="bg-base-4 text-white w-full cursor-pointer hover:bg-black hover:text-white"
                                 onClick={() => document.getElementById('imageUpload')?.click()}
                             >
                                 <Upload />
@@ -244,7 +244,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                         </div>
 
                         <div className="text-right">
-                            <Button className="text-gray-900 cursor-pointer hover:bg-black hover:text-gray-900 bg-base-4 w-full" onClick={handleSaveChanges} disabled={isUserDetailsLoading}>
+                            <Button className="text-white cursor-pointer hover:bg-black hover:text-white bg-base-4 w-full" onClick={handleSaveChanges} disabled={isUserDetailsLoading}>
                                 {isUserDetailsLoading ? (
                                     <div className="flex items-center gap-2">
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -296,7 +296,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                         </div>
 
                         <div className="text-right">
-                            <Button className="bg-base-4 w-full text-gray-900 cursor-pointer hover:bg-black hover:text-gray-900" onClick={handlePasswordChange} disabled={isPasswordLoading}>
+                            <Button className="bg-base-4 w-full text-white cursor-pointer hover:bg-black hover:text-white" onClick={handlePasswordChange} disabled={isPasswordLoading}>
                                 <TbLockPassword />
                                 Update Password
                             </Button>

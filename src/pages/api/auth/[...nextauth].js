@@ -56,6 +56,9 @@ export const authOptions = {
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image; // Note: use 'picture' for images in JWT
+        token.role = user.role;
+        token.userId = user._id;
+        token.username = user.username;
       }
 
       // Handle session updates
@@ -66,6 +69,8 @@ export const authOptions = {
         token.picture = session.image || token.picture;
         token.designation = session.designation || token.designation;
         token.isReadOnly = session.isReadOnly || token.isReadOnly;
+        token.role = session.role || token.role;
+        token.username = session.username || token.username;
       }
 
       return token;
@@ -78,6 +83,9 @@ export const authOptions = {
       session.user.name = token.name;
       session.user.email = token.email;
       session.user.image = token.picture;
+      session.user.role = token.role;
+      session.user._id = token.userId;
+      session.user.username = token.username;
       return session;
     },
   },

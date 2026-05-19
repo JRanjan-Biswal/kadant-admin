@@ -433,7 +433,7 @@ export default function ClientOverviewContent({
                 <div className="flex gap-[15px]">
                     {/* Company Name */}
                     <div className="bg-white border border-[#96A5BA] rounded-[10px] p-4 flex flex-col gap-1 w-[215px] h-[82px]">
-                        <p className="text-[#6b7280] text-sm leading-5">Company Name</p>
+                        <p className="text-[#374151] text-sm font-medium leading-5">Company Name</p>
                         <p className="text-[#d45815] text-base font-bold leading-6">
                             {clientDetails?.name || "N/A"}
                         </p>
@@ -441,7 +441,7 @@ export default function ClientOverviewContent({
 
                     {/* Location */}
                     <div className="bg-white border border-[#96A5BA] rounded-[10px] p-4 flex flex-col gap-1 w-[215px] h-[82px]">
-                        <p className="text-[#6b7280] text-sm leading-5">Location</p>
+                        <p className="text-[#374151] text-sm font-medium leading-5">Location</p>
                         <p className="text-gray-900 text-base font-bold leading-6 truncate">
                             {clientDetails?.location?.address
                                 ? clientDetails.location.address.length > 20
@@ -453,7 +453,7 @@ export default function ClientOverviewContent({
 
                     {/* End Product */}
                     <div className="bg-white border border-[#96A5BA] rounded-[10px] p-4 flex flex-col gap-1 w-[216px] h-[82px]">
-                        <p className="text-[#6b7280] text-sm leading-5">End Product</p>
+                        <p className="text-[#374151] text-sm font-medium leading-5">End Product</p>
                         <p className="text-gray-900 text-base font-bold leading-6">
                             {clientDetails?.endProduct || "N/A"}
                         </p>
@@ -461,7 +461,7 @@ export default function ClientOverviewContent({
 
                     {/* Owner */}
                     <div className="bg-white border border-[#96A5BA] rounded-[10px] p-4 flex flex-col gap-1 w-[215px] h-[82px]">
-                        <p className="text-[#6b7280] text-sm leading-5">Owner</p>
+                        <p className="text-[#374151] text-sm font-medium leading-5">Owner</p>
                         <p className="text-gray-900 text-base font-bold leading-6">
                             {ownerName}
                         </p>
@@ -469,7 +469,7 @@ export default function ClientOverviewContent({
 
                     {/* Capacity */}
                     <div className="bg-white border border-[#96A5BA] rounded-[10px] p-4 flex flex-col gap-1 w-[215px] h-[82px]">
-                        <p className="text-[#6b7280] text-sm leading-5">Capacity</p>
+                        <p className="text-[#374151] text-sm font-medium leading-5">Capacity</p>
                         <p className="text-gray-900 text-base font-bold leading-6">
                             {clientDetails?.capacity || "N/A"}
                         </p>
@@ -482,9 +482,9 @@ export default function ClientOverviewContent({
                     <div className="border-b border-[#607797] flex items-center justify-between px-6 py-4">
                         <div className="flex items-center gap-5">
                             <div className="flex items-center gap-2">
-                                <h2 className="text-gray-900 text-xl leading-7 font-normal">Total Machines</h2>
+                                <h2 className="text-gray-900 text-xl leading-7 font-semibold">Total Machines</h2>
                                 <div className="bg-[rgba(255,105,0,0.2)] rounded px-2 py-0.5">
-                                    <span className="text-[#d45815] text-sm leading-5">
+                                    <span className="text-[#d45815] text-sm font-semibold leading-5">
                                         {totalMachines} Units
                                     </span>
                                 </div>
@@ -500,13 +500,13 @@ export default function ClientOverviewContent({
                         </div>
                         {/* Search Input */}
                         <div className="relative w-[256px]">
-                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b7280]" />
+                            <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#374151]" />
                             <input
                                 type="text"
                                 placeholder="Search machines..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-white border border-[#d1d5db] rounded-[10px] h-[42px] pl-9 pr-4 text-gray-900 text-base placeholder:text-[rgba(243,244,246,0.5)] outline-none focus:border-[#d45815] transition-colors"
+                                className="w-full bg-white border border-[#96A5BA] rounded-[10px] h-[42px] pl-9 pr-4 text-gray-900 text-base font-medium placeholder:text-[#6b7280] outline-none focus:border-[#d45815] transition-colors"
                             />
                         </div>
                     </div>
@@ -530,11 +530,11 @@ export default function ClientOverviewContent({
                                                 >
                                                     <HiOutlineChevronRight className="w-4 h-4 text-gray-900" />
                                                 </span>
-                                                <span className="text-gray-900 text-[16px] font-normal font-lato leading-[24px]">
+                                                <span className="text-gray-900 text-[16px] font-semibold font-lato leading-[24px]">
                                                     {category.name}
                                                 </span>
-                                                <div className="bg-[#f9fafb] rounded px-2 py-0.5">
-                                                    <span className="text-[#6b7280] text-sm leading-5">
+                                                <div className="bg-[#e5e7eb] rounded px-2 py-0.5">
+                                                    <span className="text-[#1f2937] text-sm font-semibold leading-5">
                                                         {category.machines?.length || 0}
                                                     </span>
                                                 </div>
@@ -545,7 +545,7 @@ export default function ClientOverviewContent({
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={(e) => { e.stopPropagation(); setEditingCategoryId(category._id); }}
-                                                    className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#d45815] hover:bg-[#d45815]/10"
+                                                    className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10"
                                                     title="Edit category"
                                                 >
                                                     <Pencil className="w-4 h-4" />
@@ -555,7 +555,7 @@ export default function ClientOverviewContent({
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
-                                                    className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10"
+                                                    className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10"
                                                     title="Delete category"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -573,13 +573,13 @@ export default function ClientOverviewContent({
                                                     <table className="w-full border-collapse">
                                                         <thead className="bg-[#ffffff]">
                                                             <tr className="border-b border-[#607797]">
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-16">Sr.No.</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Machine Name</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Current Status</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Last Service on</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Installation Date</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
-                                                                <th className="text-left py-3 px-4 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-20">Delete</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-16">Sr.No.</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Machine Name</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Current Status</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Last Service on</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Installation Date</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-24">Edit Detail</th>
+                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Delete</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="bg-[#DFE6EC]">
@@ -593,20 +593,20 @@ export default function ClientOverviewContent({
                                                                             onClick={() => toggleMachine(machine._id)}
                                                                             className="border-b border-[#607797] bg-[#DFE6EC] hover:bg-[#DFE6EC] transition-colors cursor-pointer"
                                                                         >
-                                                                            <td className="py-3 px-4 text-gray-900 text-sm">{index + 1}</td>
+                                                                            <td className="py-3 px-4 text-gray-900 text-sm font-semibold">{index + 1}</td>
                                                                             <td className="py-3 px-4">
                                                                                 <div className="flex items-center gap-2">
                                                                                     <span className="transition-transform duration-200 ease-out shrink-0" style={{ transform: isMachineOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
                                                                                         <HiOutlineChevronRight className="w-4 h-4 text-gray-900" />
                                                                                     </span>
-                                                                                    <span className="text-gray-900 text-[16px] font-normal">{machine.name || "N/A"}</span>
+                                                                                    <span className="text-gray-900 text-[16px] font-semibold">{machine.name || "N/A"}</span>
                                                                                     {isLoading && <Loader2 className="w-4 h-4 text-gray-900 animate-spin shrink-0" />}
                                                                                 </div>
                                                                             </td>
                                                                             <td className="py-3 px-4">
                                                                                 <div className="flex flex-col gap-1.5">
                                                                                     <div className="flex items-center gap-1.5">
-                                                                                        {getStatusIcon(machine.status)}
+                                                                                        {/* {getStatusIcon(machine.status)} */}
                                                                                         <Badge className={`${getStatusColor(machine.status)} text-xs border font-medium rounded-2xl`}>
                                                                                             {getStatusText(machine.status)}
                                                                                         </Badge>
@@ -616,11 +616,11 @@ export default function ClientOverviewContent({
                                                                                     </Badge>
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
-                                                                            <td className="py-3 px-4 text-[#9ca3af] text-sm">—</td>
-                                                                            <td className="py-3 px-4 text-[#6b7280]">—</td>
+                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
+                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
+                                                                            <td className="py-3 px-4 text-[#374151] font-medium">—</td>
                                                                             <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "machine", id: machine._id, name: machine.name || "N/A" })} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete machine">
+                                                                                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "machine", id: machine._id, name: machine.name || "N/A" })} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete machine">
                                                                                     <Trash2 className="w-4 h-4" />
                                                                                 </Button>
                                                                             </td>
@@ -632,23 +632,23 @@ export default function ClientOverviewContent({
                                                                                         {spareParts.length > 0 ? (
                                                                                             <table className="w-full border-collapse rounded-none overflow-hidden border border-[#607797]">
                                                                                                 <thead>
-                                                                                                    <tr className="bg-[#f9fafb] border-b border-[#607797]">
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-12">#</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Spare Part Name</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Health</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Current Status</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Last Service On</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider">Installation Date</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-24">Edit Detail</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-20">Parts</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#6b7280] text-xs font-medium uppercase tracking-wider w-20">Delete</th>
+                                                                                                    <tr className="bg-[#f3f4f6] border-b border-[#607797]">
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-12">#</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Spare Part Name</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Health</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Current Status</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Last Service On</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Installation Date</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-24">Edit Detail</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Parts</th>
+                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Delete</th>
                                                                                                     </tr>
                                                                                                 </thead>
                                                                                                 <tbody>
                                                                                                     {spareParts.map((sparePart, spIndex) => (
                                                                                                         <tr key={sparePart._id} className="border-b border-[#607797] bg-[#DFE6EC] hover:bg-[#e5e7eb]/50 last:border-b-0">
-                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm">{spIndex + 1}</td>
-                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm font-medium">{sparePart.customName || sparePart.name}</td>
+                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm font-semibold">{spIndex + 1}</td>
+                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm font-semibold">{sparePart.customName || sparePart.name}</td>
                                                                                                             <td className="py-2 px-3">
                                                                                                                 <div className="flex items-center gap-1.5">
                                                                                                                     {getStatusIcon(sparePart.status)}
@@ -660,20 +660,20 @@ export default function ClientOverviewContent({
                                                                                                                     {sparePart.isActive !== false ? "Active" : "Inactive"}
                                                                                                                 </Badge>
                                                                                                             </td>
-                                                                                                            <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.lastServiceDate ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy") : "—"}</td>
-                                                                                                            <td className="py-2 px-3 text-[#9ca3af] text-sm">{sparePart.sparePartInstallationDate ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy") : "—"}</td>
+                                                                                                            <td className="py-2 px-3 text-[#374151] text-sm font-medium">{sparePart.lastServiceDate ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy") : "—"}</td>
+                                                                                                            <td className="py-2 px-3 text-[#374151] text-sm font-medium">{sparePart.sparePartInstallationDate ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart({ ...sparePart, machine: machine._id }); }} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart({ ...sparePart, machine: machine._id }); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
                                                                                                                     <Pencil className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPartsModal(sparePart._id, sparePart.customName || sparePart.name); }} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Manage parts">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPartsModal(sparePart._id, sparePart.customName || sparePart.name); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Manage parts">
                                                                                                                     <Package className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "sparePart", id: sparePart._id, name: sparePart.customName || sparePart.name }); }} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete spare part">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "sparePart", id: sparePart._id, name: sparePart.customName || sparePart.name }); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete spare part">
                                                                                                                     <Trash2 className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
@@ -682,7 +682,7 @@ export default function ClientOverviewContent({
                                                                                                 </tbody>
                                                                                             </table>
                                                                                         ) : !isLoading ? (
-                                                                                            <p className="text-[#6b7280] text-sm py-4">No spare parts found</p>
+                                                                                            <p className="text-[#374151] text-sm font-medium py-4">No spare parts found</p>
                                                                                         ) : null}
                                                                                     </div>
                                                                                 </td>
@@ -701,14 +701,14 @@ export default function ClientOverviewContent({
                             })
                         ) : (
                             <div className="px-6 py-8 text-center">
-                                <p className="text-[#6b7280] text-sm">No machines found</p>
+                                <p className="text-[#374151] text-sm font-medium">No machines found</p>
                             </div>
                         )}
                     </div>
 
                     {/* Footer - Last Update */}
                     <div className="bg-[#ffffff] border-t border-[#607797] flex items-center justify-end px-6 py-2">
-                        <p className="text-[#607797] text-sm leading-6">
+                        <p className="text-[#374151] text-sm font-semibold leading-6">
                             Last Update On - {lastUpdate}
                         </p>
                     </div>
@@ -799,20 +799,20 @@ export default function ClientOverviewContent({
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPartsModalSparePart(null)} role="dialog" aria-modal="true" aria-labelledby="parts-modal-title">
                     <div className="bg-white border border-[#96A5BA] rounded-[14px] shadow-xl max-w-md w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                         <div className="border-b border-[#607797] px-6 py-4 flex items-center justify-between">
-                            <h3 id="parts-modal-title" className="text-gray-900 text-lg font-medium">Parts under &quot;{partsModalSparePart.sparePartName}&quot;</h3>
-                            <Button size="sm" variant="ghost" onClick={() => setPartsModalSparePart(null)} className="text-[#6b7280] hover:text-gray-900">Close</Button>
+                            <h3 id="parts-modal-title" className="text-gray-900 text-lg font-semibold">Parts under &quot;{partsModalSparePart.sparePartName}&quot;</h3>
+                            <Button size="sm" variant="ghost" onClick={() => setPartsModalSparePart(null)} className="text-[#374151] font-medium hover:text-gray-900">Close</Button>
                         </div>
                         <div className="p-4 overflow-auto flex-1">
                             {loadingParts ? (
-                                <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-[#6b7280]" /></div>
+                                <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-[#374151]" /></div>
                             ) : partsList.length === 0 ? (
-                                <p className="text-[#6b7280] text-sm py-4">No parts</p>
+                                <p className="text-[#374151] text-sm font-medium py-4">No parts</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {partsList.map((part) => (
                                         <li key={part._id} className="flex items-center justify-between gap-2 py-2 border-b border-[#607797] last:border-0">
-                                            <span className="text-gray-900 text-sm truncate">{part.name}</span>
-                                            <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "part", id: part._id, name: part.name })} className="h-8 w-8 p-0 text-[#6b7280] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 shrink-0" title="Delete part">
+                                            <span className="text-gray-900 text-sm font-medium truncate">{part.name}</span>
+                                            <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "part", id: part._id, name: part.name })} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 shrink-0" title="Delete part">
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </li>

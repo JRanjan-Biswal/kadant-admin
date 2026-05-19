@@ -406,13 +406,16 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                     <div className="block h-full items-center justify-center px-3 py-4">
                                         {
                                             (visit.visitType?.length) ? (
-                                                visit.visitType.map((type, index) => (
-                                                    <div className="flex gap-2" key={index}>
-                                                        <div className={`${type === "Process Audit" ? "bg-[rgba(255,105,0,0.2)]" : "bg-[rgba(43,127,255,0.2)]"} ${index == 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
-                                                            <p className="text-[#ff8904] text-[13px] leading-[14px] font-normal">{type}</p>
+                                                visit.visitType.map((type, idx) => {
+                                                    const isProcess = type === "Process Audit";
+                                                    return (
+                                                        <div className="flex gap-2" key={idx}>
+                                                            <div className={`${isProcess ? "bg-[rgba(255,105,0,0.2)]" : "bg-[rgba(43,127,255,0.2)]"} ${idx === 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
+                                                                <p className={`${isProcess ? "text-[#c2410c]" : "text-[#1d4ed8]"} text-[13px] leading-[14px] font-medium`}>{type}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    );
+                                                })
 
                                             ) 
                                             : null

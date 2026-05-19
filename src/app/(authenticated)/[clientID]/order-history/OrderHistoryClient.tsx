@@ -30,9 +30,9 @@ import { toast } from "sonner";
 // Canonical service types — kept in sync with machine-health RequestServiceModal
 // and admin OrderCreate. If you add a type here, update both.
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-    "General Maintenance": { bg: "bg-orange-500/20", text: "text-orange-400" },
-    "Order New": { bg: "bg-green-500/20", text: "text-green-400" },
-    "Rebuild": { bg: "bg-sky-500/20", text: "text-sky-400" },
+    "General Maintenance": { bg: "bg-orange-500/20", text: "text-orange-700" },
+    "Order New": { bg: "bg-green-500/20", text: "text-green-700" },
+    "Rebuild": { bg: "bg-sky-500/20", text: "text-sky-700" },
 };
 
 const STATUS_OPTIONS = [
@@ -45,16 +45,16 @@ const STATUS_OPTIONS = [
 ] as const;
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    pending: { bg: "bg-yellow-500/20", text: "text-yellow-400" },
-    ordered: { bg: "bg-blue-500/20", text: "text-blue-400" },
-    shipped: { bg: "bg-purple-500/20", text: "text-purple-400" },
-    delivered: { bg: "bg-emerald-500/20", text: "text-emerald-400" },
-    completed: { bg: "bg-green-500/20", text: "text-green-400" },
-    cancelled: { bg: "bg-red-500/20", text: "text-red-400" },
+    pending: { bg: "bg-yellow-500/20", text: "text-yellow-700" },
+    ordered: { bg: "bg-blue-500/20", text: "text-blue-700" },
+    shipped: { bg: "bg-purple-500/20", text: "text-purple-700" },
+    delivered: { bg: "bg-emerald-500/20", text: "text-emerald-700" },
+    completed: { bg: "bg-green-500/20", text: "text-green-700" },
+    cancelled: { bg: "bg-red-500/20", text: "text-red-700" },
     // Legacy/UI fallbacks
-    Completed: { bg: "bg-green-500/20", text: "text-green-400" },
-    Scheduled: { bg: "bg-orange-500/20", text: "text-orange-300" },
-    Pending: { bg: "bg-yellow-500/20", text: "text-yellow-400" },
+    Completed: { bg: "bg-green-500/20", text: "text-green-700" },
+    Scheduled: { bg: "bg-orange-500/20", text: "text-orange-700" },
+    Pending: { bg: "bg-yellow-500/20", text: "text-yellow-700" },
 };
 
 const isServiceRequest = (orderNumber: string) =>
@@ -183,7 +183,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">Order History</h1>
-                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280] mt-1">
+                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#4b5563] mt-1">
                         Complete order and service request tracking
                     </p>
                 </div>
@@ -249,7 +249,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
             {/* ── Records Table ── */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
                 <div className="px-5 py-4 border-b border-border">
-                    <h2 className="text-base font-semibold text-foreground">
+                    <h2 className="text-base font-semibold text-[#1f2937]">
                         Records ({filteredOrders.length})
                     </h2>
                 </div>
@@ -257,25 +257,25 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                 <Table>
                     <TableHeader>
                         <TableRow className="border-border hover:bg-transparent">
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider pl-5">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider pl-5">
                                 Order ID
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider">
                                 Machine Name
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider">
                                 Type
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider">
                                 Date
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider">
                                 Done By
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider">
                                 Status
                             </TableHead>
-                            <TableHead className="text-muted-foreground font-semibold text-xs uppercase tracking-wider text-center">
+                            <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider text-center">
                                 Actions
                             </TableHead>
                         </TableRow>
@@ -283,7 +283,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                     <TableBody>
                         {filteredOrders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                <TableCell colSpan={7} className="text-center py-12 text-[#4b5563]">
                                     No records found matching your search criteria.
                                 </TableCell>
                             </TableRow>
@@ -293,45 +293,44 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                                 const upcoming = isUpcoming(order.date);
                                 const typeColor = TYPE_COLORS[order.type] ?? {
                                     bg: "bg-gray-500/20",
-                                    text: "text-gray-400",
+                                    text: "text-gray-700",
                                 };
                                 const statusColor = STATUS_COLORS[order.status ?? ""] ?? {
                                     bg: "bg-gray-500/20",
-                                    text: "text-gray-400",
+                                    text: "text-gray-700",
                                 };
 
                                 return (
                                     <TableRow
                                         key={order._id}
-                                        className={`border-border transition-colors hover:bg-muted/40 ${isSR ? "border-l-2 border-l-orange" : ""
-                                            }`}
+                                        className={`border-border transition-colors hover:bg-muted/40 ${isSR ? "border-l-2" : ""}`}
                                     >
-                                        <TableCell className="font-medium text-foreground pl-5">
+                                        <TableCell className="font-medium text-[#1f2937] pl-5">
                                             {order.orderNumber || "-"}
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground">
+                                        <TableCell className="text-[#374151]">
                                             {order.machineName || order.rotor || "Hydrapulper"}
                                         </TableCell>
                                         <TableCell>
                                             <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${typeColor.bg} ${typeColor.text}`}
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${typeColor.bg} ${typeColor.text}`}
                                             >
                                                 {order.type || "-"}
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                            <div className="flex items-center gap-2 text-[#374151]">
                                                 <Calendar className="w-3.5 h-3.5 shrink-0" />
                                                 <span>{formatDate(order.date || order.installedDate)}</span>
                                                 {upcoming && (
-                                                    <span className="text-[10px] font-medium text-orange bg-orange/10 px-1.5 py-0.5 rounded">
+                                                    <span className="text-[10px] font-semibold text-orange-700 bg-orange-500/15 px-1.5 py-0.5 rounded">
                                                         Upcoming
                                                     </span>
                                                 )}
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                            <div className="flex items-center gap-2 text-[#374151]">
                                                 <User className="w-3.5 h-3.5 shrink-0" />
                                                 <span>{order.doneBy || "Admin"}</span>
                                             </div>
@@ -344,7 +343,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                                                 }
                                             >
                                                 <SelectTrigger
-                                                    className={`w-[130px] h-8 px-2.5 rounded-full text-xs font-medium border-0 ${statusColor.bg} ${statusColor.text} focus:ring-1 focus:ring-orange/40`}
+                                                    className={`w-[130px] h-8 px-2.5 rounded-full text-xs font-semibold border-0 ${statusColor.bg} ${statusColor.text} focus:ring-1 focus:ring-orange/40`}
                                                 >
                                                     <SelectValue placeholder="Select status" />
                                                 </SelectTrigger>
@@ -361,7 +360,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                                             <Button
                                                 variant="outline"
                                                 onClick={() => handleDeleteOrder(order._id || "")}
-                                                className="cursor-pointer bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 hover:text-red-300"
+                                                className="cursor-pointer bg-red-500/10 text-red-700 border-red-500/30 hover:bg-red-500/20 hover:text-red-800"
                                                 size="icon"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -393,8 +392,8 @@ function SummaryCard({
     return (
         <div className="flex items-center justify-between bg-card border border-border rounded-xl px-5 py-4 transition-all hover:border-orange/40">
             <div className="flex flex-col gap-1">
-                <span className="text-[14px] leading-[20px] font-lato font-normal text-[#6b7280]">{label}</span>
-                <span className="text-[30px] leading-[42px] font-lato font-normal text-[#1f2937]">{value}</span>
+                <span className="text-[14px] leading-[20px] font-lato font-medium text-[#4b5563]">{label}</span>
+                <span className="text-[30px] leading-[42px] font-lato font-semibold text-[#111827]">{value}</span>
             </div>
             <div className="w-12 h-12 rounded-full bg-orange/10 flex items-center justify-center">
                 {icon}

@@ -46,7 +46,7 @@ export function NavMain({
   };
 
   return (
-    <div className="flex flex-col gap-[12px] pt-[16px] px-[16px] flex-1 overflow-y-auto">
+    <div className="flex flex-col gap-[12px] pt-[16px] px-[16px] flex-1 overflow-y-auto border-t border-[#607797]">
       {/* Main Menu Label */}
       <div className="h-[20px] px-[12px]">
         <p className="flex-1 font-lato font-black leading-[20px] text-[14px] text-[#607797] tracking-[0.7px] uppercase">
