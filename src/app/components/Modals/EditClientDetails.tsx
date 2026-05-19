@@ -29,6 +29,9 @@ import Image from "next/image";
 interface EditClientDetailsProps {
     client: Client;
     machines: ClientMachine[];
+    /** Optional controlled-open mode. When provided, the built-in trigger is hidden. */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 interface MachineRow {
@@ -39,16 +42,28 @@ interface MachineRow {
     _id?: string;
 }
 
-export default function EditClientDetails({ client, machines = [] }: EditClientDetailsProps) {
+export default function EditClientDetails({ client, machines = [], open, onOpenChange }: EditClientDetailsProps) {
     const router = useRouter();
     const [clientDetails, setClientDetails] = useState<Client>(client);
     const [machineRows, setMachineRows] = useState<MachineRow[]>([]);
     // const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    const isControlled = open !== undefined;
+    const isOpen = isControlled ? !!open : internalOpen;
+    const setIsOpen = (next: boolean) => {
+        if (isControlled) {
+            onOpenChange?.(next);
+        } else {
+            setInternalOpen(next);
+        }
+    };
     const { data: session } = useSession();
     const [isReadOnly, setIsReadOnly] = useState(false);
+    // Display URL — fully built by backend (virtual `facilityImageUrl`). Never composed on FE.
     const [facilityImage, setFacilityImage] = useState<string | null>(client?.facilityImageUrl || null);
+    // Storage path — what we send back to the backend on save. Backend builds the URL on read.
+    const [facilityImagePath, setFacilityImagePath] = useState<string | null>(client?.facilityImagePath || null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     useEffect(() => {
@@ -134,6 +149,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
             const data = await response.json();
             setFacilityImage(data.url);
+            setFacilityImagePath(data.path || null);
             toast.success('Facility image uploaded successfully');
         } catch (error) {
             console.error('Error uploading facility image:', error);
@@ -145,6 +161,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
     const removeFacilityImage = () => {
         setFacilityImage(null);
+        setFacilityImagePath(null);
     };
 
     // const getProducts = async () => {
@@ -203,13 +220,11 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                 perUnit: clientDetails.fiberCost.perUnit
             },
             location: clientDetails.location,
-            facilityImage: facilityImage,
-            machines: machineRows.map(machine => ({
-                _id: machine._id,
-                productId: machine.productId,
-                serialNumber: machine.serialNumber,
-                installationDate: machine.installationDate
-            }))
+            // Send the relative path; backend rebuilds the public URL via virtual.
+            facilityImage: facilityImagePath,
+            // Machines are managed in the dedicated machine flow — do NOT send
+            // them from this modal or the backend will treat the absence as
+            // "delete the rest" and wipe the client's ClientMachine rows.
         }
 
         try {
@@ -241,18 +256,20 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <button
-                    disabled={isReadOnly}
-                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] px-4 py-2 h-auto flex items-center gap-2 text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <TbEdit className="w-4 h-4" />
-                    <span>Edit Details</span>
-                </button>
-            </DialogTrigger>
-            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-[#0D0D0D] border-border max-h-[90vh] overflow-y-auto" showCloseButton={true}>
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    <button
+                        disabled={isReadOnly}
+                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] px-4 py-2 h-auto flex items-center gap-2 text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <TbEdit className="w-4 h-4" />
+                        <span>Edit Details</span>
+                    </button>
+                </DialogTrigger>
+            )}
+            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-white border border-[#96A5BA] rounded-[14px] max-h-[90vh] overflow-y-auto" showCloseButton={true}>
                 <DialogHeader>
-                    <DialogTitle className="text-foreground text-xl">Edit Client & Machine Details</DialogTitle>
+                    <DialogTitle className="text-[#2D3E5C] text-xl font-bold">Edit Client & Machine Details</DialogTitle>
                 </DialogHeader>
 
                 {/* Row 1: 5 equal columns */}
@@ -264,7 +281,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="name"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.name || ''}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="Company Name"
                         />
                     </div>
@@ -275,7 +292,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="endProduct"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.endProduct || ''}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="End Product"
                         />
                     </div>
@@ -286,7 +303,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="capacity"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.capacity || ''}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="Capacity (TPD)"
                         />
                     </div>
@@ -297,7 +314,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="powerCost.value"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.powerCost?.value || 0}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="Power Cost"
                         />
                     </div>
@@ -308,7 +325,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="fiberCost.value"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.fiberCost?.value || 0}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="Fiber Cost"
                         />
                     </div>
@@ -324,7 +341,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="owner"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.clientOwnership?.name || ''}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] bg-muted text-muted-foreground cursor-not-allowed"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] bg-muted text-muted-foreground cursor-not-allowed"
                             placeholder="Owner"
                         />
                     </div>
@@ -335,13 +352,13 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             name="location"
                             onChange={handleClientDetailsChange}
                             value={clientDetails?.location?.address || ''}
-                            className="h-11 rounded-md border-border bg-[#1A1A1A] text-foreground"
+                            className="h-11 rounded-md border-border bg-[#DFE6EC] text-foreground"
                             placeholder="Location"
                         />
                     </div>
                     <div className="flex flex-col gap-2">
                         <Label className="text-muted-foreground text-sm opacity-0">Paste Link</Label>
-                        <Button className="w-full bg-[#1A1A1A] hover:bg-[#1A1A1A] border border-dashed border-border text-muted-foreground h-11 cursor-not-allowed gap-2">
+                        <Button className="w-full bg-[#DFE6EC] hover:bg-[#DFE6EC] border border-dashed border-border text-muted-foreground h-11 cursor-not-allowed gap-2">
                             <TbLink className="shrink-0" />
                             <span className="truncate">Paste address link</span>
                         </Button>
@@ -367,7 +384,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                                 <button
                                     type="button"
                                     onClick={removeFacilityImage}
-                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/80 transition-colors"
+                                    className="absolute -top-2 -right-2 bg-destructive text-gray-900 rounded-full p-1 hover:bg-destructive/80 transition-colors"
                                 >
                                     <TbX size={14} />
                                 </button>
@@ -392,7 +409,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                             </label>
                         )}
                         {facilityImage && (
-                            <label className="flex items-center gap-2 px-3 py-2 bg-[#1A1A1A] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0">
+                            <label className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0">
                                 <input
                                     type="file"
                                     accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -418,7 +435,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                     <h2 className="text-lg font-semibold text-foreground">Total Machines</h2>
                     <div className="max-h-[200px] overflow-y-auto border border-border rounded-lg mt-3">
                         <Table>
-                            <TableHeader className="bg-[#171717] sticky top-0 z-10">
+                            <TableHeader className="bg-[#ffffff] sticky top-0 z-10">
                                 <TableRow className="border-border hover:bg-transparent">
                                     <TableHead className="border-border border-r font-semibold text-muted-foreground w-[35%]">Machine Name</TableHead>
                                     <TableHead className="text-center border-border border-r font-semibold text-muted-foreground w-[25%]">Serial Number</TableHead>
@@ -502,7 +519,7 @@ export default function EditClientDetails({ client, machines = [] }: EditClientD
                     <Button
                         size="lg"
                         onClick={handleSubmit}
-                        className="bg-orange text-white uppercase font-semibold cursor-pointer w-[250px] hover:bg-orange/90"
+                        className="bg-[#2D3E5C] text-white uppercase font-semibold cursor-pointer w-[250px] hover:bg-[#1f2a44]"
                     >
                         {isLoading ? <Loader2 className="animate-spin" /> : "Submit"}
                     </Button>

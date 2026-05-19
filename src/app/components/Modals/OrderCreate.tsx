@@ -8,11 +8,20 @@ import { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Order } from "@/types/order";
 import { Textarea } from "@/components/ui/textarea";
+
+export const SERVICE_TYPES = ["General Maintenance", "Order New", "Rebuild"] as const;
 
 interface OrderCreateProps {
     clientID: string;
@@ -31,7 +40,7 @@ export default function OrderCreate({ clientID, onCreate }: OrderCreateProps) {
         rotor: "",
         installedDate: "",
         replacedDate: "",
-        runningHr: 0,
+        runningHrs: 0,
         remarks: "",
     });
 
@@ -68,7 +77,7 @@ export default function OrderCreate({ clientID, onCreate }: OrderCreateProps) {
                 rotor: "",
                 installedDate: "",
                 replacedDate: "",
-                runningHr: 0,
+                runningHrs: 0,
                 remarks: "",
             });
             toast.success("Order created successfully");
@@ -107,14 +116,19 @@ export default function OrderCreate({ clientID, onCreate }: OrderCreateProps) {
                     </div>
                     <div className="col-span-1">
                         <Label className="text-base-4 mb-[10px]">Type</Label>
-                        <Input
-                            type="text"
-                            name="type"
-                            onChange={handleOrderDetailsChange}
+                        <Select
                             value={orderDetails?.type || ''}
-                            className="h-12 rounded-sm border-base-2 border"
-                            placeholder="Type"
-                        />
+                            onValueChange={(value) => setOrderDetails(prev => ({ ...prev, type: value }))}
+                        >
+                            <SelectTrigger className="h-12 rounded-sm border-base-2 border w-full">
+                                <SelectValue placeholder="Select service type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SERVICE_TYPES.map((t) => (
+                                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="col-span-1">
                         <Label className="text-base-4 mb-[10px]">Rotor</Label>
@@ -154,9 +168,9 @@ export default function OrderCreate({ clientID, onCreate }: OrderCreateProps) {
                         <Input
                             type="number"
                             min={0}
-                            name="runningHr"
+                            name="runningHrs"
                             onChange={handleOrderDetailsChange}
-                            value={orderDetails?.runningHr || ''}
+                            value={orderDetails?.runningHrs || ''}
                             className="h-12 rounded-sm border-base-2 border"
                             placeholder="Running Hr"
                         />
@@ -178,7 +192,7 @@ export default function OrderCreate({ clientID, onCreate }: OrderCreateProps) {
                         <Button
                             size="lg"
                             onClick={handleSubmit}
-                            className="w-full bg-base-4 text-white uppercase font-semibold cursor-pointer w-[250px]"
+                            className="w-full bg-base-4 text-gray-900 uppercase font-semibold cursor-pointer w-[250px]"
                         >
                             {isLoading ? <Loader2 className="animate-spin" /> : "Submit"}
                         </Button>

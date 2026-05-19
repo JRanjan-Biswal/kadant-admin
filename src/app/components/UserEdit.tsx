@@ -34,8 +34,9 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
         image: user.image as string || "",
         designation: user.designation as string || "",
     });
+    // Image URL must come from the backend already-built. Frontend never composes.
     const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(
-        user.image ? `${process.env.NEXT_PUBLIC_API_HOST}/uploads/profile-pictures/${user.image}` : null
+        (user.image as string) || null
     );
 
     const [isUserDetailsLoading, setIsUserDetailsLoading] = useState(false);
@@ -187,7 +188,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                             />
                             <Button
                                 variant="outline"
-                                className="bg-base-2 text-white w-full cursor-pointer hover:bg-black hover:text-white"
+                                className="bg-base-2 text-gray-900 w-full cursor-pointer hover:bg-black hover:text-gray-900"
                                 onClick={() => document.getElementById('imageUpload')?.click()}
                             >
                                 <Upload />
@@ -243,7 +244,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                         </div>
 
                         <div className="text-right">
-                            <Button className="text-white cursor-pointer hover:bg-black hover:text-white bg-base-4 w-full" onClick={handleSaveChanges} disabled={isUserDetailsLoading}>
+                            <Button className="text-gray-900 cursor-pointer hover:bg-black hover:text-gray-900 bg-base-4 w-full" onClick={handleSaveChanges} disabled={isUserDetailsLoading}>
                                 {isUserDetailsLoading ? (
                                     <div className="flex items-center gap-2">
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -295,7 +296,7 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                         </div>
 
                         <div className="text-right">
-                            <Button className="bg-base-4 w-full text-white cursor-pointer hover:bg-black hover:text-white" onClick={handlePasswordChange} disabled={isPasswordLoading}>
+                            <Button className="bg-base-4 w-full text-gray-900 cursor-pointer hover:bg-black hover:text-gray-900" onClick={handlePasswordChange} disabled={isPasswordLoading}>
                                 <TbLockPassword />
                                 Update Password
                             </Button>

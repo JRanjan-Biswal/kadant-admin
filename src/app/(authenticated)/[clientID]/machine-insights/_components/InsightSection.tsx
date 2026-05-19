@@ -27,7 +27,7 @@ const InsightSection: React.FC<InsightSectionProps> = ({
 }) => {
     return (
         <div
-            className={`bg-[#171717] border border-[#262626] rounded-[10px] p-6 ${className}`}
+            className={`bg-white border border-[#96A5BA] rounded-[10px] p-6 ${className}`}
         >
             <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-semibold text-foreground">{title}</h2>
@@ -58,7 +58,7 @@ const InsightSection: React.FC<InsightSectionProps> = ({
                     <button
                         type="button"
                         onClick={onEdit}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-normal bg-[#262626] text-[#fff] border border-[#404040] rounded-[10px] hover:bg-[#262626] transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-normal bg-[#e5e7eb] text-[#1f2937] border border-[#d1d5db] rounded-[10px] hover:bg-[#e5e7eb] transition-colors cursor-pointer"
                     >
                         <Pencil className="w-3.5 h-3.5" />
                         Edit Section

@@ -132,34 +132,67 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
     const [savingSection, setSavingSection] = useState(false);
     const [draft, setDraft] = useState<Record<string, unknown>>({});
 
+    // Sets of machine / category IDs that belong to *this* client. Used to
+    // narrow the global categories list (the API returns all categories).
+    const [clientMachineIds, setClientMachineIds] = useState<Set<string>>(new Set());
+
     useEffect(() => {
         let cancelled = false;
         setLoadingCategories(true);
-        fetch("/api/products/categories/with-machines")
-            .then((res) => {
+        Promise.all([
+            fetch("/api/products/categories/with-machines").then((res) => {
                 if (!res.ok) throw new Error("Failed to load categories");
+                return res.json() as Promise<CategoryOption[]>;
+            }),
+            fetch(`/api/clients/${clientId}`).then((res) => {
+                if (!res.ok) throw new Error("Failed to load client");
                 return res.json();
-            })
-            .then((data: CategoryOption[]) => {
+            }),
+        ])
+            .then(([allCategories, client]) => {
                 if (cancelled) return;
-                const list = Array.isArray(data) ? data : [];
+                const catIds = new Set<string>();
+                const machIds = new Set<string>();
+                const cms = (client?.machines ?? []) as Array<{
+                    machine?: { _id?: string; category?: { _id?: string } | string | null };
+                }>;
+                for (const cm of cms) {
+                    const mid = cm.machine?._id;
+                    if (mid) machIds.add(String(mid));
+                    const cat = cm.machine?.category;
+                    const cid = typeof cat === "string" ? cat : cat?._id;
+                    if (cid) catIds.add(String(cid));
+                }
+                setClientMachineIds(machIds);
+
+                const list = (Array.isArray(allCategories) ? allCategories : []).filter((c) =>
+                    catIds.has(c._id)
+                );
                 setCategories(list);
                 if (list.length > 0 && !selectedCategoryId) setSelectedCategoryId(list[0]._id);
+                else if (list.length === 0) setSelectedCategoryId("");
             })
             .catch(() => {
-                if (!cancelled) setCategories([]);
+                if (!cancelled) {
+                    setCategories([]);
+                    setClientMachineIds(new Set());
+                }
             })
             .finally(() => {
                 if (!cancelled) setLoadingCategories(false);
             });
         return () => { cancelled = true; };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [clientId]);
 
     const machinesForCategory = useMemo(() => {
         const cat = categories.find((c) => c._id === selectedCategoryId);
         const list = cat?.machines ?? [];
-        return list.map((m) => ({ ...m, categoryId: selectedCategoryId }));
-    }, [categories, selectedCategoryId]);
+        // Restrict category machines to the ones this client actually has.
+        return list
+            .filter((m) => clientMachineIds.has(m._id))
+            .map((m) => ({ ...m, categoryId: selectedCategoryId }));
+    }, [categories, selectedCategoryId, clientMachineIds]);
 
     useEffect(() => {
         if (!selectedCategoryId && categories.length > 0) setSelectedCategoryId(categories[0]._id);
@@ -228,13 +261,23 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
         if (section === "metrix") {
             setDraft({
                 capacityOfLine: activeSparePart.capacityOfLine ?? { value: 0, unit: "tpd" },
-                dailyRunningHours: activeSparePart.dailyRunningHours ?? { value: 0, unit: "Hrs" },
                 lifetimeOfRotor: activeSparePart.lifetimeOfRotor ?? { value: 0, unit: "Hrs" },
                 totalRunningHours: activeSparePart.totalRunningHours ?? { value: 0, unit: "Hrs" },
+                exceededLife: activeSparePart.exceededLife ?? { value: 0, unit: "Hrs" },
+                dailyRunningHours: activeSparePart.dailyRunningHours ?? { value: 0, unit: "Hrs" },
+                totalProduction: activeSparePart.totalProduction ?? { value: 0, unit: "tpd" },
             });
         } else if (section === "fiberLoss") {
+            const defaultRanges = [
+                { id: "fl0", min: 24, max: 240, value: 0 },
+                { id: "fl1", min: 240, max: 480, value: 0 },
+                { id: "fl2", min: 480, max: 720, value: 0 },
+                { id: "fl3", min: 720, max: null, value: 0 },
+            ];
             setDraft({
-                fiberLossRanges: activeSparePart.fiberLossRanges ?? [],
+                fiberLossRanges: (activeSparePart.fiberLossRanges && activeSparePart.fiberLossRanges.length > 0)
+                    ? activeSparePart.fiberLossRanges.map((r, i) => ({ id: r.id ?? `fl${i}`, min: r.min, max: r.max, value: r.value ?? 0 }))
+                    : defaultRanges,
                 fiberCost: activeSparePart.fiberCost ?? { value: 0, priceUnit: "EUR", perUnit: "Ton" },
             });
         } else if (section === "powerLoss") {
@@ -343,7 +386,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
     return (
         <div className="flex flex-col gap-4 p-4 pb-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-[28px] leading-[42px] font-lato font-normal text-[#F3F4F6]">Machine Insights</h1>
+                <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">Machine Insights</h1>
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">Select Category</span>
@@ -391,32 +434,44 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                 saving={savingSection}
             >
                 {editingSection === "metrix" ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {(["capacityOfLine", "lifetimeOfRotor", "totalRunningHours", "dailyRunningHours"] as const).map((key) => {
-                            const obj = draft[key] as { value?: number; unit?: string } | undefined;
-                            const val = obj?.value ?? 0;
-                            const unit = obj?.unit ?? (key === "capacityOfLine" ? "tpd" : "Hrs");
-                            const label = key === "capacityOfLine" ? "Capacity of Line" : key === "lifetimeOfRotor" ? "Lifetime of Rotor" : key === "totalRunningHours" ? "Total Running Hrs" : "Daily Running Hrs";
-                            return (
-                                <div key={key} className="flex flex-col gap-1.5">
-                                    <Label className="text-xs text-muted-foreground">{label}</Label>
-                                    <div className="flex gap-2 items-center">
-                                        <Input
-                                            type="number"
-                                            value={val}
-                                            onChange={(e) =>
-                                                setDraft((prev) => ({
-                                                    ...prev,
-                                                    [key]: { ...(prev[key] as object), value: Number(e.target.value) || 0, unit },
-                                                }))
-                                            }
-                                            className="h-9 w-full max-w-[120px]"
-                                        />
-                                        <span className="text-sm text-muted-foreground">{unit}</span>
+                    <div className="flex flex-col gap-3">
+                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                            Tip: missing values default to 0/1. Replace placeholders with real numbers — leaving them at 0 will skew downstream Fiber and Power loss calculations.
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {([
+                                { key: "capacityOfLine", label: "Capacity of Line", unit: "tpd" },
+                                { key: "lifetimeOfRotor", label: "Lifetime of Rotor", unit: "Hrs" },
+                                { key: "totalRunningHours", label: "Total Running Hrs", unit: "Hrs" },
+                                { key: "exceededLife", label: "Exceeded Life", unit: "Hrs" },
+                                { key: "dailyRunningHours", label: "Daily Running Hrs", unit: "Hrs" },
+                                { key: "totalProduction", label: "Total Production", unit: "tpd" },
+                            ] as const).map(({ key, label, unit: defaultUnit }) => {
+                                const obj = draft[key] as { value?: number; unit?: string } | undefined;
+                                const val = obj?.value ?? 0;
+                                const unit = obj?.unit ?? defaultUnit;
+                                return (
+                                    <div key={key} className="flex flex-col gap-1.5">
+                                        <Label className="text-xs text-muted-foreground">{label}</Label>
+                                        <div className="flex gap-2 items-center">
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 1"
+                                                value={val}
+                                                onChange={(e) =>
+                                                    setDraft((prev) => ({
+                                                        ...prev,
+                                                        [key]: { ...(prev[key] as object), value: Number(e.target.value) || 0, unit },
+                                                    }))
+                                                }
+                                                className="h-9 w-full max-w-[120px]"
+                                            />
+                                            <span className="text-sm text-muted-foreground">{unit}</span>
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -437,21 +492,58 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
             >
                 {editingSection === "fiberLoss" ? (
                     <div className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-xs text-muted-foreground">Fiber Cost (value)</Label>
-                            <Input
-                                type="number"
-                                value={(draft.fiberCost as { value?: number })?.value ?? 0}
-                                onChange={(e) =>
-                                    setDraft((prev) => ({
-                                        ...prev,
-                                        fiberCost: { ...(prev.fiberCost as object), value: Number(e.target.value) || 0, priceUnit: "EUR", perUnit: "Ton" },
-                                    }))
-                                }
-                                className="h-9 max-w-[140px]"
-                            />
+                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                            Tip: each range needs an actual percentage. Leaving any at 0 means that hour-window contributes nothing to Total Fiber Loss.
                         </div>
-                        <p className="text-xs text-muted-foreground">Fiber loss ranges can be updated via the same API; editing simplified here.</p>
+                        <div>
+                            <p className="text-sm font-semibold text-foreground mb-2">Fiber Loss</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {((draft.fiberLossRanges as Array<{ id: string; min: number; max: number | null; value: number }>) || []).map((r, idx) => {
+                                    const label = r.max != null ? `${r.min} - ${r.max} Hrs` : `Above ${r.min} Hrs`;
+                                    return (
+                                        <div key={r.id} className="flex flex-col gap-1.5">
+                                            <Label className="text-xs text-muted-foreground">{label}</Label>
+                                            <div className="flex gap-2 items-center">
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="e.g. 0.15"
+                                                    value={r.value ?? 0}
+                                                    onChange={(e) => {
+                                                        const n = Number(e.target.value) || 0;
+                                                        setDraft((prev) => {
+                                                            const ranges = (prev.fiberLossRanges as Array<{ id: string; min: number; max: number | null; value: number }>) || [];
+                                                            const next = ranges.map((x, i) => (i === idx ? { ...x, value: n } : x));
+                                                            return { ...prev, fiberLossRanges: next };
+                                                        });
+                                                    }}
+                                                    className="h-9 w-full max-w-[120px]"
+                                                />
+                                                <span className="text-sm text-muted-foreground">%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-xs text-muted-foreground">Fiber Cost</Label>
+                            <div className="flex gap-2 items-center">
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 200"
+                                    value={(draft.fiberCost as { value?: number })?.value ?? 0}
+                                    onChange={(e) =>
+                                        setDraft((prev) => ({
+                                            ...prev,
+                                            fiberCost: { ...(prev.fiberCost as object), value: Number(e.target.value) || 0, priceUnit: "EUR", perUnit: "Ton" },
+                                        }))
+                                    }
+                                    className="h-9 max-w-[140px]"
+                                />
+                                <span className="text-sm text-muted-foreground">€/Ton</span>
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -485,7 +577,11 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                 saving={savingSection}
             >
                 {editingSection === "powerLoss" ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-3">
+                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                            Tip: Healthy / Wornout values + Power Cost + Installed Motor Power must all be filled. Defaulting any to 0 forces Total Power Loss to 0.
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { key: "actualMotorPowerConsumption", sub: "healthy" as const, label: "Actual Motor (Healthy %)", unit: "%" },
                             { key: "actualMotorPowerConsumption", sub: "wornout" as const, label: "Actual Motor (Wornout %)", unit: "%" },
@@ -521,11 +617,13 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                                                 };
                                             });
                                         }}
+                                        placeholder="e.g. 1"
                                         className="h-9 max-w-[120px]"
                                     />
                                 </div>
                             );
                         })}
+                        </div>
                     </div>
                 ) : (
                     <div className="flex flex-wrap gap-x-8 gap-y-4">

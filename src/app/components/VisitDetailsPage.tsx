@@ -69,19 +69,23 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 });
             setScheduledVisits(scheduled);
 
-            // Filter visit history: past visits + visits with no lastVisitOn not in scheduled list
+            // Visit history = only records where the visit actually happened
+            // (lastVisitOn set and in the past). Scheduled-only records (no
+            // lastVisitOn, or future lastVisitOn) belong in "Upcoming
+            // Scheduled" — they were previously surfaced as confusing
+            // "Not Visited" rows here.
             const scheduledIds = new Set(scheduled.map((v: ScheduledVisit) => v._id));
             const history = data
                 .filter((visit: SiteVisit) => {
                     if (scheduledIds.has(visit._id)) return false;
-                    if (!visit.lastVisitOn) return true; // no date → show as "Not Visited"
+                    if (!visit.lastVisitOn) return false;
                     return parseISO(visit.lastVisitOn) < now;
                 })
                 .sort((a: SiteVisit, b: SiteVisit) => {
-                    if (!a.lastVisitOn && !b.lastVisitOn) return 0;
-                    if (!a.lastVisitOn) return 1;
-                    if (!b.lastVisitOn) return -1;
-                    return parseISO(b.lastVisitOn).getTime() - parseISO(a.lastVisitOn).getTime();
+                    return (
+                        parseISO(b.lastVisitOn as string).getTime() -
+                        parseISO(a.lastVisitOn as string).getTime()
+                    );
                 });
             setVisitHistory(history);
         } catch (error) {
@@ -128,7 +132,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
         return (
             <div className="flex flex-col gap-4 w-full p-6 min-h-[400px] items-center justify-center">
                 <Loader2 className="w-10 h-10 text-[#ff6900] animate-spin" />
-                <p className="text-[#a1a1a1] text-sm mt-2">Loading visit details...</p>
+                <p className="text-[#6b7280] text-sm mt-2">Loading visit details...</p>
             </div>
         );
     }
@@ -139,14 +143,14 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             <div className="flex flex-col gap-2">
                 <div className="flex h-[70px] items-center justify-between">
                     <div className="w-[733px]">
-                        <h1 className="text-[28px] leading-[42px] text-[#f3f4f6] font-normal capitalize">
+                        <h1 className="text-[28px] leading-[42px] text-[#2D3E5C] font-bold capitalize">
                             Visit Details
                         </h1>
                     </div>
                     <div className="flex-1 flex gap-3 items-center justify-end">
                         <AddVisitDataModal clientID={clientID} onSuccess={fetchSiteVisits}>
                             <Button
-                                className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
+                                className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 border-0 h-auto text-white"
                                 variant="ghost"
                             >
                                 <FaPlus className="w-4 h-4" />
@@ -155,7 +159,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                         </AddVisitDataModal>
                         <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
                             <Button
-                                className="bg-[#1a1a1a] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 hover:bg-[#262626] border-0 h-auto text-white"
+                                className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 border-0 h-auto text-white"
                                 variant="ghost"
                             >
                                 <LuCalendar className="w-4 h-4" />
@@ -166,26 +170,26 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 </div>
 
                 {/* Upcoming Scheduled Visits Section */}
-                <div className="bg-[#0d0d0d] border border-[#262626] flex flex-col gap-3 pb-3 rounded-[10px]">
-                    <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-[rgba(128,52,0,0.2)] border-b border-[#262626] flex flex-col items-start pl-5 pr-6 py-3">
+                <div className="bg-white border border-[#96A5BA] flex flex-col gap-3 pb-3 rounded-[10px] overflow-hidden">
+                    <div className="bg-[#DFE6EC] border-b border-[#96A5BA] flex flex-col items-start pl-5 pr-6 py-3 rounded-t-[10px]">
                         <div className="flex h-[28px] items-center justify-between w-full">
-                            <h2 className="text-[20px] leading-[28px] text-white font-normal">
+                            <h2 className="text-[20px] leading-[28px] text-[#2D3E5C] font-bold">
                                 Upcoming Scheduled Visits
                             </h2>
-                            <p className="text-[#a1a1a1] text-[14px] leading-[20px]">
+                            <p className="text-[#6b7280] text-[14px] leading-[20px]">
                                 {scheduledVisits.length} visits scheduled
                             </p>
                         </div>
                     </div>
                     {scheduledVisits.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 gap-4">
-                            <LuCalendar className="w-10 h-10 text-[#404040]" />
-                            <p className="text-[#a1a1a1] text-[16px] leading-[24px]">
+                            <LuCalendar className="w-10 h-10 text-[#d1d5db]" />
+                            <p className="text-[#6b7280] text-[16px] leading-[24px]">
                                 No upcoming visits scheduled
                             </p>
                             <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
                                 <Button
-                                    className="bg-[#ff6900] hover:bg-[#ff6900]/90 flex gap-2 items-center px-5 py-2.5 rounded-[10px] h-auto text-white"
+                                    className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-5 py-2.5 rounded-[10px] h-auto text-white"
                                 >
                                     <LuCalendar className="w-4 h-4" />
                                     <span className="text-base leading-6">Schedule a Visit</span>
@@ -202,11 +206,11 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                 return (
                                     <div
                                         key={visit._id || index}
-                                        className="bg-[rgba(38,38,38,0.3)] border border-[#404040] flex flex-col gap-3 items-start p-[21px] rounded-[10px] w-[270.25px]"
+                                        className="bg-[#DFE6EC] border border-[#96A5BA] flex flex-col gap-3 items-start p-[21px] rounded-[10px] w-[270.25px]"
                                     >
                                         <div className="flex items-center justify-between w-full">
-                                            <div className="bg-[rgba(38,38,38,0.5)] border border-[rgba(64,64,64,0.5)] rounded-full h-[37px] w-[37px] flex items-center justify-center">
-                                                <p className="text-[#ff6900] text-[12px] leading-[16px]">
+                                            <div className="bg-white border border-[#d1d5db] rounded-full h-[37px] w-[37px] flex items-center justify-center">
+                                                <p className="text-[#6b7280] text-[12px] leading-[16px]">
                                                     {visit.daysUntil !== undefined ? `${visit.daysUntil}d` : "3d"}
                                                 </p>
                                             </div>
@@ -216,22 +220,22 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1 h-[52px]">
-                                            <p className="text-[18px] leading-[28px] text-white">{dateStr}</p>
+                                            <p className="text-[18px] leading-[28px] text-[#2D3E5C] font-bold">{dateStr}</p>
                                             <div className="flex gap-1.5 h-5 items-center">
-                                                <HiOutlineClock className="w-3.5 h-3.5 text-[#d4d4d4]" />
-                                                <p className="text-[#d4d4d4] text-[14px] leading-5">{timeStr}</p>
+                                                <HiOutlineClock className="w-3.5 h-3.5 text-[#6b7280]" />
+                                                <p className="text-[#6b7280] text-[14px] leading-5">{timeStr}</p>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1.5 h-[38px]">
                                             <div className="flex gap-1.5 h-4 items-center">
-                                                <HiOutlineUser className="w-3 h-3 text-[#a1a1a1]" />
-                                                <p className="text-[#a1a1a1] text-[12px] leading-4">
-                                                    {visit.assignedEngineer?.name || visit.engineer?.name || "N/A"}
+                                                <HiOutlineUser className="w-3 h-3 text-[#6b7280]" />
+                                                <p className="text-[#6b7280] text-[12px] leading-4">
+                                                    {visit.assignedEngineer || visit.engineer?.name || "N/A"}
                                                 </p>
                                             </div>
                                             <div className="flex gap-1.5 h-4 items-center">
-                                                <HiOutlineDocumentText className="w-3 h-3 text-[#a1a1a1]" />
-                                                <p className="text-[#a1a1a1] text-[12px] leading-4">
+                                                <HiOutlineDocumentText className="w-3 h-3 text-[#6b7280]" />
+                                                <p className="text-[#6b7280] text-[12px] leading-4">
                                                     {visit.visitType?.[0] || "N/A"}
                                                 </p>
                                             </div>
@@ -245,7 +249,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                                     );
                                                 }
                                             }}
-                                            className="bg-[#ff6900] h-9 w-full rounded-[10px] flex items-center justify-center gap-2"
+                                            className="bg-[#2D3E5C] hover:bg-[#1f2a44] h-9 w-full rounded-[10px] flex items-center justify-center gap-2"
                                         >
                                             <CiCalendarDate className="w-4 h-4 text-white" />
                                             <p className="text-white text-[14px] leading-5">Add to Calendar</p>
@@ -261,39 +265,39 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
             {/* Visit History Section */}
             <div className="flex flex-col gap-6">
                 <div className="flex h-[28px] items-center justify-between">
-                    <h3 className="text-[20px] leading-[28px] text-white font-normal">Visit History</h3>
+                    <h3 className="text-[20px] leading-[28px] text-[#2D3E5C] font-bold">Visit History</h3>
                     <div className="flex gap-2 items-center w-[400px]">
-                        <p className="text-[#737373] text-[14px] leading-5">Filter:</p>
+                        <p className="text-[#6b7280] text-[14px] leading-5">Filter:</p>
                         <button
                             onClick={() => handleFilterChange("3")}
-                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "3" ? "bg-[#ff6900]" : "bg-[#262626]"
+                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "3" ? "bg-[#2D3E5C]" : "bg-[#e5e7eb]"
                                 }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "3" ? "text-white" : "text-[#a1a1a1]"
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "3" ? "text-white" : "text-[#6b7280]"
                                 }`}>3 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("6")}
-                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "6" ? "bg-[#ff6900]" : "bg-[#262626]"
+                            className={`h-7 rounded px-[11px] py-[3px] ${filterPeriod === "6" ? "bg-[#2D3E5C]" : "bg-[#e5e7eb]"
                                 }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "6" ? "text-white" : "text-[#a1a1a1]"
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "6" ? "text-white" : "text-[#6b7280]"
                                 }`}>6 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("12")}
-                            className={`h-7 rounded flex-1 px-[11px] py-[3px] ${filterPeriod === "12" ? "bg-[#ff6900]" : "bg-[#262626]"
+                            className={`h-7 rounded flex-1 px-[11px] py-[3px] ${filterPeriod === "12" ? "bg-[#2D3E5C]" : "bg-[#e5e7eb]"
                                 }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "12" ? "text-white" : "text-[#a1a1a1]"
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "12" ? "text-white" : "text-[#6b7280]"
                                 }`}>12 Months</p>
                         </button>
                         <button
                             onClick={() => handleFilterChange("all")}
-                            className={`h-7 rounded px-3 py-[3px] ${filterPeriod === "all" ? "bg-[#ff6900]" : "bg-[#262626]"
+                            className={`h-7 rounded px-3 py-[3px] ${filterPeriod === "all" ? "bg-[#2D3E5C]" : "bg-[#e5e7eb]"
                                 }`}
                         >
-                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "all" ? "text-white" : "text-[#a1a1a1]"
+                            <p className={`text-[14px] leading-5 text-center ${filterPeriod === "all" ? "text-white" : "text-[#6b7280]"
                                 }`}>All</p>
                         </button>
                     </div>
@@ -302,57 +306,67 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 {/* Table */}
                 <div className="flex flex-col">
                     {/* Table Header */}
-                    <div className="bg-[#171717] border border-[#262626] flex items-center rounded-t-[10px]">
+                    <div className="bg-white border border-[#96A5BA] flex items-center rounded-t-[10px]">
                         <div className="flex items-center self-stretch w-[85px]">
                             <div className="flex h-full items-center justify-center px-5 py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Sr.no
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center justify-center self-stretch">
                             <div className="flex h-full items-center justify-center px-6 py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Scheduled Date
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center justify-center self-stretch w-[185px]">
                             <div className="flex h-full items-center justify-center px-5 py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Engineer Name
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center justify-center self-stretch w-[144px]">
                             <div className="flex h-full items-center justify-center px-[33px] py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Client
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center justify-center self-stretch w-[160px]">
                             <div className="flex h-full items-center justify-center px-3 py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Visit Type
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center justify-center self-stretch">
                             <div className="flex h-full items-center justify-center px-[40px] py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Visit detail
                                 </p>
                             </div>
                         </div>
                         <div className="flex flex-1 items-center justify-center self-stretch">
                             <div className="flex flex-1 h-full items-center justify-center px-6 py-4">
-                                <p className="text-[#a1a1a1] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
+                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
                                     Actions
                                 </p>
                             </div>
                         </div>
                     </div>
+
+                    {/* Empty state */}
+                    {getFilteredHistory().length === 0 && (
+                        <div className="bg-white border-b border-l border-r border-[#96A5BA] rounded-b-[10px] flex flex-col items-center justify-center py-10 gap-3">
+                            <LuCalendar className="w-10 h-10 text-[#d1d5db]" />
+                            <p className="text-[#6b7280] text-[16px] leading-[24px]">
+                                No visit history found yet
+                            </p>
+                        </div>
+                    )}
 
                     {/* Table Rows */}
                     {getFilteredHistory().map((visit, index) => {
@@ -362,28 +376,28 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                         return (
                             <div
                                 key={visit._id || index}
-                                className="bg-[#0d0d0d] border-b border-l border-r border-[#262626] flex items-center"
+                                className="bg-[#DFE6EC] border-b border-l border-r border-[#607797] flex items-center"
                             >
                                 <div className="flex justify-center items-center self-stretch w-[85px]">
                                     <div className="flex h-full items-center justify-center px-9 py-4">
-                                        <p className="text-[#d4d4d4] text-base leading-6">{index + 1}.</p>
+                                        <p className="text-[#6b7280] text-base leading-6">{index + 1}.</p>
                                     </div>
                                 </div>
                                 <div className="flex justify-center items-center self-stretch">
                                     <div className="flex h-full items-center justify-center px-[46px] py-4">
-                                        <p className="text-[#d4d4d4] text-base leading-6">{dateStr}</p>
+                                        <p className="text-[#6b7280] text-base leading-6">{dateStr}</p>
                                     </div>
                                 </div>
                                 <div className="flex justify-center items-center self-stretch w-[171px]">
                                     <div className="flex h-full items-center justify-center px-6 py-4">
-                                        <p className="text-[#d4d4d4] text-base leading-6">
+                                        <p className="text-[#6b7280] text-base leading-6">
                                             {visit.engineer?.name || "N/A"}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="flex justify-center items-center self-stretch w-[165px]">
                                     <div className="flex h-full items-center justify-center px-[33px] py-4">
-                                        <p className="text-[#d4d4d4] text-base leading-6">
+                                        <p className="text-[#6b7280] text-base leading-6">
                                             {visit.client?.name || "N/A"}
                                         </p>
                                     </div>

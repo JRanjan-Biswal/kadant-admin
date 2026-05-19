@@ -6,7 +6,7 @@ import { LuCalendarCog, LuBookOpen, LuPackage } from "react-icons/lu";
 import { PiGearFineBold } from "react-icons/pi";
 import { FiUpload } from "react-icons/fi";
 import { LuHistory } from "react-icons/lu";
-import { HiOutlineUserGroup } from "react-icons/hi";
+import { HiOutlineUserGroup, HiOutlineUsers } from "react-icons/hi";
 
 import { NavMain } from "@/app/components/AppSideBar/NavMain";
 import { NavUser } from "@/app/components/AppSideBar/NavUser";
@@ -48,6 +48,13 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       title: "Client Management",
       url: "/client-management",
       icon: HiOutlineUserGroup,
+      disabled: false,
+      alwaysEnabled: true,
+    },
+    {
+      title: "Team Management",
+      url: "/team-management",
+      icon: HiOutlineUsers,
       disabled: false,
       alwaysEnabled: true,
     },
@@ -96,7 +103,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   ];
 
   return (
-    <Sidebar className="bg-sidebar border-r border-[#262626] w-[255px] flex flex-col" collapsible="icon" {...props}>
+    <Sidebar className="bg-sidebar border-r border-[#607797] w-[255px] flex flex-col" collapsible="icon" {...props}>
       <SidebarHeader className="bg-sidebar p-0 shrink-0">
         <AppLogo />
         <NavUser user={user} />
@@ -111,12 +118,12 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         />
       </SidebarContent>
       {/* Settings Section at Bottom */}
-      <div className="border-t border-[#1a1a1a] flex shrink-0 flex-col items-start justify-center p-[16px]">
+      <div className="border-t border-[#f9fafb] flex shrink-0 flex-col items-start justify-center p-[16px]">
         <button className="flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] hover:bg-sidebar-accent transition-colors">
           <div className="relative shrink-0 size-[20px]">
-            <PiGearFineBold className="w-5 h-5 text-[#6a7282]" />
+            <PiGearFineBold className="w-5 h-5 text-[#6b7280]" />
           </div>
-          <span className="font-lato font-normal leading-[24px] text-[16px] text-[#6a7282]">
+          <span className="font-lato font-normal leading-[24px] text-[16px] text-[#6b7280]">
             Settings
           </span>
         </button>

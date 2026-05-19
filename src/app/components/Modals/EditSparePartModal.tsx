@@ -152,7 +152,7 @@ export default function EditSparePartModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-[#0D0D0D] border border-[#1A1A1A] px-0">
+            <DialogContent className="sm:max-w-[500px] bg-[#ffffff] border border-[#1A1A1A] px-0">
                 <DialogHeader className="border-b border-[#1A1A1A] px-4 pb-4">
                     <DialogTitle className="text-foreground flex items-center gap-3">
                         Edit Spare Part Details

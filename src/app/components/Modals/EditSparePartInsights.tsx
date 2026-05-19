@@ -549,7 +549,7 @@ export default function EditSparePartInsights({ clientMachineSparePart, sparePar
                                         type="submit"
                                         size="lg"
                                         disabled={isLoading}
-                                        className="w-full bg-base-4 text-white uppercase font-semibold cursor-pointer w-[250px]"
+                                        className="w-full bg-base-4 text-gray-900 uppercase font-semibold cursor-pointer w-[250px]"
                                     >
                                         {isLoading ? <Loader2 className="animate-spin" /> : "Submit"}
                                     </Button>

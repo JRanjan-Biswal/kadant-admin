@@ -22,8 +22,8 @@ export interface MachineData {
 
 export interface AddClientFormData {
     // Login Credentials
-    username?: string;
-    password?: string;
+    email: string;
+    password: string;
     
     // Business Details
     name: string;
@@ -50,6 +50,9 @@ export interface AddClientFormData {
     
     // Machines (without images for now - images handled separately)
     machines?: MachineData[];
+
+    // IDs of already-created Machine docs to link to this client via ClientMachine rows
+    machineIds?: string[];
 }
 
 export interface AddClientResult {
@@ -72,7 +75,7 @@ export async function addClient(formData: AddClientFormData): Promise<AddClientR
         // Prepare the data for the API
         const apiData = {
             // Login credentials
-            username: formData.username,
+            email: formData.email,
             password: formData.password,
             
             // Business details
@@ -96,6 +99,7 @@ export async function addClient(formData: AddClientFormData): Promise<AddClientR
             
             // Machines
             machines: formData.machines,
+            machineIds: formData.machineIds,
         };
 
         // Call the external API directly

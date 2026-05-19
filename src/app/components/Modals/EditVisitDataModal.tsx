@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, Calendar, TriangleAlert, CloudUpload, UserPlus, Pencil } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,7 +58,7 @@ function isVideoUrl(url: string): boolean {
 function MediaPreview({ url, onRemove }: { url: string; onRemove: () => void }) {
     const isVideo = isVideoUrl(url);
     return (
-        <div className="relative group rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+        <div className="relative group rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
             {isVideo ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : (
@@ -67,7 +68,7 @@ function MediaPreview({ url, onRemove }: { url: string; onRemove: () => void }) 
             <button
                 type="button"
                 onClick={onRemove}
-                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-gray-900 hover:bg-red-600 transition-colors"
             >
                 <X className="w-3 h-3" />
             </button>
@@ -81,7 +82,7 @@ function UploadMediaBox({ label, onTrigger, uploading }: { label: string; onTrig
             type="button"
             onClick={onTrigger}
             disabled={uploading}
-            className="w-[80px] h-[60px] rounded-[8px] border border-dashed border-[#404040] bg-[#171717] flex flex-col items-center justify-center gap-0.5 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+            className="w-[80px] h-[60px] rounded-[8px] border border-dashed border-[#d1d5db] bg-[#96A5BA] flex flex-col items-center justify-center gap-0.5 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
         >
             {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
             <span className="text-[10px]">{uploading ? "..." : label}</span>
@@ -107,7 +108,7 @@ export default function EditVisitDataModal({
     viewOnly = false,
 }: EditVisitDataModalProps) {
     const [isViewMode, setIsViewMode] = useState(viewOnly);
-    const [, setVisit] = useState<SiteVisit | null>(null);
+    const [visit, setVisit] = useState<SiteVisit | null>(null);
     const [users, setUsers] = useState<Admin[]>([]);
     const [loadingVisit, setLoadingVisit] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -176,7 +177,7 @@ export default function EditVisitDataModal({
             setValue("visitType", Array.isArray(d.visitType) ? d.visitType : []);
             setValue(
                 "assignedEngineer",
-                d.assignedEngineer?._id ?? (d.assignedEngineer as unknown as string) ?? ""
+                (d.assignedEngineer as unknown as string) ?? ""
             );
             setValue("clientRepresentative", d.clientRepresentative ?? "");
             setValue("clientRepresentativeDesignation", d.clientRepresentativeDesignation ?? "");
@@ -431,20 +432,265 @@ export default function EditVisitDataModal({
     };
 
     const getFieldErrorClass = (hasError: boolean) =>
-        hasError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-[#404040]";
+        hasError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-[#d1d5db]";
+
+    const STATUS_TEXT_STYLES: Record<string, string> = {
+        "Critical Failure": "text-[#dc2626]",
+        "Needs Repair": "text-[#f59e0b]",
+        Monitor: "text-[#2D3E5C]",
+        Healthy: "text-[#16a34a]",
+    };
+
+    const ACTION_PILL_STYLES: Record<string, string> = {
+        "Send to Rebuild":
+            "bg-[#fed7aa] border border-[#fb923c] text-[#c2410c]",
+        "Order New": "bg-[#fee2e2] border border-[#dc2626] text-[#991b1b]",
+        "Needs Repair": "bg-[#fef3c7] border border-[#f59e0b] text-[#92400e]",
+        Monitor: "bg-[#dbeafe] border border-[#2D3E5C] text-[#2D3E5C]",
+    };
+
+    if (isViewMode) {
+        const visitDateRaw = visit?.lastVisitOn || visit?.nextScheduledVisit || "";
+        const dateLabel = visitDateRaw
+            ? format(parseISO(visitDateRaw), "dd MMM yyyy")
+            : "";
+        const typeLabel = Array.isArray(visit?.visitType)
+            ? (visit?.visitType as string[]).join(", ")
+            : "";
+        const subtitle = [dateLabel, typeLabel].filter(Boolean).join(" - ");
+
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent
+                    className="bg-white border border-[#96A5BA] rounded-[14px] p-0 w-[894px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                    showCloseButton={false}
+                >
+                    <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[#e5e7eb]">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-[#2D3E5C] text-2xl font-bold leading-7">
+                                Visit Details
+                            </h2>
+                            {subtitle && (
+                                <p className="text-[#6b7280] text-sm">{subtitle}</p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            className="w-9 h-9 flex items-center justify-center rounded-[10px] hover:bg-[#f3f4f6] transition-colors"
+                        >
+                            <X className="w-5 h-5 text-[#2D3E5C]" />
+                        </button>
+                    </div>
+
+                    {loadingVisit ? (
+                        <div className="flex items-center justify-center py-16">
+                            <Loader2 className="w-10 h-10 text-[#D45815] animate-spin" />
+                        </div>
+                    ) : (
+                        <div className="px-6 pb-6">
+                            <div className="rounded-[10px] flex flex-col gap-4">
+                                <div className="flex items-center gap-2">
+                                    <TriangleAlert className="w-6 h-6 text-[#D45815]" />
+                                    <h3 className="text-[#2D3E5C] text-xl font-bold">
+                                        Machines Requiring Attention ({machineIssues.length})
+                                    </h3>
+                                </div>
+
+                                {machineIssues.length === 0 && (
+                                    <p className="text-[#6b7280] text-sm">
+                                        No machine issues recorded for this visit.
+                                    </p>
+                                )}
+
+                                {machineIssues.map((issue, index) => (
+                                    <div
+                                        key={index}
+                                        className="bg-white border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-4"
+                                    >
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Machine Name
+                                                </p>
+                                                <p className="text-[#1f2937] text-sm font-medium">
+                                                    {issue.machineName || "—"}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">Status</p>
+                                                <p
+                                                    className={`text-sm font-medium ${
+                                                        STATUS_TEXT_STYLES[issue.status || ""] ||
+                                                        "text-[#6b7280]"
+                                                    }`}
+                                                >
+                                                    {issue.status || "—"}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {issue.conditionAlert && (
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Condition Alert
+                                                </p>
+                                                <p className="text-[#1f2937] text-sm">
+                                                    {issue.conditionAlert}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {issue.actionNeeded && (
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Action Needed
+                                                </p>
+                                                <span
+                                                    className={`inline-block text-xs font-medium rounded-full px-3 py-1 self-start ${
+                                                        ACTION_PILL_STYLES[issue.actionNeeded] ||
+                                                        "bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280]"
+                                                    }`}
+                                                >
+                                                    {issue.actionNeeded}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {((issue.optimalStateMediaUrls || []).length > 0 ||
+                                            (issue.currentVisitMediaUrls || []).length > 0) && (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <p className="text-[#6b7280] text-xs">
+                                                        Last Visit
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2 items-start">
+                                                        {(issue.optimalStateMediaUrls ?? []).map(
+                                                            (url, ui) => (
+                                                                <a
+                                                                    key={ui}
+                                                                    href={url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] flex items-center justify-center w-[80px] h-[60px] cursor-pointer hover:opacity-90 transition-opacity"
+                                                                >
+                                                                    {isVideoUrl(url) ? (
+                                                                        <video
+                                                                            src={url}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                        />
+                                                                    ) : (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img
+                                                                            src={url}
+                                                                            alt=""
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    )}
+                                                                </a>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-1.5">
+                                                    <p className="text-[#6b7280] text-xs">
+                                                        Current Visit
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2 items-start">
+                                                        {(issue.currentVisitMediaUrls ?? []).map(
+                                                            (url, ui) => (
+                                                                <a
+                                                                    key={ui}
+                                                                    href={url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] flex items-center justify-center w-[80px] h-[60px] cursor-pointer hover:opacity-90 transition-opacity"
+                                                                >
+                                                                    {isVideoUrl(url) ? (
+                                                                        <video
+                                                                            src={url}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                        />
+                                                                    ) : (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img
+                                                                            src={url}
+                                                                            alt=""
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    )}
+                                                                </a>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {(issue.sparePartMedia || []).length > 0 && (
+                                            <div className="grid grid-cols-4 gap-3">
+                                                {(issue.sparePartMedia || []).map((entry) => (
+                                                    <div
+                                                        key={entry.sparePartId}
+                                                        className="flex flex-col gap-1.5"
+                                                    >
+                                                        <p className="text-[#1f2937] text-xs font-medium truncate">
+                                                            {entry.sparePartName}
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-1.5 items-start">
+                                                            {(entry.mediaUrls || []).map((url, ui) => (
+                                                                <a
+                                                                    key={ui}
+                                                                    href={url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] flex items-center justify-center w-[80px] h-[60px] cursor-pointer hover:opacity-90 transition-opacity"
+                                                                >
+                                                                    {isVideoUrl(url) ? (
+                                                                        <video
+                                                                            src={url}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                        />
+                                                                    ) : (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img
+                                                                            src={url}
+                                                                            alt=""
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    )}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[894px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                className="bg-white border border-[#96A5BA] rounded-[10px] p-0 w-[894px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
             >
-                <div className="bg-[#171717] border-b border-[#262626] flex h-[89px] items-center justify-between px-8 shrink-0">
+                <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[89px] items-center justify-between px-8 shrink-0">
                     <div className="flex gap-3 items-center">
                         <div className="bg-[rgba(255,105,0,0.2)] rounded-full w-10 h-10 flex items-center justify-center">
                             <UserPlus className="w-5 h-5 text-[#ff6900]" />
                         </div>
-                        <h2 className="text-white text-[24px] leading-[32px] font-normal">
+                        <h2 className="text-gray-900 text-[24px] leading-[32px] font-normal">
                             {isViewMode ? "Visit Details" : "Edit Visit Data"}
                         </h2>
                     </div>
@@ -462,7 +708,7 @@ export default function EditVisitDataModal({
                         <button
                             type="button"
                             onClick={() => onOpenChange(false)}
-                            className="w-6 h-6 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                            className="w-6 h-6 flex items-center justify-center text-gray-900 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-6 h-6" />
                         </button>
@@ -486,7 +732,7 @@ export default function EditVisitDataModal({
                             {/* Visit Details */}
                             <div className="flex flex-col gap-6">
                                 <div className="flex flex-col gap-2">
-                                    <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-normal">
+                                    <Label className="text-[#6b7280] text-[16px] leading-[20px] font-normal">
                                         Scheduled Date *
                                     </Label>
                                     <div className="relative">
@@ -498,11 +744,11 @@ export default function EditVisitDataModal({
                                                     type="date"
                                                     {...field}
                                                     disabled={isViewMode}
-                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0 disabled:opacity-70 disabled:cursor-not-allowed`}
+                                                    className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-gray-900 text-[16px] placeholder:text-[#4b5563] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0 disabled:opacity-70 disabled:cursor-not-allowed`}
                                                 />
                                             )}
                                         />
-                                        <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#a1a1a1] pointer-events-none" />
+                                        <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280] pointer-events-none" />
                                     </div>
                                     {errors.nextScheduledVisit && (
                                         <p className="text-red-500 text-sm">{errors.nextScheduledVisit.message}</p>
@@ -510,7 +756,7 @@ export default function EditVisitDataModal({
                                 </div>
 
                                 <div className="flex flex-col gap-3">
-                                    <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-normal">
+                                    <Label className="text-[#6b7280] text-[16px] leading-[20px] font-normal">
                                         Visit Type *
                                     </Label>
                                     <div className="flex gap-4">
@@ -520,9 +766,9 @@ export default function EditVisitDataModal({
                                                 checked={visitType.includes("Process Audit")}
                                                 onCheckedChange={() => handleVisitTypeChange("Process Audit")}
                                                 disabled={isViewMode}
-                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
+                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#607797] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
                                             />
-                                            <Label htmlFor="edit-process-audit" className="text-white text-[16px] leading-[24px] font-normal cursor-pointer">
+                                            <Label htmlFor="edit-process-audit" className="text-gray-900 text-[16px] leading-[24px] font-normal cursor-pointer">
                                                 Process Audit
                                             </Label>
                                         </div>
@@ -532,9 +778,9 @@ export default function EditVisitDataModal({
                                                 checked={visitType.includes("Mechanical Audit")}
                                                 onCheckedChange={() => handleVisitTypeChange("Mechanical Audit")}
                                                 disabled={isViewMode}
-                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
+                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#607797] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
                                             />
-                                            <Label htmlFor="edit-mechanical-audit" className="text-white text-[16px] leading-[24px] font-normal cursor-pointer">
+                                            <Label htmlFor="edit-mechanical-audit" className="text-gray-900 text-[16px] leading-[24px] font-normal cursor-pointer">
                                                 Mechanical Audit
                                             </Label>
                                         </div>
@@ -546,25 +792,21 @@ export default function EditVisitDataModal({
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="flex flex-col gap-2">
-                                        <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-normal">
+                                        <Label className="text-[#6b7280] text-[16px] leading-[20px] font-normal">
                                             Assign Engineer *
                                         </Label>
                                         <Controller
                                             name="assignedEngineer"
                                             control={control}
                                             render={({ field }) => (
-                                                <Select value={field.value} onValueChange={field.onChange} disabled={isViewMode}>
-                                                    <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] focus:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}>
-                                                        <SelectValue placeholder="Select engineer" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-[#262626] border-[#404040]">
-                                                        {users.map((u) => (
-                                                            <SelectItem key={u._id} value={u._id} className="text-white hover:bg-[#404040]">
-                                                                {u.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <Input
+                                                    type="text"
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    disabled={isViewMode}
+                                                    placeholder="Type engineer name"
+                                                    className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-gray-900 text-[16px] placeholder:text-[#6b7280] focus:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}
+                                                />
                                             )}
                                         />
                                         {errors.assignedEngineer && (
@@ -572,7 +814,7 @@ export default function EditVisitDataModal({
                                         )}
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-normal">
+                                        <Label className="text-[#6b7280] text-[16px] leading-[20px] font-normal">
                                             Client Representative *
                                         </Label>
                                         <Controller
@@ -582,7 +824,7 @@ export default function EditVisitDataModal({
                                                 <Input
                                                     {...field}
                                                     disabled={isViewMode}
-                                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}
+                                                    className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] placeholder:text-[#4b5563] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed`}
                                                     placeholder="Enter client name"
                                                 />
                                             )}
@@ -594,7 +836,7 @@ export default function EditVisitDataModal({
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-normal">
+                                    <Label className="text-[#6b7280] text-[16px] leading-[20px] font-normal">
                                         Client Designation
                                     </Label>
                                     <Controller
@@ -604,7 +846,7 @@ export default function EditVisitDataModal({
                                             <Input
                                                 {...field}
                                                 disabled={isViewMode}
-                                                className="bg-[#262626] border border-[#404040] h-[50px] rounded-[10px] px-4 text-white text-[16px] placeholder:text-[#525252] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed"
+                                                className="bg-[#e5e7eb] border border-[#d1d5db] h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] placeholder:text-[#4b5563] focus-visible:ring-0 disabled:opacity-70 disabled:cursor-not-allowed"
                                                 placeholder="Designation"
                                             />
                                         )}
@@ -619,7 +861,7 @@ export default function EditVisitDataModal({
                                         <div className="bg-[rgba(255,105,0,0.2)] rounded p-1">
                                             <TriangleAlert className="w-5 h-5 text-[#ff6900]" />
                                         </div>
-                                        <h3 className="text-white text-[16px] leading-[24px] font-medium">
+                                        <h3 className="text-gray-900 text-[16px] leading-[24px] font-medium">
                                             Machines Requiring Attention ({machineIssues.length})
                                         </h3>
                                     </div>
@@ -637,13 +879,13 @@ export default function EditVisitDataModal({
                                 {machineIssues.map((issue, index) => (
                                     <div
                                         key={index}
-                                        className="bg-[#262626] border border-[#404040] rounded-[10px] p-4 flex flex-col gap-2"
+                                        className="bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-2"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex flex-wrap gap-2 items-center">
-                                                <span className="text-white text-[14px] font-medium">{issue.machineName || "Unnamed machine"}</span>
+                                                <span className="text-gray-900 text-[14px] font-medium">{issue.machineName || "Unnamed machine"}</span>
                                                 {issue.sparePartName && (
-                                                    <span className="text-[#a1a1a1] text-[14px]">/ {issue.sparePartName}</span>
+                                                    <span className="text-[#6b7280] text-[14px]">/ {issue.sparePartName}</span>
                                                 )}
                                                 <span className="text-red-500 text-[14px] font-medium">{issue.status || ""}</span>
                                             </div>
@@ -653,7 +895,7 @@ export default function EditVisitDataModal({
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => removeMachineIssue(index)}
-                                                    className="text-[#a1a1a1] hover:text-white h-8"
+                                                    className="text-[#6b7280] hover:text-gray-900 h-8"
                                                 >
                                                     <X className="w-4 h-4" />
                                                 </Button>
@@ -661,23 +903,23 @@ export default function EditVisitDataModal({
                                         </div>
                                         {issue.conditionAlert && (
                                             <div>
-                                                <p className="text-[#a1a1a1] text-[12px] mb-1">Condition Alert</p>
-                                                <p className="text-[#d4d4d4] text-[13px]">{issue.conditionAlert}</p>
+                                                <p className="text-[#6b7280] text-[12px] mb-1">Condition Alert</p>
+                                                <p className="text-[#6b7280] text-[13px]">{issue.conditionAlert}</p>
                                             </div>
                                         )}
                                         {issue.actionNeeded && (
                                             <div>
-                                                <p className="text-[#a1a1a1] text-[12px] mb-1">Action Needed</p>
+                                                <p className="text-[#6b7280] text-[12px] mb-1">Action Needed</p>
                                                 <span className="inline-block text-[#ff6900] text-[13px] font-medium border border-[#ff6900] rounded-full px-3 py-0.5">{issue.actionNeeded}</span>
                                             </div>
                                         )}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-1">
-                                                <p className="text-[#a1a1a1] text-[12px]">Optimal state</p>
+                                                <p className="text-[#6b7280] text-[12px]">Optimal state</p>
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.optimalStateMediaUrls ?? []).map((url, ui) => (
                                                         isViewMode
-                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
                                                                 {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
                                                               </div>
                                                             : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "optimal", url, false)} />
@@ -692,11 +934,11 @@ export default function EditVisitDataModal({
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <p className="text-[#a1a1a1] text-[12px]">Current Visit</p>
+                                                <p className="text-[#6b7280] text-[12px]">Current Visit</p>
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.currentVisitMediaUrls ?? []).map((url, ui) => (
                                                         isViewMode
-                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
                                                                 {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
                                                               </div>
                                                             : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "current", url, false)} />
@@ -715,11 +957,11 @@ export default function EditVisitDataModal({
                                 ))}
 
                                 {showAddMachineIssue && (
-                                    <div className="border border-[#404040] rounded-[10px] p-4 flex flex-col gap-4 bg-[#262626]">
-                                        <h4 className="text-white text-[14px] font-medium">New Machine Issue</h4>
+                                    <div className="border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-4 bg-[#e5e7eb]">
+                                        <h4 className="text-gray-900 text-[14px] font-medium">New Machine Issue</h4>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-white text-[14px]">Machine *</Label>
+                                                <Label className="text-gray-900 text-[14px]">Machine *</Label>
                                                 <Select
                                                     value={newMachineIssue.machineId}
                                                     onValueChange={(value) => {
@@ -736,15 +978,15 @@ export default function EditVisitDataModal({
                                                         fetchSparePartsForMachine(value);
                                                     }}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-[#96A5BA] w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select machine" />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-[#262626] border-[#404040]">
+                                                    <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
                                                         {clientMachines.map((cm) => {
                                                             const id = (cm.machine as { _id?: string })?._id ?? cm._id;
                                                             const name = (cm.machine as { name?: string })?.name ?? "Unnamed machine";
                                                             return (
-                                                                <SelectItem key={id} value={id} className="text-white hover:bg-[#404040]">
+                                                                <SelectItem key={id} value={id} className="text-gray-900 hover:bg-[#d1d5db]">
                                                                     {name}
                                                                 </SelectItem>
                                                             );
@@ -753,7 +995,7 @@ export default function EditVisitDataModal({
                                                 </Select>
                                             </div>
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-white text-[14px]">Spare part *</Label>
+                                                <Label className="text-gray-900 text-[14px]">Spare part *</Label>
                                                 <Select
                                                     value={newMachineIssue.sparePartId}
                                                     onValueChange={(value) => {
@@ -766,12 +1008,12 @@ export default function EditVisitDataModal({
                                                     }}
                                                     disabled={!newMachineIssue.machineId || loadingSpareParts}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0 disabled:opacity-50">
+                                                    <SelectTrigger className="bg-[#96A5BA] w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0 disabled:opacity-50">
                                                         <SelectValue placeholder={loadingSpareParts ? "Loading..." : "Select spare part"} />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-[#262626] border-[#404040]">
+                                                    <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
                                                         {spareParts.map((sp) => (
-                                                            <SelectItem key={sp._id} value={sp._id} className="text-white hover:bg-[#404040]">
+                                                            <SelectItem key={sp._id} value={sp._id} className="text-gray-900 hover:bg-[#d1d5db]">
                                                                 {sp.name || sp.originalName || sp._id}
                                                             </SelectItem>
                                                         ))}
@@ -781,17 +1023,17 @@ export default function EditVisitDataModal({
                                         </div>
                                         <div className="grid grid-cols-1 gap-4">
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-white text-[14px]">Status *</Label>
+                                                <Label className="text-gray-900 text-[14px]">Status *</Label>
                                                 <Select
                                                     value={newMachineIssue.status}
                                                     onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, status: v }))}
                                                 >
-                                                    <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-[#96A5BA] border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select status" />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-[#262626] border-[#404040]">
+                                                    <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
                                                         {MACHINE_STATUS_OPTIONS.map((opt) => (
-                                                            <SelectItem key={opt} value={opt} className="text-white hover:bg-[#404040]">
+                                                            <SelectItem key={opt} value={opt} className="text-gray-900 hover:bg-[#d1d5db]">
                                                                 {opt}
                                                             </SelectItem>
                                                         ))}
@@ -801,28 +1043,28 @@ export default function EditVisitDataModal({
                                         </div>
                                         {/* Condition Alert */}
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">Condition Alert</Label>
+                                            <Label className="text-gray-900 text-[14px]">Condition Alert</Label>
                                             <textarea
                                                 value={newMachineIssue.conditionAlert}
                                                 onChange={(e) => setNewMachineIssue((p) => ({ ...p, conditionAlert: e.target.value }))}
                                                 rows={2}
-                                                className="bg-[#171717] border border-[#404040] rounded-[10px] px-4 py-3 text-white text-[14px] placeholder:text-[#525252] focus-visible:ring-0 resize-none outline-none"
+                                                className="bg-[#96A5BA] border border-[#d1d5db] rounded-[10px] px-4 py-3 text-gray-900 text-[14px] placeholder:text-[#4b5563] focus-visible:ring-0 resize-none outline-none"
                                                 placeholder="Describe the condition..."
                                             />
                                         </div>
                                         {/* Action Needed */}
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">Action Needed</Label>
+                                            <Label className="text-gray-900 text-[14px]">Action Needed</Label>
                                             <Select
                                                 value={newMachineIssue.actionNeeded}
                                                 onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, actionNeeded: v }))}
                                             >
-                                                <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                <SelectTrigger className="bg-[#96A5BA] border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                     <SelectValue placeholder="Select action" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-[#262626] border-[#404040]">
+                                                <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
                                                     {ACTION_NEEDED_OPTIONS.map((opt) => (
-                                                        <SelectItem key={opt} value={opt} className="text-white hover:bg-[#404040]">
+                                                        <SelectItem key={opt} value={opt} className="text-gray-900 hover:bg-[#d1d5db]">
                                                             {opt}
                                                         </SelectItem>
                                                     ))}
@@ -831,7 +1073,7 @@ export default function EditVisitDataModal({
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-white text-[14px]">Optimal state</Label>
+                                                <Label className="text-gray-900 text-[14px]">Optimal state</Label>
                                                 <input
                                                     ref={optimalInputRef}
                                                     type="file"
@@ -847,7 +1089,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => optimalInputRef.current?.click()}
                                                         disabled={uploadingMedia === "optimal"}
-                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+                                                        className="bg-[#96A5BA] border border-[#d1d5db] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "optimal" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>
@@ -855,7 +1097,7 @@ export default function EditVisitDataModal({
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-white text-[14px]">Current Visit</Label>
+                                                <Label className="text-gray-900 text-[14px]">Current Visit</Label>
                                                 <input
                                                     ref={currentInputRef}
                                                     type="file"
@@ -871,7 +1113,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => currentInputRef.current?.click()}
                                                         disabled={uploadingMedia === "current"}
-                                                        className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+                                                        className="bg-[#96A5BA] border border-[#d1d5db] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "current" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>
@@ -888,7 +1130,7 @@ export default function EditVisitDataModal({
                                                     setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", conditionAlert: "", actionNeeded: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [] });
                                                     setSpareParts([]);
                                                 }}
-                                                className="bg-[#262626] border-[#404040] text-white hover:bg-[#333] rounded-[10px] h-9 px-4"
+                                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900 hover:bg-[#333] rounded-[10px] h-9 px-4"
                                             >
                                                 Cancel
                                             </Button>
@@ -906,12 +1148,12 @@ export default function EditVisitDataModal({
                         </div>
 
                         {!isViewMode && (
-                            <DialogFooter className="border-t border-[#262626] px-8 py-4 flex justify-end gap-4 shrink-0">
+                            <DialogFooter className="border-t border-[#607797] px-8 py-4 flex justify-end gap-4 shrink-0">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => onOpenChange(false)}
-                                    className="border border-[#404040] bg-transparent hover:bg-[#262626] text-[#d4d4d4] text-[16px] font-bold px-6 py-3 rounded-[10px] h-auto"
+                                    className="border border-[#d1d5db] bg-transparent hover:bg-[#e5e7eb] text-[#6b7280] text-[16px] font-bold px-6 py-3 rounded-[10px] h-auto"
                                 >
                                     Cancel
                                 </Button>

@@ -505,7 +505,7 @@ const UploadVideos = ({ clientId }: UploadVideosProps) => {
                                             <div className="w-full h-16 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
                                                 {row.videoUrl ? (
                                                     <video
-                                                        src={`${process.env.NEXT_PUBLIC_API_HOST}${row.videoUrl}`}
+                                                        src={/^https?:\/\//.test(row.videoUrl) ? row.videoUrl : `${process.env.NEXT_PUBLIC_API_HOST}${row.videoUrl}`}
                                                         className="h-full w-full object-cover rounded-md"
                                                         controls
                                                     />

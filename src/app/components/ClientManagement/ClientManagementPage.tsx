@@ -122,15 +122,15 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
     }
 
     return (
-        <div className={`min-h-screen bg-[#0a0a0a] p-6 ${isAnimating ? "animate-fadeIn" : ""}`}>
+        <div className={`min-h-screen bg-[#ffffff] p-6 ${isAnimating ? "animate-fadeIn" : ""}`}>
             <div className="flex flex-col gap-3">
                 {/* Header */}
                 <div className="flex items-center justify-between h-[70px]">
                     <div className="flex-1">
-                        <h1 className="text-[#f3f4f6] text-[28px] leading-[42px] font-normal">
+                        <h1 className="text-[#2D3E5C] text-[28px] leading-[42px] font-bold">
                             Client Management Portal
                         </h1>
-                        <p className="text-[#a1a1a1] text-base leading-6 mt-0">
+                        <p className="text-[#6b7280] text-base leading-6 mt-0">
                             Manage all your client business accounts at one place
                         </p>
                     </div>
@@ -144,10 +144,10 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
                 </div>
 
                 {/* Filters */}
-                <div className="bg-[#171717] border border-[#404040] rounded-[8px] p-6 flex gap-6">
+                <div className="bg-white border border-[#d1d5db] rounded-[8px] p-6 flex gap-6">
                     {/* Region */}
                     <div className="flex-1 flex flex-col gap-2">
-                        <label className="text-[#a1a1a1] text-sm leading-5">Select Region</label>
+                        <label className="text-[#6b7280] text-sm leading-5">Select Region</label>
                         <Select
                             value={selectedRegion || "all"}
                             onValueChange={(value) => {
@@ -155,18 +155,18 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
                                 setSelectedCustomer("");
                             }}
                         >
-                            <SelectTrigger className="bg-[#262626] border-[#404040] rounded-[10px] h-[50px] px-4 text-[#525252] text-base hover:border-[#404040] focus:border-[#d45815]">
+                            <SelectTrigger className="bg-white border-[#d1d5db] rounded-[10px] h-[50px] px-4 text-[#4b5563] text-base hover:border-[#d1d5db] focus:border-[#d45815]">
                                 <div className="flex items-center gap-2">
-                                    <HiOutlineLocationMarker className="w-5 h-5 text-[#525252]" />
+                                    <HiOutlineLocationMarker className="w-5 h-5 text-[#4b5563]" />
                                     <SelectValue placeholder="Select region" />
                                 </div>
                             </SelectTrigger>
-                            <SelectContent className="bg-[#262626] border-[#404040]">
-                                <SelectItem value="all" className="text-white hover:bg-[#404040] cursor-pointer">
+                            <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
+                                <SelectItem value="all" className="text-gray-900 hover:bg-[#d1d5db] cursor-pointer">
                                     All Regions
                                 </SelectItem>
                                 {regions.map((region) => (
-                                    <SelectItem key={region} value={region} className="text-white hover:bg-[#404040] cursor-pointer">
+                                    <SelectItem key={region} value={region} className="text-gray-900 hover:bg-[#d1d5db] cursor-pointer">
                                         {region}
                                     </SelectItem>
                                 ))}
@@ -176,23 +176,23 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
 
                     {/* Customer */}
                     <div className="flex-[1.6] flex flex-col gap-2">
-                        <label className="text-[#a1a1a1] text-sm leading-5">Select Customer</label>
+                        <label className="text-[#6b7280] text-sm leading-5">Select Customer</label>
                         <Select
                             value={selectedCustomer || "all"}
                             onValueChange={(value) => setSelectedCustomer(value === "all" ? "" : value)}
                         >
-                            <SelectTrigger className="bg-[#262626] border-[#404040] rounded-[10px] h-[50px] px-4 text-[#525252] text-base hover:border-[#404040] focus:border-[#d45815]">
+                            <SelectTrigger className="bg-white border-[#d1d5db] rounded-[10px] h-[50px] px-4 text-[#4b5563] text-base hover:border-[#d1d5db] focus:border-[#d45815]">
                                 <div className="flex items-center gap-2">
-                                    <BsBuilding className="w-5 h-5 text-[#525252]" />
+                                    <BsBuilding className="w-5 h-5 text-[#4b5563]" />
                                     <SelectValue placeholder="Select customer" />
                                 </div>
                             </SelectTrigger>
-                            <SelectContent className="bg-[#262626] border-[#404040]">
-                                <SelectItem value="all" className="text-white hover:bg-[#404040] cursor-pointer">
+                            <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
+                                <SelectItem value="all" className="text-gray-900 hover:bg-[#d1d5db] cursor-pointer">
                                     All Customers
                                 </SelectItem>
                                 {customersByRegion.map((customer) => (
-                                    <SelectItem key={customer} value={customer} className="text-white hover:bg-[#404040] cursor-pointer">
+                                    <SelectItem key={customer} value={customer} className="text-gray-900 hover:bg-[#d1d5db] cursor-pointer">
                                         {customer}
                                     </SelectItem>
                                 ))}
@@ -202,84 +202,97 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
 
                     {/* Search */}
                     <div className="flex-1 flex flex-col gap-2">
-                        <label className="text-[#a1a1a1] text-sm leading-5">Search Customer</label>
+                        <label className="text-[#6b7280] text-sm leading-5">Search Customer</label>
                         <div className="relative">
                             {isSearching ? (
                                 <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#d45815] animate-spin" />
                             ) : (
-                                <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#525252]" />
+                                <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4b5563]" />
                             )}
                             <input
                                 type="text"
                                 placeholder="Search by name, region, product..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#262626] border border-[#404040] rounded-[10px] h-[50px] pl-12 pr-4 text-white text-base placeholder:text-[#525252] outline-none focus:border-[#d45815] transition-colors"
+                                className="w-full bg-white border border-[#d1d5db] rounded-[10px] h-[50px] pl-12 pr-4 text-gray-900 text-base placeholder:text-[#4b5563] outline-none focus:border-[#d45815] transition-colors"
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Results */}
-                {displayedClients.length > 0 ? (
+                {/* Total count */}
+                <p className="text-[#2D3E5C] text-sm font-bold mt-1">
+                    Total Clients {displayedClients.length}
+                </p>
+
+                {/* Results list */}
+                {displayedClients.length > 0 && (
                     <div className="flex flex-col gap-3">
                         {displayedClients.map((client) => (
-                            <div key={client._id} className="bg-[#171717] border border-[#262626] rounded-[10px] overflow-hidden">
-                                <div className="bg-[#262626] border-b border-[#262626] h-[73px] flex items-center justify-between px-6">
-                                    <h2 className="text-white text-xl leading-7 font-normal">Business Overview</h2>
+                            <div
+                                key={client._id}
+                                className="bg-white border border-[#96A5BA] rounded-[10px] flex items-stretch gap-0 overflow-hidden"
+                            >
+                                {/* Company Name — highlighted blue-gray strip */}
+                                <div className="bg-[#DFE6EC] flex flex-col justify-center gap-0.5 px-5 py-3 min-w-[200px] flex-1">
+                                    <p className="text-[#6b7280] text-[13px] leading-5">Company Name</p>
+                                    <button
+                                        onClick={() => router.push(`/${client._id}/client-overview`)}
+                                        className="text-[#2D3E5C] text-[15px] font-bold text-left hover:text-[#d45815] transition-colors cursor-pointer truncate"
+                                    >
+                                        {client.name}
+                                    </button>
+                                </div>
+
+                                {/* Remaining fields on white */}
+                                <div className="flex items-center gap-6 flex-[3] px-5 py-3 min-w-0">
+                                    <div className="flex flex-col gap-0.5 flex-[1.4] min-w-0">
+                                        <p className="text-[#6b7280] text-[13px] leading-5">Location</p>
+                                        <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
+                                            {client.location?.address || "N/A"}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                        <p className="text-[#6b7280] text-[13px] leading-5">End Product</p>
+                                        <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
+                                            {client.endProduct || "N/A"}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                        <p className="text-[#6b7280] text-[13px] leading-5">Owner</p>
+                                        <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
+                                            {getOwnerName(client)}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 min-w-[90px]">
+                                        <p className="text-[#6b7280] text-[13px] leading-5">Capacity</p>
+                                        <p className="text-[#2D3E5C] text-[14px] font-medium leading-5 truncate">
+                                            {client.capacity || "N/A"}
+                                        </p>
+                                    </div>
                                     <Button
                                         onClick={() => setSelectedClientForView(client)}
-                                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] px-6 py-2 h-auto text-base"
+                                        className="bg-[#DFE6EC] hover:bg-[#c8d4dc] text-[#2D3E5C] rounded-[10px] px-4 py-2 h-auto text-sm font-medium border border-[#96A5BA] shrink-0"
                                     >
-                                        Show More Detail
+                                        More Details
                                     </Button>
-                                </div>
-                                <div className="p-6 pb-3 flex items-center justify-between">
-                                    <div className="flex flex-col gap-2 w-[203px]">
-                                        <p className="text-[#737373] text-sm leading-5">Company Name</p>
-                                        <button
-                                            onClick={() => router.push(`/${client._id}/client-overview`)}
-                                            className="text-[#d45815] text-lg leading-7 font-normal text-left hover:text-[#d45815]/80 transition-colors cursor-pointer"
-                                        >
-                                            {client.name}
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-col gap-2 w-[203px]">
-                                        <p className="text-[#737373] text-sm leading-5">Location</p>
-                                        <div className="text-white text-base leading-6">
-                                            {client.location?.address ? (
-                                                client.location.address.split(",").map((part, idx) => (
-                                                    <p key={idx} className="mb-0">{part.trim()}</p>
-                                                ))
-                                            ) : (
-                                                <p className="mb-0">N/A</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2 w-[203px]">
-                                        <p className="text-[#737373] text-sm leading-5">End Product</p>
-                                        <p className="text-white text-base leading-6">{client.endProduct || "N/A"}</p>
-                                    </div>
-                                    <div className="flex flex-col gap-2 w-[203px]">
-                                        <p className="text-[#737373] text-sm leading-5">Owner</p>
-                                        <p className="text-white text-base leading-6">{getOwnerName(client)}</p>
-                                    </div>
-                                    <div className="flex flex-col gap-2 w-[203px]">
-                                        <p className="text-[#737373] text-sm leading-5">Capacity</p>
-                                        <p className="text-white text-base leading-6">{client.capacity || "N/A"}</p>
-                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <div className="bg-[#171717] border border-[#262626] rounded-[10px] h-[186px] flex flex-col items-center justify-center gap-4">
-                        <BsBuilding className="w-12 h-12 text-[#737373]" />
-                        <p className="text-[#a1a1a1] text-base leading-6 text-center">
-                            {isSearching ? "Searching..." : "No clients found"}
-                        </p>
-                    </div>
                 )}
+
+                {/* Standing placeholder — always visible. Invites picking a client. */}
+                <div className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[186px] flex flex-col items-center justify-center gap-4 mt-2">
+                    <BsBuilding className="w-12 h-12 text-[#6b7280]" />
+                    <p className="text-[#6b7280] text-base leading-6 text-center">
+                        {isSearching
+                            ? "Searching..."
+                            : displayedClients.length === 0
+                                ? "No clients found"
+                                : "Select a customer to view business overview details"}
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -272,7 +272,7 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
                 {
                     spareParts.length > 0 && (
                         <div className='flex flex-row w-full bg-base-3 gap-[25px]'>
-                            <div className="bg-base-4 text-white flex-grow flex-1 px-6 py-3 font-medium text-sm tracking-wide whitespace-nowrap"
+                            <div className="bg-base-4 text-gray-900 flex-grow flex-1 px-6 py-3 font-medium text-sm tracking-wide whitespace-nowrap"
                                 style={{ clipPath: 'polygon(0 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 0 100%)' }}>
                                 Spare Parts
                             </div>
@@ -283,7 +283,7 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
                                         onClick={() => handleSparePartClick(part._id)}
                                         className={`h-full flex items-center justify-center px-4 cursor-pointer transition-colors duration-200 ${activeSparePart === part._id
                                             ? 'bg-[#D45815] text-white'
-                                            : 'text-white hover:bg-base-4'
+                                            : 'text-gray-900 hover:bg-base-4'
                                             }`}
                                     >
                                         {part.name}

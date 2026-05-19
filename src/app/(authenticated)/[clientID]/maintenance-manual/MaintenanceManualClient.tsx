@@ -80,23 +80,49 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [loadingManuals, setLoadingManuals] = useState(false);
 
+    // Set of machine IDs that belong to *this* client. Used to intersect with
+    // the global category list so unrelated machines never leak into the view.
+    const [clientMachineIds, setClientMachineIds] = useState<Set<string>>(new Set());
+
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    void clientID;
-
-    // ── Fetch categories ──
+    // ── Fetch categories + this client's machines in parallel ──
     useEffect(() => {
         let cancelled = false;
         setLoadingCategories(true);
-        fetch("/api/products/categories/with-machines")
-            .then((r) => {
+
+        Promise.all([
+            fetch("/api/products/categories/with-machines").then((r) => {
                 if (!r.ok) throw new Error("Failed to fetch categories");
+                return r.json() as Promise<ApiCategory[]>;
+            }),
+            fetch(`/api/clients/${clientID}`).then((r) => {
+                if (!r.ok) throw new Error("Failed to fetch client");
                 return r.json();
-            })
-            .then((data: ApiCategory[]) => {
+            }),
+        ])
+            .then(([allCategories, client]) => {
                 if (cancelled) return;
-                setCategories(data);
-                if (data.length > 0) setSelectedCategoryId(data[0]._id);
+
+                const catIds = new Set<string>();
+                const machIds = new Set<string>();
+                const clientMachines = (client?.machines ?? []) as Array<{
+                    machine?: { _id?: string; category?: { _id?: string } | string | null };
+                }>;
+                for (const cm of clientMachines) {
+                    const mid = cm.machine?._id;
+                    if (mid) machIds.add(String(mid));
+                    const cat = cm.machine?.category;
+                    const cid = typeof cat === "string" ? cat : cat?._id;
+                    if (cid) catIds.add(String(cid));
+                }
+
+                setClientMachineIds(machIds);
+
+                const filtered = allCategories.filter((c) => catIds.has(c._id));
+                setCategories(filtered);
+                if (filtered.length > 0) setSelectedCategoryId(filtered[0]._id);
+                else setSelectedCategoryId("");
             })
             .catch(() => {
                 if (!cancelled) toast.error("Failed to load categories");
@@ -105,7 +131,7 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                 if (!cancelled) setLoadingCategories(false);
             });
         return () => { cancelled = true; };
-    }, []);
+    }, [clientID]);
 
     // ── Fetch manuals ──
     const fetchManuals = useCallback(() => {
@@ -126,7 +152,11 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
 
     // ── Derived data ──
     const selectedCategory = categories.find((c) => c._id === selectedCategoryId);
-    const machinesInCategory = selectedCategory?.machines ?? [];
+    // Restrict category machines to the ones this client actually has, so
+    // global machines under the same category never leak into this client's view.
+    const machinesInCategory = (selectedCategory?.machines ?? []).filter((m) =>
+        clientMachineIds.has(m._id)
+    );
 
     const categoryMachineIds = new Set(machinesInCategory.map((m) => m._id));
     const machineMap = Object.fromEntries(machinesInCategory.map((m) => [m._id, m]));
@@ -149,10 +179,10 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
             {/* ── Header ── */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h1 className="text-[28px] leading-[42px] font-lato font-normal text-[#F3F4F6]">
+                    <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">
                         Maintenance Manual
                     </h1>
-                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#A1A1A1] mt-1">
+                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280] mt-1">
                         Access and download maintenance manuals for all equipment
                     </p>
                 </div>
@@ -167,17 +197,17 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
 
             {/* ── Category Selector ── */}
             <div className="flex flex-col gap-2">
-                <label className="text-[16px] leading-[24px] font-lato font-normal text-[#99A1AF]">
+                <label className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
                     Select Category
                 </label>
                 {loadingCategories ? (
-                    <div className="flex items-center gap-2 text-[#A1A1A1]">
+                    <div className="flex items-center gap-2 text-[#6b7280]">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Loading categories...
                     </div>
                 ) : (
                     <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                        <SelectTrigger className="w-full max-w-[300px] h-11 bg-[#171717] border-[#262626]">
+                        <SelectTrigger className="w-full max-w-[300px] h-11 bg-[#96A5BA] border-[#607797]">
                             <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -192,7 +222,7 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
             </div>
 
             {/* ── Manual Count ── */}
-            <p className="text-[16px] leading-[24px] font-lato font-normal text-[#A1A1A1]">
+            <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
                 Showing{" "}
                 <span className="text-orange font-normal">
                     {manualsInCategory.length} Manual{manualsInCategory.length !== 1 ? "s" : ""}
@@ -202,12 +232,12 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
 
             {/* ── Manual Cards Grid ── */}
             {loadingManuals && manuals.length === 0 ? (
-                <div className="flex items-center gap-2 text-[#A1A1A1] py-8">
+                <div className="flex items-center gap-2 text-[#6b7280] py-8">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Loading manuals...
                 </div>
             ) : manualsInCategory.length === 0 ? (
-                <p className="text-[#525252] text-sm py-8">No manuals found in this category.</p>
+                <p className="text-[#4b5563] text-sm py-8">No manuals found in this category.</p>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {manualsInCategory.map((manual) => {
@@ -219,10 +249,10 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                         return (
                             <div
                                 key={manual._id}
-                                className="group rounded-xl border border-[#262626] bg-[#171717] overflow-hidden transition-all duration-200 hover:border-orange/50 hover:shadow-lg hover:shadow-orange/5"
+                                className="group rounded-xl border border-[#607797] bg-[#DFE6EC] overflow-hidden transition-all duration-200 hover:border-orange/50 hover:shadow-lg hover:shadow-orange/5"
                             >
                                 {/* Machine Image */}
-                                <div className="relative w-full aspect-[4/3] bg-[#262626] overflow-hidden">
+                                <div className="relative w-full aspect-[4/3] bg-[#e5e7eb] overflow-hidden">
                                     {machineImage ? (
                                         <Image
                                             src={machineImage}
@@ -232,7 +262,7 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                         />
                                     ) : (
-                                        <div className="flex items-center justify-center h-full text-[#525252] text-sm">
+                                        <div className="flex items-center justify-center h-full text-[#4b5563] text-sm">
                                             No image
                                         </div>
                                     )}
@@ -241,16 +271,16 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                                 {/* Card Info */}
                                 <div className="p-4 flex flex-col gap-3">
                                     <div>
-                                        <h3 className="text-[18px] leading-[28px] font-normal text-[#FFFFFF]">
+                                        <h3 className="text-[18px] leading-[28px] font-normal text-[#1f2937]">
                                             {machineName}
                                         </h3>
                                         {modelNumber && (
-                                            <p className="text-[14px] leading-[21px] font-normal text-[#A1A1A1]">
+                                            <p className="text-[14px] leading-[21px] font-normal text-[#6b7280]">
                                                 Model: {modelNumber}
                                             </p>
                                         )}
                                         {manual.sparePart?.name && (
-                                            <p className="text-[13px] leading-[20px] font-normal text-[#737373]">
+                                            <p className="text-[13px] leading-[20px] font-normal text-[#6b7280]">
                                                 Spare Part: {manual.sparePart.name}
                                                 {manual.sparePart.klValue && ` (${manual.sparePart.klValue})`}
                                             </p>
@@ -270,14 +300,14 @@ export default function MaintenanceManualClient({ clientID }: MaintenanceManualC
                                         </a>
                                         <button
                                             onClick={() => handleDeleteManual(manual._id)}
-                                            className="p-2.5 rounded-[10px] text-[#737373] hover:text-red-400 hover:bg-red-400/10 shrink-0 transition-colors"
+                                            className="p-2.5 rounded-[10px] text-[#6b7280] hover:text-red-400 hover:bg-red-400/10 shrink-0 transition-colors"
                                             title="Delete manual"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
 
-                                    <p className="text-[12px] text-[#525252] truncate" title={manual.originalName}>
+                                    <p className="text-[12px] text-[#4b5563] truncate" title={manual.originalName}>
                                         {manual.originalName}
                                     </p>
                                 </div>
@@ -396,10 +426,10 @@ function UploadManualModal({
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="bg-[#171717] border-[#262626] text-white sm:max-w-lg lg:max-w-lg">
+            <DialogContent className="bg-white border-[#d1d5db] text-gray-900 sm:max-w-lg lg:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-white text-lg">Upload Maintenance Manual</DialogTitle>
-                    <DialogDescription className="text-[#A1A1A1]">
+                    <DialogTitle className="text-gray-900 text-lg">Upload Maintenance Manual</DialogTitle>
+                    <DialogDescription className="text-[#6b7280]">
                         Search by machine model number or spare part KL value, then upload a PDF or DOC file.
                     </DialogDescription>
                 </DialogHeader>
@@ -408,11 +438,11 @@ function UploadManualModal({
                     {/* ── Search or selected ── */}
                     {selectedItem ? (
                         <div className="flex flex-col gap-2">
-                            <Label className="text-[#A1A1A1] text-sm">Selected</Label>
-                            <div className="flex items-center gap-3 bg-[#262626] border border-[#404040] rounded-[10px] p-3">
+                            <Label className="text-[#6b7280] text-sm">Selected</Label>
+                            <div className="flex items-center gap-3 bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] p-3">
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-white text-sm font-medium truncate">{selectedItem.label}</p>
-                                    <p className="text-[#A1A1A1] text-xs truncate">
+                                    <p className="text-gray-900 text-sm font-medium truncate">{selectedItem.label}</p>
+                                    <p className="text-[#6b7280] text-xs truncate">
                                         {selectedItem.type === "machine"
                                             ? `Model: ${selectedItem.modelNumber || "—"}`
                                             : `KL Value: ${selectedItem.klValue || "—"}`}
@@ -426,7 +456,7 @@ function UploadManualModal({
                                 </div>
                                 <button
                                     onClick={() => setSelectedItem(null)}
-                                    className="p-1.5 rounded-lg text-[#737373] hover:text-white hover:bg-[#404040] shrink-0"
+                                    className="p-1.5 rounded-lg text-[#6b7280] hover:text-gray-900 hover:bg-[#d1d5db] shrink-0"
                                     title="Change selection"
                                 >
                                     <X className="w-4 h-4" />
@@ -435,38 +465,38 @@ function UploadManualModal({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2">
-                            <Label className="text-[#A1A1A1] text-sm">
+                            <Label className="text-[#6b7280] text-sm">
                                 Search by Model Number or KL Value
                             </Label>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#525252]" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4b5563]" />
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Type model number or KL value..."
-                                    className="bg-[#262626] border-[#404040] h-11 rounded-[10px] pl-10 pr-4 text-white placeholder:text-[#525252]"
+                                    className="bg-[#e5e7eb] border-[#d1d5db] h-11 rounded-[10px] pl-10 pr-4 text-gray-900 placeholder:text-[#4b5563]"
                                     autoFocus
                                 />
                                 {searching && (
-                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#525252]" />
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#4b5563]" />
                                 )}
                             </div>
 
                             {/* ── Search Results ── */}
                             {searchResults.length > 0 && (
-                                <div className="bg-[#262626] border border-[#404040] rounded-[10px] max-h-[240px] overflow-y-auto divide-y divide-[#404040]">
+                                <div className="bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] max-h-[240px] overflow-y-auto divide-y divide-[#d1d5db]">
                                     {searchResults.map((item) => (
                                         <button
                                             key={`${item.type}-${item._id}`}
                                             onClick={() => handleSelect(item)}
                                             className="w-full text-left px-4 py-3 hover:bg-[#363636] transition-colors flex items-center gap-3"
                                         >
-                                            <div className="w-8 h-8 rounded-md bg-[#404040] flex items-center justify-center shrink-0">
-                                                <FileText className="w-4 h-4 text-[#A1A1A1]" />
+                                            <div className="w-8 h-8 rounded-md bg-[#d1d5db] flex items-center justify-center shrink-0">
+                                                <FileText className="w-4 h-4 text-[#6b7280]" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-white text-sm font-medium truncate">{item.label}</p>
-                                                <p className="text-[#737373] text-xs truncate">
+                                                <p className="text-gray-900 text-sm font-medium truncate">{item.label}</p>
+                                                <p className="text-[#6b7280] text-xs truncate">
                                                     {item.type === "machine"
                                                         ? `Machine · Model: ${item.modelNumber || "—"}`
                                                         : `Spare Part · KL: ${item.klValue || "—"}`}
@@ -480,30 +510,30 @@ function UploadManualModal({
                             )}
 
                             {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
-                                <p className="text-[#525252] text-sm px-1">No results found.</p>
+                                <p className="text-[#4b5563] text-sm px-1">No results found.</p>
                             )}
                         </div>
                     )}
 
                     {/* ── File Upload ── */}
                     <div className="flex flex-col gap-2">
-                        <Label className="text-[#A1A1A1] text-sm">Manual File (PDF, DOC, DOCX)</Label>
+                        <Label className="text-[#6b7280] text-sm">Manual File (PDF, DOC, DOCX)</Label>
                         {file ? (
-                            <div className="flex items-center gap-3 bg-[#262626] border border-[#404040] rounded-[10px] p-3">
+                            <div className="flex items-center gap-3 bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] p-3">
                                 <FileText className="w-5 h-5 text-orange shrink-0" />
-                                <span className="text-white text-sm truncate flex-1">{file.name}</span>
+                                <span className="text-gray-900 text-sm truncate flex-1">{file.name}</span>
                                 <button
                                     onClick={() => {
                                         setFile(null);
                                         if (fileInputRef.current) fileInputRef.current.value = "";
                                     }}
-                                    className="p-1 rounded text-[#737373] hover:text-white hover:bg-[#404040] shrink-0"
+                                    className="p-1 rounded text-[#6b7280] hover:text-gray-900 hover:bg-[#d1d5db] shrink-0"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
                         ) : (
-                            <label className="border-2 border-dashed border-[#404040] rounded-[10px] flex flex-col items-center justify-center py-8 px-4 bg-[#1f1f1f] cursor-pointer hover:border-[#505050] transition-colors">
+                            <label className="border-2 border-dashed border-[#d1d5db] rounded-[10px] flex flex-col items-center justify-center py-8 px-4 bg-[#ffffff] cursor-pointer hover:border-[#505050] transition-colors">
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -514,8 +544,8 @@ function UploadManualModal({
                                         if (f) setFile(f);
                                     }}
                                 />
-                                <Upload className="w-8 h-8 text-[#525252] mb-2" />
-                                <span className="text-[#A1A1A1] text-sm">Click to select file (PDF, DOC, max 20MB)</span>
+                                <Upload className="w-8 h-8 text-[#4b5563] mb-2" />
+                                <span className="text-[#6b7280] text-sm">Click to select file (PDF, DOC, max 20MB)</span>
                             </label>
                         )}
                     </div>

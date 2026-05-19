@@ -49,45 +49,45 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Dark theme as default with orange accent */
+/* Light theme as default with orange accent */
 :root {
   --radius: 0.625rem;
-  --background: #0f1419;
-  --foreground: #e7e9ea;
-  --card: #16202a;
-  --card-foreground: #e7e9ea;
-  --popover: #1c2732;
-  --popover-foreground: #e7e9ea;
-  --primary: #f97316;
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #DFE6EC;
+  --card-foreground: #111827;
+  --popover: #DFE6EC;
+  --popover-foreground: #111827;
+  --primary: #d45815;
   --primary-foreground: #ffffff;
-  --secondary: #f97316;
+  --secondary: #d45815;
   --secondary-foreground: #ffffff;
-  --muted: #1c2732;
-  --muted-foreground: #8899a6;
-  --accent: #f97316;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --border: #38444d;
-  --input: #1c2732;
-  --ring: #f97316;
-  --chart-1: #f97316;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #fff7ed;
+  --accent-foreground: #d45815;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #ffffff;
+  --ring: #d45815;
+  --chart-1: #d45815;
   --chart-2: #fb923c;
   --chart-3: #fdba74;
   --chart-4: #fed7aa;
   --chart-5: #ffedd5;
-  --sidebar: #0f1419;
-  --sidebar-foreground: #e7e9ea;
-  --sidebar-primary: #f97316;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #d45815;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1c2732;
-  --sidebar-accent-foreground: #e7e9ea;
-  --sidebar-border: #38444d;
-  --sidebar-ring: #f97316;
-  --base-1: #1c2732;
-  --base-2: #8899a6;
-  --base-3: #a8b9c6;
-  --base-4: #e7e9ea;
-  --orange: #f97316;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #607797;
+  --sidebar-ring: #d45815;
+  --base-1: #DFE6EC;
+  --base-2: #96A5BA;
+  --base-3: #607797;
+  --base-4: #2D3E5C;
+  --orange: #d45815;
   --orange-light: #fb923c;
 }
 
@@ -139,18 +139,18 @@
   }
 }
 
-/* Scrollbar styling for dark theme */
+/* Scrollbar styling for light theme */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: #f3f4f6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--base-2);
+  background: #cbd5e1;
   border-radius: 4px;
 }
 
@@ -235,4 +235,14 @@
     padding: 32px 24px;
     max-width: 90%;
   }
+}
+/* Hide native calendar picker indicator on date inputs that use a custom overlay icon */
+input.hide-native-date-icon::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input.hide-native-date-icon::-webkit-inner-spin-button,
+input.hide-native-date-icon::-webkit-outer-spin-button {
+  display: none;
 }

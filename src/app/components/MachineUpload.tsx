@@ -193,7 +193,7 @@ const UploadZoneCard: React.FC<UploadZoneCardProps> = ({
                         }}
                         className="absolute top-2 right-2 bg-black/60 rounded-full p-1 hover:bg-black/80 transition-colors cursor-pointer"
                     >
-                        <X className="w-4 h-4 text-white" />
+                        <X className="w-4 h-4 text-gray-900" />
                     </button>
                 </div>
             ) : (
@@ -265,9 +265,9 @@ const MachineUpload: React.FC = () => {
     return (
         <div className="flex flex-col gap-6 mt-2">
             {/* ── Client Card ── */}
-            <div className="rounded-[10px] bg-[#171717] border border-[#262626] overflow-hidden">
+            <div className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
                 {/* Client Header */}
-                <div className="flex items-center justify-between bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] rounded-t-[10px] px-6 py-4">
+                <div className="flex items-center justify-between bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#607797] rounded-t-[10px] px-6 py-4">
                     <h3 className="text-base font-semibold text-foreground">
                         {data.clientName}
                     </h3>
@@ -275,7 +275,7 @@ const MachineUpload: React.FC = () => {
                 </div>
 
                 {/* Upload Sections */}
-                <div className="bg-[#0D0D0D] p-6 space-y-6">
+                <div className="bg-[#ffffff] p-6 space-y-6">
                     {data.sections.map((section) => (
                         <div key={section.id}>
                             <SectionHeader title={section.title} />
@@ -296,16 +296,16 @@ const MachineUpload: React.FC = () => {
             </div>
 
             {/* ── Upload Product Images ── */}
-            <div className="rounded-[10px] bg-[#171717] border border-[#262626] overflow-hidden">
+            <div className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
                 {/* Section Header */}
-                <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] rounded-t-[10px] px-6 py-4">
+                <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#607797] rounded-t-[10px] px-6 py-4">
                     <h3 className="text-lg font-semibold text-foreground">
                         Upload Product Images
                     </h3>
                 </div>
 
                 {/* Product Machine Sections */}
-                <div className="bg-[#0D0D0D] p-6 space-y-8">
+                <div className="bg-[#ffffff] p-6 space-y-8">
                     {data.productMachines.map((machine) => (
                         <div key={machine.id} className="space-y-6">
                             {/* Machine Image */}

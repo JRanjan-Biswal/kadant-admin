@@ -27,16 +27,31 @@ import { toast } from "sonner";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Canonical service types — kept in sync with machine-health RequestServiceModal
+// and admin OrderCreate. If you add a type here, update both.
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-    "Annual Inspection": { bg: "bg-amber-500/20", text: "text-amber-400" },
-    "Preventive Maintenance": { bg: "bg-orange-500/20", text: "text-orange-400" },
-    "Emergency Repair": { bg: "bg-red-500/20", text: "text-red-400" },
-    "Calibration Service": { bg: "bg-sky-500/20", text: "text-sky-400" },
-    "Repair": { bg: "bg-emerald-500/20", text: "text-emerald-400" },
-    "New Order": { bg: "bg-green-500/20", text: "text-green-400" },
+    "General Maintenance": { bg: "bg-orange-500/20", text: "text-orange-400" },
+    "Order New": { bg: "bg-green-500/20", text: "text-green-400" },
+    "Rebuild": { bg: "bg-sky-500/20", text: "text-sky-400" },
 };
 
+const STATUS_OPTIONS = [
+    "pending",
+    "ordered",
+    "shipped",
+    "delivered",
+    "completed",
+    "cancelled",
+] as const;
+
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+    pending: { bg: "bg-yellow-500/20", text: "text-yellow-400" },
+    ordered: { bg: "bg-blue-500/20", text: "text-blue-400" },
+    shipped: { bg: "bg-purple-500/20", text: "text-purple-400" },
+    delivered: { bg: "bg-emerald-500/20", text: "text-emerald-400" },
+    completed: { bg: "bg-green-500/20", text: "text-green-400" },
+    cancelled: { bg: "bg-red-500/20", text: "text-red-400" },
+    // Legacy/UI fallbacks
     Completed: { bg: "bg-green-500/20", text: "text-green-400" },
     Scheduled: { bg: "bg-orange-500/20", text: "text-orange-300" },
     Pending: { bg: "bg-yellow-500/20", text: "text-yellow-400" },
@@ -100,6 +115,25 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
         }
     };
 
+    const handleStatusChange = async (orderId: string, newStatus: string) => {
+        if (!orderId) return;
+        try {
+            const response = await fetch(`/api/clients/${clientID}/orders/${orderId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            toast.success(`Status changed to ${newStatus}`);
+            fetchOrders();
+        } catch (err) {
+            console.error("Status change failed:", err);
+            toast.error("Failed to update status");
+        }
+    };
+
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
@@ -135,7 +169,12 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
     const totalRecords = orders.length;
     const serviceRequests = orders.filter((o) => isServiceRequest(o.orderNumber)).length;
     const pendingScheduled = orders.filter(
-        (o) => o.status === "Pending" || o.status === "Scheduled"
+        (o) =>
+            o.status === "pending" ||
+            o.status === "ordered" ||
+            o.status === "shipped" ||
+            o.status === "Pending" ||
+            o.status === "Scheduled"
     ).length;
 
     return (
@@ -143,8 +182,8 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
             {/* ── Header ── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-[28px] leading-[42px] font-lato font-normal text-[#F3F4F6]">Order History</h1>
-                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#A1A1A1] mt-1">
+                    <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">Order History</h1>
+                    <p className="text-[16px] leading-[24px] font-lato font-normal text-[#6b7280] mt-1">
                         Complete order and service request tracking
                     </p>
                 </div>
@@ -298,11 +337,25 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColor.bg} ${statusColor.text}`}
+                                            <Select
+                                                value={order.status || "pending"}
+                                                onValueChange={(v) =>
+                                                    handleStatusChange(order._id || "", v)
+                                                }
                                             >
-                                                {order.status || "Completed"}
-                                            </span>
+                                                <SelectTrigger
+                                                    className={`w-[130px] h-8 px-2.5 rounded-full text-xs font-medium border-0 ${statusColor.bg} ${statusColor.text} focus:ring-1 focus:ring-orange/40`}
+                                                >
+                                                    <SelectValue placeholder="Select status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {STATUS_OPTIONS.map((s) => (
+                                                        <SelectItem key={s} value={s}>
+                                                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <Button
@@ -340,8 +393,8 @@ function SummaryCard({
     return (
         <div className="flex items-center justify-between bg-card border border-border rounded-xl px-5 py-4 transition-all hover:border-orange/40">
             <div className="flex flex-col gap-1">
-                <span className="text-[14px] leading-[20px] font-lato font-normal text-[#A1A1A1]">{label}</span>
-                <span className="text-[30px] leading-[42px] font-lato font-normal text-[#F3F4F6]">{value}</span>
+                <span className="text-[14px] leading-[20px] font-lato font-normal text-[#6b7280]">{label}</span>
+                <span className="text-[30px] leading-[42px] font-lato font-normal text-[#1f2937]">{value}</span>
             </div>
             <div className="w-12 h-12 rounded-full bg-orange/10 flex items-center justify-center">
                 {icon}

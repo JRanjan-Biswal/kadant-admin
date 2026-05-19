@@ -62,7 +62,7 @@ export default function ForgotPassword() {
       </div>
 
       {/* Logo */}
-      <div className="text-white md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
+      <div className="text-gray-900 md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
         <Image
           alt="logo"
           className=""
@@ -92,7 +92,7 @@ export default function ForgotPassword() {
               <h2 className="text-[40px] font-bold font-montserrat bg-gradient-to-b from-[#eef3ff] to-[#fbfcff] bg-clip-text text-transparent leading-[normal] text-nowrap" style={{ textShadow: '2px 1px 1px rgba(0,0,0,0.25)' }}>
                 Forgot Password?
               </h2>
-              <p className="text-[14px] font-semibold font-montserrat text-white leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
+              <p className="text-[14px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
                 Reset password link sent to your Email Id.
               </p>
             </div>
@@ -131,7 +131,7 @@ export default function ForgotPassword() {
                   <BiUser color="#fff" size={24} />
                   <Link
                     href="/"
-                    className="text-[#fff] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
+                    className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
                   >
                     Login to Admin
                   </Link>
@@ -155,7 +155,7 @@ export default function ForgotPassword() {
                   <BiUser color="#fff" size={24} />
                   <Link
                     href="/"
-                    className="text-[#fff] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
+                    className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
                   >
                     Login to Admin
                   </Link>

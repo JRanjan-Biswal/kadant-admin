@@ -26,7 +26,7 @@ export default function AddToCalendar({ date, clientName }: AddToCalendarProps) 
 
     return (
         <div>
-            <Button onClick={handleAddToCalendar} disabled={!date || isReadOnly} variant="outline" className="bg-base-3 text-white cursor-pointer hover:bg-black hover:text-white">
+            <Button onClick={handleAddToCalendar} disabled={!date || isReadOnly} variant="outline" className="bg-base-3 text-gray-900 cursor-pointer hover:bg-black hover:text-gray-900">
                 <CiCalendarDate />
                 Add to calendar
             </Button>

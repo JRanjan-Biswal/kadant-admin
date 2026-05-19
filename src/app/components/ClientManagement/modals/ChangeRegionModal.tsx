@@ -48,48 +48,48 @@ export default function ChangeRegionModal({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent
                 showCloseButton={false}
-                className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[500px]"
+                className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[500px] overflow-hidden"
             >
-                <div className="border-b border-[#1a1a1a] flex items-center justify-between h-[85px] px-6">
-                    <h3 className="text-[#f3f4f6] text-2xl leading-8">Change Region</h3>
+                <div className="bg-[#DFE6EC] border-b border-[#96A5BA] flex items-center justify-between h-[72px] px-6">
+                    <h3 className="text-[#2D3E5C] text-xl font-bold leading-7">Change Region</h3>
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="w-9 h-9 flex items-center justify-center rounded-[10px] hover:bg-[#1a1a1a] transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-[10px] hover:bg-[#f9fafb] transition-colors"
                     >
-                        <X className="w-5 h-5 text-[#f3f4f6]" />
+                        <X className="w-5 h-5 text-[#2D3E5C]" />
                     </button>
                 </div>
 
                 <div className="p-6 flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[#6a7282] text-base leading-6">Current Region</label>
-                        <div className="bg-[#1a1a1a] border border-[#272626] rounded-[10px] h-[46px] px-4 flex items-center">
-                            <span className="text-[#f3f4f6] text-base">{currentRegion || "Not set"}</span>
+                        <label className="text-[#6b7280] text-base leading-6">Current Region</label>
+                        <div className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[46px] px-4 flex items-center">
+                            <span className="text-[#1f2937] text-base">{currentRegion || "Not set"}</span>
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[#6a7282] text-base leading-6">New Region</label>
+                        <label className="text-[#6b7280] text-base leading-6">New Region</label>
                         <input
                             type="text"
                             value={region}
                             onChange={(e) => setRegion(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSave()}
                             placeholder="e.g. LATAM, APAC, EMEA"
-                            className="bg-[#1a1a1a] border border-[#262626] rounded-[10px] h-[46px] px-4 text-[#f3f4f6] text-base placeholder:text-[#4a4a4a] outline-none focus:border-[#d45815] transition-colors"
+                            className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[46px] px-4 text-[#2D3E5C] text-base placeholder:text-[#4a4a4a] outline-none focus:border-[#d45815] transition-colors"
                         />
                     </div>
 
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                 </div>
 
-                <div className="border-t border-[#1a1a1a] flex items-center justify-end gap-3 h-[93px] px-6">
+                <div className="border-t border-[#96A5BA] flex items-center justify-end gap-3 h-[80px] px-6">
                     <button
                         type="button"
                         onClick={handleClose}
                         disabled={isLoading}
-                        className="bg-[#1a1a1a] text-[#f3f4f6] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#262626] transition-colors disabled:opacity-50"
+                        className="bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -97,7 +97,7 @@ export default function ChangeRegionModal({
                         type="button"
                         onClick={handleSave}
                         disabled={isLoading}
-                        className="bg-[#d45815] text-[#f3f4f6] px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors flex items-center gap-[9px] disabled:opacity-50"
+                        className="bg-[#2D3E5C] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#1f2a44] transition-colors flex items-center gap-[9px] disabled:opacity-50"
                     >
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         Save Changes

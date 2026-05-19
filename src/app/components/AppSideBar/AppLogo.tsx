@@ -13,7 +13,7 @@ export function AppLogo() {
       <SidebarMenuItem>
         <NextLink href="/client-management">
           <div
-            className="data-[state=open]:bg-sidebar-accent pl-[15px] pt-[18px] pb-[20px] data-[state=open]:text-sidebar-accent-foreground border-b h-16 flex items-center"
+            className="bg-[#2D3E5C] pl-[15px] pt-[18px] pb-[20px] border-b border-[#1f2a3d] h-16 flex items-center"
           >
             <Image
               src="/kadant-logo.svg"

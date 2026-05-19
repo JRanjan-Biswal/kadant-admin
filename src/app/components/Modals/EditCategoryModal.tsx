@@ -94,20 +94,20 @@ export default function EditCategoryModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-[#171717] border-[#262626] rounded-[10px] p-6 max-w-md">
-                <h3 className="text-white text-lg font-medium">Edit Category</h3>
+            <DialogContent className="bg-white border-[#d1d5db] rounded-[10px] p-6 max-w-md">
+                <h3 className="text-gray-900 text-lg font-medium">Edit Category</h3>
                 <div className="flex flex-col gap-3 mt-2">
                     <div>
-                        <Label className="text-[#a1a1a1] text-sm">Name</Label>
+                        <Label className="text-[#6b7280] text-sm">Name</Label>
                         <Input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="bg-[#262626] border-[#404040] text-white mt-1"
+                            className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900 mt-1"
                         />
                     </div>
                     <div>
-                        <Label className="text-[#a1a1a1] text-sm">Image (optional)</Label>
-                        <label className="mt-1 flex flex-col items-center justify-center min-h-[80px] border border-dashed border-[#404040] rounded-lg bg-[#262626] cursor-pointer hover:border-[#505050]">
+                        <Label className="text-[#6b7280] text-sm">Image (optional)</Label>
+                        <label className="mt-1 flex flex-col items-center justify-center min-h-[80px] border border-dashed border-[#d1d5db] rounded-lg bg-[#e5e7eb] cursor-pointer hover:border-[#505050]">
                             <input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
@@ -119,13 +119,13 @@ export default function EditCategoryModal({
                                 <img src={previewSrc} alt="Preview" className="max-h-20 object-contain" />
                             ) : null}
                             {!showPreview && (
-                                <span className="text-[#a1a1a1] text-sm flex items-center gap-2"><Upload className="w-4 h-4" /> Upload</span>
+                                <span className="text-[#6b7280] text-sm flex items-center gap-2"><Upload className="w-4 h-4" /> Upload</span>
                             )}
                         </label>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                    <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="text-[#a1a1a1]">Cancel</Button>
+                    <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="text-[#6b7280]">Cancel</Button>
                     <Button type="button" onClick={handleSave} disabled={loading} className="bg-[#d45815] hover:bg-[#d45815]/90">
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
                     </Button>

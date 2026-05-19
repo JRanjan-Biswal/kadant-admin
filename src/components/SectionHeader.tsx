@@ -5,8 +5,8 @@ interface SectionHeaderProps {
 
 export default function SectionHeader({ number, title }: SectionHeaderProps) {
     return (
-        <div className="bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] px-6 py-4">
-            <h2 className="text-xl font-normal text-white">
+        <div className="bg-[#DFE6EC] border-b border-[#96A5BA] px-6 py-4">
+            <h2 className="text-lg font-bold text-[#2D3E5C]">
                 {number}. {title}
             </h2>
         </div>

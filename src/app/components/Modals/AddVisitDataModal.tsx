@@ -17,6 +17,7 @@ import {
     TriangleAlert,
     CloudUpload,
     Loader2,
+    UserPlus,
 } from "lucide-react";
 import { FaPlus } from "react-icons/fa6";
 import { useForm, Controller } from "react-hook-form";
@@ -31,7 +32,11 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MachineIssue, SiteVisit } from "@/types/visit-details";
+import {
+    MachineIssue,
+    SiteVisit,
+    SparePartMediaEntry,
+} from "@/types/visit-details";
 import { Admin } from "@/types/admin";
 import { format, parseISO, isToday } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -41,7 +46,6 @@ const visitFormSchema = z.object({
     visitType: z.array(z.string()).min(1, "Select at least one visit type"),
     assignedEngineer: z.string().min(1, "Engineer is required"),
     clientRepresentative: z.string().min(1, "Client representative is required"),
-    clientRepresentativeDesignation: z.string().optional(),
 });
 
 type VisitFormData = z.infer<typeof visitFormSchema>;
@@ -53,18 +57,46 @@ const MACHINE_STATUS_OPTIONS = [
     "Healthy",
 ];
 
-const ACTION_NEEDED_OPTIONS = [
-    "Send to Rebuild",
-    "Order Now",
-    "Needs Repair",
-    "Monitor",
+const ACTION_OPTIONS: { value: string; idle: string; active: string }[] = [
+    {
+        value: "Send to Rebuild",
+        idle: "bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280]",
+        active:
+            "bg-[#e5e7eb] border border-[#9ca3af] text-[#1f2937] ring-2 ring-offset-1 ring-[#9ca3af]",
+    },
+    {
+        value: "Order New",
+        idle: "bg-[#dc2626] border border-[#dc2626] text-white opacity-80",
+        active:
+            "bg-[#dc2626] border border-[#dc2626] text-white ring-2 ring-offset-1 ring-[#dc2626]",
+    },
+    {
+        value: "Needs Repair",
+        idle: "bg-[#f59e0b] border border-[#f59e0b] text-white opacity-80",
+        active:
+            "bg-[#f59e0b] border border-[#f59e0b] text-white ring-2 ring-offset-1 ring-[#f59e0b]",
+    },
+    {
+        value: "Monitor",
+        idle: "bg-[#2D3E5C] border border-[#2D3E5C] text-white opacity-80",
+        active:
+            "bg-[#2D3E5C] border border-[#2D3E5C] text-white ring-2 ring-offset-1 ring-[#2D3E5C]",
+    },
 ];
 
-const STATUS_STYLES: Record<string, string> = {
-    "Critical Failure": "text-[#FF6467]",
-    "Needs Repair": "text-[#FFAA33]",
-    Monitor: "text-[#FFD700]",
-    Healthy: "text-[#05df72]",
+const STATUS_TEXT_STYLES: Record<string, string> = {
+    "Critical Failure": "text-[#dc2626]",
+    "Needs Repair": "text-[#f59e0b]",
+    Monitor: "text-[#2D3E5C]",
+    Healthy: "text-[#16a34a]",
+};
+
+const ACTION_PILL_STYLES: Record<string, string> = {
+    "Send to Rebuild":
+        "bg-[#fed7aa] border border-[#fb923c] text-[#c2410c]",
+    "Order New": "bg-[#fee2e2] border border-[#dc2626] text-[#991b1b]",
+    "Needs Repair": "bg-[#fef3c7] border border-[#f59e0b] text-[#92400e]",
+    Monitor: "bg-[#dbeafe] border border-[#2D3E5C] text-[#2D3E5C]",
 };
 
 function isVideoUrl(url: string): boolean {
@@ -74,13 +106,17 @@ function isVideoUrl(url: string): boolean {
 function MediaPreview({
     url,
     onRemove,
+    size = "w-[80px] h-[60px]",
 }: {
     url: string;
     onRemove: () => void;
+    size?: string;
 }) {
     const isVideo = isVideoUrl(url);
     return (
-        <div className="relative group rounded-[8px] overflow-hidden bg-[#171717] border border-[#404040] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+        <div
+            className={`relative group rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] flex items-center justify-center ${size}`}
+        >
             {isVideo ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : (
@@ -98,21 +134,23 @@ function MediaPreview({
     );
 }
 
-function UploadMediaBox({
-    label,
+function UploadBox({
     onTrigger,
     uploading,
+    label = "Upload",
+    size = "w-[80px] h-[60px]",
 }: {
-    label: string;
     onTrigger: () => void;
     uploading?: boolean;
+    label?: string;
+    size?: string;
 }) {
     return (
         <button
             type="button"
             onClick={onTrigger}
             disabled={uploading}
-            className="w-[80px] h-[60px] rounded-[8px] border border-dashed border-[#404040] bg-[#171717] flex flex-col items-center justify-center gap-0.5 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
+            className={`${size} rounded-[8px] border border-dashed border-[#9ca3af] bg-[#f9fafb] flex flex-col items-center justify-center gap-0.5 text-[#6b7280] hover:border-[#2D3E5C] hover:text-[#2D3E5C] transition-colors disabled:opacity-50`}
         >
             {uploading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -130,8 +168,15 @@ interface MachineCategory {
     machines: { _id: string; name: string }[];
 }
 
+interface SparePartLite {
+    _id: string;
+    name: string;
+    klValue?: string;
+}
+
 interface NewMachineIssue {
     categoryId: string;
+    categoryName: string;
     machineId: string;
     machineName: string;
     status: string;
@@ -139,10 +184,12 @@ interface NewMachineIssue {
     actionNeeded: string;
     optimalStateMediaUrls: string[];
     currentVisitMediaUrls: string[];
+    sparePartMedia: SparePartMediaEntry[];
 }
 
 const EMPTY_ISSUE: NewMachineIssue = {
     categoryId: "",
+    categoryName: "",
     machineId: "",
     machineName: "",
     status: "",
@@ -150,6 +197,7 @@ const EMPTY_ISSUE: NewMachineIssue = {
     actionNeeded: "",
     optimalStateMediaUrls: [],
     currentVisitMediaUrls: [],
+    sparePartMedia: [],
 };
 
 interface AddVisitDataModalProps {
@@ -166,8 +214,16 @@ export default function AddVisitDataModal({
     const [isOpen, setIsOpen] = useState(false);
     const [users, setUsers] = useState<Admin[]>([]);
     const [submitting, setSubmitting] = useState(false);
-    const [scheduledToday, setScheduledToday] = useState<{ date: string; id: string }[]>([]);
+    const [scheduledToday, setScheduledToday] = useState<
+        { date: string; id: string }[]
+    >([]);
     const [useCustomDate, setUseCustomDate] = useState(false);
+    // When user picks a today-scheduled chip, we update that existing visit
+    // (mark it as completed) instead of creating a new record. Null means
+    // create new.
+    const [selectedChipVisitId, setSelectedChipVisitId] = useState<string | null>(
+        null
+    );
     const [machineIssues, setMachineIssues] = useState<MachineIssue[]>([]);
     const [showAddIssue, setShowAddIssue] = useState(false);
     const [categories, setCategories] = useState<MachineCategory[]>([]);
@@ -175,11 +231,20 @@ export default function AddVisitDataModal({
         { _id: string; name: string }[]
     >([]);
     const [newIssue, setNewIssue] = useState<NewMachineIssue>({ ...EMPTY_ISSUE });
+    const [spareParts, setSpareParts] = useState<SparePartLite[]>([]);
+    const [loadingSpareParts, setLoadingSpareParts] = useState(false);
     const [uploadingMedia, setUploadingMedia] = useState<
         "optimal" | "current" | null
     >(null);
+    const [uploadingSparePartId, setUploadingSparePartId] = useState<string | null>(
+        null
+    );
     const optimalInputRef = useRef<HTMLInputElement>(null);
     const currentInputRef = useRef<HTMLInputElement>(null);
+    const sparePartInputRef = useRef<HTMLInputElement>(null);
+    const sparePartTargetRef = useRef<{ sparePartId: string; sparePartName: string } | null>(
+        null
+    );
     const [uploadTarget, setUploadTarget] = useState<{
         index: number;
         type: "optimal" | "current";
@@ -188,6 +253,16 @@ export default function AddVisitDataModal({
     const [uploadingExisting, setUploadingExisting] = useState<{
         index: number;
         type: "optimal" | "current";
+    } | null>(null);
+    const existingSparePartInputRef = useRef<HTMLInputElement>(null);
+    const existingSparePartTargetRef = useRef<{
+        index: number;
+        sparePartId: string;
+        sparePartName: string;
+    } | null>(null);
+    const [uploadingExistingSparePart, setUploadingExistingSparePart] = useState<{
+        index: number;
+        sparePartId: string;
     } | null>(null);
     const { data: session } = useSession();
     const [isReadOnly, setIsReadOnly] = useState(false);
@@ -210,7 +285,6 @@ export default function AddVisitDataModal({
             visitType: [],
             assignedEngineer: "",
             clientRepresentative: "",
-            clientRepresentativeDesignation: "",
         },
     });
 
@@ -232,11 +306,16 @@ export default function AddVisitDataModal({
 
     const fetchScheduledVisits = useCallback(async () => {
         try {
-            const res = await fetch(`/api/clients/${clientID}/site-visits`, { cache: "no-store" });
+            const res = await fetch(`/api/clients/${clientID}/site-visits`, {
+                cache: "no-store",
+            });
             if (!res.ok) return;
             const data = await res.json();
             const chips = (Array.isArray(data) ? data : [])
-                .filter((v: SiteVisit) => v.nextScheduledVisit && isToday(parseISO(v.nextScheduledVisit)))
+                .filter(
+                    (v: SiteVisit) =>
+                        v.nextScheduledVisit && isToday(parseISO(v.nextScheduledVisit))
+                )
                 .map((v: SiteVisit) => ({ date: v.nextScheduledVisit, id: v._id }));
             setScheduledToday(chips);
             if (chips.length === 0) setUseCustomDate(true);
@@ -248,18 +327,86 @@ export default function AddVisitDataModal({
 
     const fetchCategories = useCallback(async () => {
         try {
-            const res = await fetch("/api/products/categories/with-machines", {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-                cache: "no-store",
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            setCategories(Array.isArray(data) ? data : []);
+            const [catRes, clientRes] = await Promise.all([
+                fetch("/api/products/categories/with-machines", {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                    cache: "no-store",
+                }),
+                fetch(`/api/clients/${clientID}`, { cache: "no-store" }),
+            ]);
+            if (!catRes.ok) return;
+            const allCategories = await catRes.json();
+            const list: MachineCategory[] = Array.isArray(allCategories)
+                ? allCategories
+                : [];
+
+            // Filter categories to ones the current client owns machines in.
+            // Without this, kadant-team users see the global catalog rather
+            // than the scope of the visit's client.
+            if (clientRes.ok) {
+                const clientData = await clientRes.json();
+                const clientMachineIds = new Set<string>(
+                    (clientData?.machines || [])
+                        .map((cm: { machine?: { _id?: string; id?: string } }) =>
+                            (cm.machine?._id || cm.machine?.id)?.toString()
+                        )
+                        .filter(Boolean) as string[]
+                );
+                const scoped = list
+                    .map((cat) => ({
+                        ...cat,
+                        machines: (cat.machines || []).filter((m) =>
+                            clientMachineIds.has(String(m._id))
+                        ),
+                    }))
+                    .filter((cat) => cat.machines.length > 0);
+                setCategories(scoped);
+            } else {
+                setCategories(list);
+            }
         } catch {
             setCategories([]);
         }
-    }, []);
+    }, [clientID]);
+
+    const fetchSparePartsForMachine = useCallback(
+        async (machineId: string) => {
+            if (!machineId) {
+                setSpareParts([]);
+                return;
+            }
+            setLoadingSpareParts(true);
+            try {
+                const res = await fetch(
+                    `/api/products/${clientID}/spare-parts/${machineId}`,
+                    { cache: "no-store" }
+                );
+                if (!res.ok) {
+                    setSpareParts([]);
+                    return;
+                }
+                const data = await res.json();
+                const list = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.spareParts)
+                    ? data.spareParts
+                    : [];
+                setSpareParts(
+                    list.map((p: SparePartLite) => ({
+                        _id: p._id,
+                        name: p.name,
+                        klValue: p.klValue,
+                    }))
+                );
+            } catch {
+                setSpareParts([]);
+            } finally {
+                setLoadingSpareParts(false);
+            }
+        },
+        [clientID]
+    );
 
     useEffect(() => {
         if (isOpen) {
@@ -268,6 +415,8 @@ export default function AddVisitDataModal({
             fetchScheduledVisits();
         }
     }, [isOpen, fetchUsers, fetchCategories, fetchScheduledVisits]);
+
+    void users;
 
     const handleVisitTypeChange = (type: string) => {
         if (visitType.includes(type)) {
@@ -338,9 +487,67 @@ export default function AddVisitDataModal({
         }));
     };
 
+    const handleNewSparePartMediaSelect = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const target = sparePartTargetRef.current;
+            sparePartTargetRef.current = null;
+            if (!file || !target) return;
+            setUploadingSparePartId(target.sparePartId);
+            try {
+                const url = await uploadFile(file);
+                setNewIssue((p) => {
+                    const existing = p.sparePartMedia.find(
+                        (m) => m.sparePartId === target.sparePartId
+                    );
+                    const nextList = existing
+                        ? p.sparePartMedia.map((m) =>
+                              m.sparePartId === target.sparePartId
+                                  ? { ...m, mediaUrls: [...(m.mediaUrls || []), url] }
+                                  : m
+                          )
+                        : [
+                              ...p.sparePartMedia,
+                              {
+                                  sparePartId: target.sparePartId,
+                                  sparePartName: target.sparePartName,
+                                  mediaUrls: [url],
+                              },
+                          ];
+                    return { ...p, sparePartMedia: nextList };
+                });
+                toast.success("File uploaded");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingSparePartId(null);
+            }
+        },
+        [uploadFile]
+    );
+
+    const removeNewSparePartMedia = (sparePartId: string, index: number) => {
+        setNewIssue((p) => ({
+            ...p,
+            sparePartMedia: p.sparePartMedia
+                .map((m) =>
+                    m.sparePartId === sparePartId
+                        ? {
+                              ...m,
+                              mediaUrls: (m.mediaUrls || []).filter(
+                                  (_, i) => i !== index
+                              ),
+                          }
+                        : m
+                )
+                .filter((m) => (m.mediaUrls || []).length > 0),
+        }));
+    };
+
     const handleAddMachineIssue = () => {
         if (!newIssue.machineId || !newIssue.status) {
-            toast.error("Please select machine and status");
+            toast.error("Select machine and status");
             return;
         }
         setMachineIssues((prev) => [
@@ -348,15 +555,18 @@ export default function AddVisitDataModal({
             {
                 machineId: newIssue.machineId,
                 machineName: newIssue.machineName,
+                categoryName: newIssue.categoryName,
                 status: newIssue.status,
                 conditionAlert: newIssue.conditionAlert,
                 actionNeeded: newIssue.actionNeeded,
                 optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
                 currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
+                sparePartMedia: newIssue.sparePartMedia,
             },
         ]);
         setNewIssue({ ...EMPTY_ISSUE });
         setFilteredMachines([]);
+        setSpareParts([]);
         setShowAddIssue(false);
     };
 
@@ -427,50 +637,152 @@ export default function AddVisitDataModal({
         [uploadTarget, uploadFile]
     );
 
+    const handleExistingSparePartMediaSelect = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const target = existingSparePartTargetRef.current;
+            existingSparePartTargetRef.current = null;
+            if (!file || !target) return;
+            setUploadingExistingSparePart({
+                index: target.index,
+                sparePartId: target.sparePartId,
+            });
+            try {
+                const url = await uploadFile(file);
+                setMachineIssues((prev) =>
+                    prev.map((issue, i) => {
+                        if (i !== target.index) return issue;
+                        const list = issue.sparePartMedia || [];
+                        const exists = list.find(
+                            (m) => m.sparePartId === target.sparePartId
+                        );
+                        const nextList = exists
+                            ? list.map((m) =>
+                                  m.sparePartId === target.sparePartId
+                                      ? {
+                                            ...m,
+                                            mediaUrls: [
+                                                ...(m.mediaUrls || []),
+                                                url,
+                                            ],
+                                        }
+                                      : m
+                              )
+                            : [
+                                  ...list,
+                                  {
+                                      sparePartId: target.sparePartId,
+                                      sparePartName: target.sparePartName,
+                                      mediaUrls: [url],
+                                  },
+                              ];
+                        return { ...issue, sparePartMedia: nextList };
+                    })
+                );
+                toast.success("File uploaded");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingExistingSparePart(null);
+            }
+        },
+        [uploadFile]
+    );
+
+    const removeExistingSparePartMedia = (
+        issueIndex: number,
+        sparePartId: string,
+        urlIdx: number
+    ) => {
+        setMachineIssues((prev) =>
+            prev.map((issue, i) => {
+                if (i !== issueIndex) return issue;
+                const list = (issue.sparePartMedia || [])
+                    .map((m) =>
+                        m.sparePartId === sparePartId
+                            ? {
+                                  ...m,
+                                  mediaUrls: (m.mediaUrls || []).filter(
+                                      (_, j) => j !== urlIdx
+                                  ),
+                              }
+                            : m
+                    )
+                    .filter((m) => (m.mediaUrls || []).length > 0);
+                return { ...issue, sparePartMedia: list };
+            })
+        );
+    };
+
     const onSubmit = async (data: VisitFormData) => {
         setSubmitting(true);
         try {
-            const createRes = await fetch(`/api/clients/${clientID}/site-visits`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    nextScheduledVisit: data.nextScheduledVisit,
-                    visitType: data.visitType,
-                    assignedEngineer: data.assignedEngineer,
-                    clientRepresentative: data.clientRepresentative,
-                    clientRepresentativeDesignation:
-                        data.clientRepresentativeDesignation || "",
-                }),
-            });
-
-            if (!createRes.ok) {
-                const err = await createRes.json().catch(() => ({}));
-                throw new Error(err.error || "Failed to create visit");
-            }
-
-            const created = await createRes.json();
-
-            if (machineIssues.length > 0 && created._id) {
+            // If user picked an existing scheduled-today chip, complete that
+            // record in place: set lastVisitOn, clear nextScheduledVisit so it
+            // moves out of Upcoming and into Visit History. Otherwise create a
+            // new record with lastVisitOn so it lands directly in history.
+            if (selectedChipVisitId && !useCustomDate) {
                 const putRes = await fetch(
-                    `/api/clients/${clientID}/site-visits/${created._id}`,
+                    `/api/clients/${clientID}/site-visits/${selectedChipVisitId}`,
                     {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            nextScheduledVisit: data.nextScheduledVisit,
+                            lastVisitOn: data.nextScheduledVisit,
+                            nextScheduledVisit: null,
                             visitType: data.visitType,
                             assignedEngineer: data.assignedEngineer,
                             clientRepresentative: data.clientRepresentative,
-                            clientRepresentativeDesignation:
-                                data.clientRepresentativeDesignation || "",
                             machineIssues,
                         }),
                     }
                 );
                 if (!putRes.ok) {
-                    toast.warning(
-                        "Visit created but machine issues could not be saved. Please edit the visit to add them."
+                    const err = await putRes.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to update visit");
+                }
+            } else {
+                const createRes = await fetch(
+                    `/api/clients/${clientID}/site-visits`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            lastVisitOn: data.nextScheduledVisit,
+                            visitType: data.visitType,
+                            assignedEngineer: data.assignedEngineer,
+                            clientRepresentative: data.clientRepresentative,
+                        }),
+                    }
+                );
+
+                if (!createRes.ok) {
+                    const err = await createRes.json().catch(() => ({}));
+                    throw new Error(err.error || "Failed to create visit");
+                }
+
+                const created = await createRes.json();
+
+                if (machineIssues.length > 0 && created._id) {
+                    const putRes = await fetch(
+                        `/api/clients/${clientID}/site-visits/${created._id}`,
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                visitType: data.visitType,
+                                assignedEngineer: data.assignedEngineer,
+                                clientRepresentative: data.clientRepresentative,
+                                machineIssues,
+                            }),
+                        }
                     );
+                    if (!putRes.ok) {
+                        toast.warning(
+                            "Visit created but machine issues could not be saved. Edit the visit to add them."
+                        );
+                    }
                 }
             }
 
@@ -480,6 +792,7 @@ export default function AddVisitDataModal({
             setMachineIssues([]);
             setNewIssue({ ...EMPTY_ISSUE });
             setShowAddIssue(false);
+            setSelectedChipVisitId(null);
             onSuccess();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Failed to add visit");
@@ -493,18 +806,23 @@ export default function AddVisitDataModal({
         reset();
         setMachineIssues([]);
         setNewIssue({ ...EMPTY_ISSUE });
+        setSpareParts([]);
         setShowAddIssue(false);
         setScheduledToday([]);
         setUseCustomDate(false);
+        setSelectedChipVisitId(null);
     };
 
     const getFieldErrorClass = (hasError: boolean) =>
         hasError
             ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-            : "border-[#404040]";
+            : "border-[#d1d5db]";
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => (open ? setIsOpen(true) : handleClose())}>
+        <Dialog
+            open={isOpen}
+            onOpenChange={(open) => (open ? setIsOpen(true) : handleClose())}
+        >
             <DialogTrigger asChild>
                 {children || (
                     <Button
@@ -517,25 +835,25 @@ export default function AddVisitDataModal({
                 )}
             </DialogTrigger>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[894px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                className="bg-white border border-[#96A5BA] rounded-[14px] p-0 w-[894px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
             >
                 {/* Header */}
-                <div className="bg-[#171717] border-b border-[#262626] flex h-[89px] items-center justify-between px-8 shrink-0">
+                <div className="bg-[#DFE6EC] border-b border-[#96A5BA] flex h-[72px] items-center justify-between px-6 shrink-0 rounded-t-[14px]">
                     <div className="flex gap-3 items-center">
-                        <div className="bg-[rgba(255,105,0,0.2)] rounded-[10px] w-10 h-10 flex items-center justify-center">
-                            <FaPlus className="w-5 h-5 text-[#ff6900]" />
+                        <div className="bg-[#cbd5e1] rounded-[10px] w-10 h-10 flex items-center justify-center">
+                            <UserPlus className="w-5 h-5 text-[#2D3E5C]" />
                         </div>
-                        <h2 className="text-white text-[24px] leading-[32px] font-lato font-normal">
+                        <h2 className="text-[#2D3E5C] text-xl font-bold leading-7">
                             Add Visit Data
                         </h2>
                     </div>
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="w-6 h-6 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                        className="w-9 h-9 flex items-center justify-center rounded-[10px] hover:bg-white transition-colors"
                     >
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5 text-[#2D3E5C]" />
                     </button>
                 </div>
 
@@ -547,29 +865,52 @@ export default function AddVisitDataModal({
                         className="hidden"
                         onChange={handleExistingIssueMediaSelect}
                     />
-                    <div className="px-8 pt-6 pb-6 flex flex-col gap-6">
+                    <input
+                        ref={existingSparePartInputRef}
+                        type="file"
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={handleExistingSparePartMediaSelect}
+                    />
+                    <input
+                        ref={sparePartInputRef}
+                        type="file"
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={handleNewSparePartMediaSelect}
+                    />
+
+                    <div className="px-6 pt-6 pb-6 flex flex-col gap-6">
                         {/* Scheduled Date */}
                         <div className="flex flex-col gap-2">
-                            <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                            <Label className="text-[#6b7280] text-base">
                                 Scheduled Date *
                             </Label>
 
-                            {/* Today's scheduled visit chips */}
                             {scheduledToday.length > 0 && (
                                 <div className="flex flex-wrap gap-2 items-center">
                                     {scheduledToday.map(({ date, id }) => {
                                         const chipDate = format(parseISO(date), "yyyy-MM-dd");
-                                        const selected = !useCustomDate && watch("nextScheduledVisit") === chipDate;
+                                        const selected =
+                                            !useCustomDate &&
+                                            watch("nextScheduledVisit") === chipDate;
                                         return (
                                             <button
                                                 key={id}
                                                 type="button"
                                                 disabled={useCustomDate}
-                                                onClick={() => setValue("nextScheduledVisit", chipDate, { shouldValidate: true })}
+                                                onClick={() => {
+                                                    setValue(
+                                                        "nextScheduledVisit",
+                                                        chipDate,
+                                                        { shouldValidate: true }
+                                                    );
+                                                    setSelectedChipVisitId(id);
+                                                }}
                                                 className={`px-3 py-1.5 rounded-full text-sm border transition-colors disabled:opacity-40 ${
                                                     selected
-                                                        ? "bg-[#ff6900] border-[#ff6900] text-white"
-                                                        : "bg-[#262626] border-[#404040] text-[#a1a1a1] hover:border-[#ff6900] hover:text-[#d4d4d4]"
+                                                        ? "bg-[#2D3E5C] border-[#2D3E5C] text-white"
+                                                        : "bg-white border-[#d1d5db] text-[#6b7280] hover:border-[#2D3E5C]"
                                                 }`}
                                             >
                                                 {format(parseISO(date), "dd MMM yyyy")}
@@ -580,14 +921,17 @@ export default function AddVisitDataModal({
                                         type="button"
                                         onClick={() => {
                                             setUseCustomDate((prev) => {
-                                                if (!prev) setValue("nextScheduledVisit", "");
+                                                if (!prev) {
+                                                    setValue("nextScheduledVisit", "");
+                                                    setSelectedChipVisitId(null);
+                                                }
                                                 return !prev;
                                             });
                                         }}
                                         className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                                             useCustomDate
-                                                ? "bg-[#ff6900] border-[#ff6900] text-white"
-                                                : "bg-[#262626] border-[#404040] text-[#a1a1a1] hover:border-[#ff6900] hover:text-[#d4d4d4]"
+                                                ? "bg-[#2D3E5C] border-[#2D3E5C] text-white"
+                                                : "bg-white border-[#d1d5db] text-[#6b7280] hover:border-[#2D3E5C]"
                                         }`}
                                     >
                                         Custom Date
@@ -595,7 +939,6 @@ export default function AddVisitDataModal({
                                 </div>
                             )}
 
-                            {/* Custom date input */}
                             {useCustomDate && (
                                 <div className="relative">
                                     <Controller
@@ -605,11 +948,13 @@ export default function AddVisitDataModal({
                                             <Input
                                                 type="date"
                                                 {...field}
-                                                className={`bg-[#262626] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5`}
+                                                className={`bg-white border ${getFieldErrorClass(
+                                                    !!errors.nextScheduledVisit
+                                                )} h-[46px] rounded-[10px] px-4 pr-12 text-[#1f2937] text-base placeholder:text-[#4a4a4a] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5`}
                                             />
                                         )}
                                     />
-                                    <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#a1a1a1] pointer-events-none" />
+                                    <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280] pointer-events-none" />
                                 </div>
                             )}
 
@@ -622,38 +967,38 @@ export default function AddVisitDataModal({
 
                         {/* Visit Type */}
                         <div className="flex flex-col gap-3">
-                            <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                            <Label className="text-[#6b7280] text-base">
                                 Visit Type *
                             </Label>
-                            <div className="flex gap-4">
-                                <div className="flex gap-3 items-center">
+                            <div className="flex gap-6">
+                                <div className="flex gap-2 items-center">
                                     <Checkbox
                                         id="add-process-audit"
                                         checked={visitType.includes("Process Audit")}
                                         onCheckedChange={() =>
                                             handleVisitTypeChange("Process Audit")
                                         }
-                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#D45815] data-[state=checked]:border-[#D45815] border-2 border-[#9ca3af] data-[state=checked]:text-white"
                                     />
                                     <Label
                                         htmlFor="add-process-audit"
-                                        className="text-white text-[16px] leading-[24px] font-lato font-normal cursor-pointer"
+                                        className="text-[#1f2937] text-base cursor-pointer"
                                     >
                                         Process Audit
                                     </Label>
                                 </div>
-                                <div className="flex gap-3 items-center">
+                                <div className="flex gap-2 items-center">
                                     <Checkbox
                                         id="add-mechanical-audit"
                                         checked={visitType.includes("Mechanical Audit")}
                                         onCheckedChange={() =>
                                             handleVisitTypeChange("Mechanical Audit")
                                         }
-                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#D45815] data-[state=checked]:border-[#D45815] border-2 border-[#9ca3af] data-[state=checked]:text-white"
                                     />
                                     <Label
                                         htmlFor="add-mechanical-audit"
-                                        className="text-white text-[16px] leading-[24px] font-lato font-normal cursor-pointer"
+                                        className="text-[#1f2937] text-base cursor-pointer"
                                     >
                                         Mechanical Audit
                                     </Label>
@@ -667,36 +1012,24 @@ export default function AddVisitDataModal({
                         </div>
 
                         {/* Engineer + Client Representative */}
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-5">
                             <div className="flex flex-col gap-2">
-                                <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                                <Label className="text-[#6b7280] text-base">
                                     Assign Engineer *
                                 </Label>
                                 <Controller
                                     name="assignedEngineer"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select
+                                        <Input
+                                            type="text"
                                             value={field.value}
-                                            onValueChange={field.onChange}
-                                        >
-                                            <SelectTrigger
-                                                className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] font-lato focus:ring-0`}
-                                            >
-                                                <SelectValue placeholder="Select Engineer" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-[#262626] border-[#404040]">
-                                                {users.map((u) => (
-                                                    <SelectItem
-                                                        key={u._id}
-                                                        value={u._id}
-                                                        className="text-white hover:bg-[#404040]"
-                                                    >
-                                                        {u.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={field.onChange}
+                                            placeholder="Enter Engineer Name"
+                                            className={`bg-white border ${getFieldErrorClass(
+                                                !!errors.assignedEngineer
+                                            )} w-full !h-[46px] rounded-[10px] text-[#1f2937] text-base placeholder:text-[#4a4a4a] focus:ring-0`}
+                                        />
                                     )}
                                 />
                                 {errors.assignedEngineer && (
@@ -706,7 +1039,7 @@ export default function AddVisitDataModal({
                                 )}
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                                <Label className="text-[#6b7280] text-base">
                                     Client Representative *
                                 </Label>
                                 <Controller
@@ -715,8 +1048,10 @@ export default function AddVisitDataModal({
                                     render={({ field }) => (
                                         <Input
                                             {...field}
-                                            className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                             placeholder="Enter client name"
+                                            className={`bg-white border ${getFieldErrorClass(
+                                                !!errors.clientRepresentative
+                                            )} h-[46px] rounded-[10px] px-4 text-[#1f2937] text-base placeholder:text-[#4a4a4a] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                         />
                                     )}
                                 />
@@ -728,39 +1063,19 @@ export default function AddVisitDataModal({
                             </div>
                         </div>
 
-                        {/* Client Designation */}
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
-                                Client Designation
-                            </Label>
-                            <Controller
-                                name="clientRepresentativeDesignation"
-                                control={control}
-                                render={({ field }) => (
-                                    <Input
-                                        {...field}
-                                        className="bg-[#262626] border border-[#404040] h-[50px] rounded-[10px] px-4 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0"
-                                        placeholder="Designation"
-                                    />
-                                )}
-                            />
-                        </div>
-
                         {/* ── Machines Requiring Attention ── */}
-                        <div className="py-5 flex flex-col gap-4">
+                        <div className="border-t border-[#e5e7eb] pt-5 flex flex-col gap-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className="bg-[rgba(255,105,0,0.2)] rounded p-1">
-                                        <TriangleAlert className="w-5 h-5 text-[#ff6900]" />
-                                    </div>
-                                    <h3 className="text-white text-[16px] leading-[24px] font-medium">
+                                    <TriangleAlert className="w-6 h-6 text-[#D45815]" />
+                                    <h3 className="text-[#2D3E5C] text-xl font-bold">
                                         Machines Requiring Attention ({machineIssues.length})
                                     </h3>
                                 </div>
                                 <Button
                                     type="button"
                                     onClick={() => setShowAddIssue((v) => !v)}
-                                    className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium h-9 px-4 rounded-[10px]"
+                                    className="bg-[#D45815] hover:bg-[#b8480f] text-white text-sm font-medium h-9 px-4 rounded-[10px]"
                                 >
                                     {showAddIssue ? "Cancel" : "+ Add Machine Issue"}
                                 </Button>
@@ -770,57 +1085,81 @@ export default function AddVisitDataModal({
                             {machineIssues.map((issue, index) => (
                                 <div
                                     key={index}
-                                    className="bg-[#262626] border border-[#404040] rounded-[10px] p-4 flex flex-col gap-3"
+                                    className="bg-white border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-4"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex flex-wrap gap-4 items-center">
-                                            <span className="text-white text-[14px] font-medium">
-                                                {issue.machineName || "Unnamed machine"}
-                                            </span>
-                                            <span
-                                                className={`text-[14px] font-medium ${STATUS_STYLES[issue.status || ""] || "text-muted-foreground"}`}
-                                            >
-                                                {issue.status || ""}
-                                            </span>
+                                    <div className="flex items-start justify-between">
+                                        <div className="grid grid-cols-3 gap-6 flex-1">
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Category
+                                                </p>
+                                                <p className="text-[#1f2937] text-sm font-medium">
+                                                    {issue.categoryName || "—"}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Machine Name
+                                                </p>
+                                                <p className="text-[#1f2937] text-sm font-medium">
+                                                    {issue.machineName || "—"}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[#6b7280] text-xs">
+                                                    Status
+                                                </p>
+                                                <p
+                                                    className={`text-sm font-medium ${
+                                                        STATUS_TEXT_STYLES[issue.status || ""] ||
+                                                        "text-[#6b7280]"
+                                                    }`}
+                                                >
+                                                    {issue.status || "—"}
+                                                </p>
+                                            </div>
                                         </div>
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => removeMachineIssue(index)}
-                                            className="text-[#a1a1a1] hover:text-white h-8"
+                                            className="text-[#6b7280] hover:text-[#1f2937] h-8"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>
                                     </div>
 
                                     {issue.conditionAlert && (
-                                        <div>
-                                            <p className="text-[#a1a1a1] text-[12px] mb-1">
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
                                                 Condition Alert
                                             </p>
-                                            <p className="text-[#d4d4d4] text-[13px]">
+                                            <p className="text-[#1f2937] text-sm">
                                                 {issue.conditionAlert}
                                             </p>
                                         </div>
                                     )}
 
-                                    <div className="flex items-center gap-4">
-                                        {issue.actionNeeded && (
-                                            <div>
-                                                <p className="text-[#a1a1a1] text-[12px] mb-1">
-                                                    Action Needed
-                                                </p>
-                                                <span className="inline-block text-[#ff6900] text-[13px] font-medium border border-[#ff6900] rounded-full px-3 py-0.5">
-                                                    {issue.actionNeeded}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                    {issue.actionNeeded && (
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
+                                                Action Needed
+                                            </p>
+                                            <span
+                                                className={`inline-block text-xs font-medium rounded-full px-3 py-1 self-start ${
+                                                    ACTION_PILL_STYLES[issue.actionNeeded] ||
+                                                    "bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280]"
+                                                }`}
+                                            >
+                                                {issue.actionNeeded}
+                                            </span>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex flex-col gap-1">
-                                            <p className="text-[#a1a1a1] text-[12px]">
+                                        <div className="flex flex-col gap-1.5">
+                                            <p className="text-[#6b7280] text-xs">
                                                 Last Visit
                                             </p>
                                             <div className="flex flex-wrap gap-2 items-start">
@@ -840,13 +1179,10 @@ export default function AddVisitDataModal({
                                                         />
                                                     )
                                                 )}
-                                                <UploadMediaBox
+                                                <UploadBox
                                                     label="Add"
                                                     onTrigger={() => {
-                                                        setUploadTarget({
-                                                            index,
-                                                            type: "optimal",
-                                                        });
+                                                        setUploadTarget({ index, type: "optimal" });
                                                         existingMediaInputRef.current?.click();
                                                     }}
                                                     uploading={
@@ -856,8 +1192,8 @@ export default function AddVisitDataModal({
                                                 />
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <p className="text-[#a1a1a1] text-[12px]">
+                                        <div className="flex flex-col gap-1.5">
+                                            <p className="text-[#6b7280] text-xs">
                                                 Current Visit
                                             </p>
                                             <div className="flex flex-wrap gap-2 items-start">
@@ -877,13 +1213,10 @@ export default function AddVisitDataModal({
                                                         />
                                                     )
                                                 )}
-                                                <UploadMediaBox
+                                                <UploadBox
                                                     label="Add"
                                                     onTrigger={() => {
-                                                        setUploadTarget({
-                                                            index,
-                                                            type: "current",
-                                                        });
+                                                        setUploadTarget({ index, type: "current" });
                                                         existingMediaInputRef.current?.click();
                                                     }}
                                                     uploading={
@@ -894,19 +1227,66 @@ export default function AddVisitDataModal({
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Spare parts row */}
+                                    {(issue.sparePartMedia || []).length > 0 && (
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {(issue.sparePartMedia || []).map((entry) => (
+                                                <div
+                                                    key={entry.sparePartId}
+                                                    className="flex flex-col gap-1.5"
+                                                >
+                                                    <p className="text-[#6b7280] text-xs truncate">
+                                                        {entry.sparePartName}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5 items-start">
+                                                        {(entry.mediaUrls || []).map((url, ui) => (
+                                                            <MediaPreview
+                                                                key={ui}
+                                                                url={url}
+                                                                onRemove={() =>
+                                                                    removeExistingSparePartMedia(
+                                                                        index,
+                                                                        entry.sparePartId,
+                                                                        ui
+                                                                    )
+                                                                }
+                                                            />
+                                                        ))}
+                                                        <UploadBox
+                                                            label="Add"
+                                                            onTrigger={() => {
+                                                                existingSparePartTargetRef.current = {
+                                                                    index,
+                                                                    sparePartId: entry.sparePartId,
+                                                                    sparePartName: entry.sparePartName,
+                                                                };
+                                                                existingSparePartInputRef.current?.click();
+                                                            }}
+                                                            uploading={
+                                                                uploadingExistingSparePart?.index ===
+                                                                    index &&
+                                                                uploadingExistingSparePart?.sparePartId ===
+                                                                    entry.sparePartId
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
 
                             {/* New machine issue form */}
                             {showAddIssue && (
-                                <div className="border border-[#404040] rounded-[10px] p-4 flex flex-col gap-4 bg-[#262626]">
-                                    <h4 className="text-white text-[14px] font-medium">
-                                        New Machine Issue
+                                <div className="bg-white border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-4">
+                                    <h4 className="text-[#1f2937] text-sm font-bold">
+                                        Add New Machine Issue
                                     </h4>
                                     <div className="grid grid-cols-2 gap-4">
-                                        {/* Category */}
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">
+                                            <Label className="text-[#6b7280] text-sm">
                                                 Category
                                             </Label>
                                             <Select
@@ -918,23 +1298,24 @@ export default function AddVisitDataModal({
                                                     setNewIssue((p) => ({
                                                         ...p,
                                                         categoryId: value,
+                                                        categoryName: cat?.name || "",
                                                         machineId: "",
                                                         machineName: "",
+                                                        sparePartMedia: [],
                                                     }));
-                                                    setFilteredMachines(
-                                                        cat?.machines || []
-                                                    );
+                                                    setFilteredMachines(cat?.machines || []);
+                                                    setSpareParts([]);
                                                 }}
                                             >
-                                                <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
+                                                <SelectTrigger className="bg-white w-full border border-[#d1d5db] !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0">
                                                     <SelectValue placeholder="Select category" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-[#262626] border-[#404040]">
+                                                <SelectContent className="bg-white border-[#d1d5db]">
                                                     {categories.map((cat) => (
                                                         <SelectItem
                                                             key={cat._id}
                                                             value={cat._id}
-                                                            className="text-white hover:bg-[#404040]"
+                                                            className="text-[#1f2937] hover:bg-[#f3f4f6]"
                                                         >
                                                             {cat.name}
                                                         </SelectItem>
@@ -943,9 +1324,8 @@ export default function AddVisitDataModal({
                                             </Select>
                                         </div>
 
-                                        {/* Machine Name */}
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">
+                                            <Label className="text-[#6b7280] text-sm">
                                                 Machine Name *
                                             </Label>
                                             <Select
@@ -958,11 +1338,13 @@ export default function AddVisitDataModal({
                                                         ...p,
                                                         machineId: value,
                                                         machineName: machine?.name ?? "",
+                                                        sparePartMedia: [],
                                                     }));
+                                                    fetchSparePartsForMachine(value);
                                                 }}
                                                 disabled={!newIssue.categoryId}
                                             >
-                                                <SelectTrigger className="bg-[#171717] w-full border border-[#404040] !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0 disabled:opacity-50">
+                                                <SelectTrigger className="bg-white w-full border border-[#d1d5db] !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0 disabled:opacity-50">
                                                     <SelectValue
                                                         placeholder={
                                                             newIssue.categoryId
@@ -971,12 +1353,12 @@ export default function AddVisitDataModal({
                                                         }
                                                     />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-[#262626] border-[#404040]">
+                                                <SelectContent className="bg-white border-[#d1d5db]">
                                                     {filteredMachines.map((m) => (
                                                         <SelectItem
                                                             key={m._id}
                                                             value={m._id}
-                                                            className="text-white hover:bg-[#404040]"
+                                                            className="text-[#1f2937] hover:bg-[#f3f4f6]"
                                                         >
                                                             {m.name}
                                                         </SelectItem>
@@ -986,9 +1368,8 @@ export default function AddVisitDataModal({
                                         </div>
                                     </div>
 
-                                    {/* Status */}
                                     <div className="flex flex-col gap-2">
-                                        <Label className="text-white text-[14px]">
+                                        <Label className="text-[#6b7280] text-sm">
                                             Status *
                                         </Label>
                                         <Select
@@ -997,15 +1378,15 @@ export default function AddVisitDataModal({
                                                 setNewIssue((p) => ({ ...p, status: v }))
                                             }
                                         >
-                                            <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
-                                                <SelectValue placeholder="Select status" />
+                                            <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0">
+                                                <SelectValue placeholder="e.g., Critical Failure" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-[#262626] border-[#404040]">
+                                            <SelectContent className="bg-white border-[#d1d5db]">
                                                 {MACHINE_STATUS_OPTIONS.map((opt) => (
                                                     <SelectItem
                                                         key={opt}
                                                         value={opt}
-                                                        className="text-white hover:bg-[#404040]"
+                                                        className="text-[#1f2937] hover:bg-[#f3f4f6]"
                                                     >
                                                         {opt}
                                                     </SelectItem>
@@ -1014,10 +1395,9 @@ export default function AddVisitDataModal({
                                         </Select>
                                     </div>
 
-                                    {/* Condition Alert */}
                                     <div className="flex flex-col gap-2">
-                                        <Label className="text-white text-[14px]">
-                                            Condition Alert
+                                        <Label className="text-[#6b7280] text-sm">
+                                            Condition Alert *
                                         </Label>
                                         <Textarea
                                             value={newIssue.conditionAlert}
@@ -1027,47 +1407,46 @@ export default function AddVisitDataModal({
                                                     conditionAlert: e.target.value,
                                                 }))
                                             }
-                                            rows={2}
-                                            className="bg-[#171717] border border-[#404040] rounded-[10px] px-4 py-3 text-white text-[14px] placeholder:text-[#525252] focus-visible:ring-0 resize-none"
-                                            placeholder="Describe the condition..."
+                                            rows={3}
+                                            className="bg-white border border-[#d1d5db] rounded-[10px] px-4 py-3 text-[#1f2937] text-sm placeholder:text-[#4a4a4a] focus-visible:ring-0 resize-none"
+                                            placeholder="Describe the issue and condition details..."
                                         />
                                     </div>
 
-                                    {/* Action Needed */}
+                                    {/* Action Needed pills */}
                                     <div className="flex flex-col gap-2">
-                                        <Label className="text-white text-[14px]">
-                                            Action Needed
+                                        <Label className="text-[#6b7280] text-sm">
+                                            Action Needed *
                                         </Label>
-                                        <Select
-                                            value={newIssue.actionNeeded}
-                                            onValueChange={(v) =>
-                                                setNewIssue((p) => ({
-                                                    ...p,
-                                                    actionNeeded: v,
-                                                }))
-                                            }
-                                        >
-                                            <SelectTrigger className="bg-[#171717] border border-[#404040] w-full !h-[50px] rounded-[10px] text-white text-[14px] focus:ring-0">
-                                                <SelectValue placeholder="Select action" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-[#262626] border-[#404040]">
-                                                {ACTION_NEEDED_OPTIONS.map((opt) => (
-                                                    <SelectItem
-                                                        key={opt}
-                                                        value={opt}
-                                                        className="text-white hover:bg-[#404040]"
+                                        <div className="flex flex-wrap gap-3">
+                                            {ACTION_OPTIONS.map((opt) => {
+                                                const selected =
+                                                    newIssue.actionNeeded === opt.value;
+                                                return (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setNewIssue((p) => ({
+                                                                ...p,
+                                                                actionNeeded: opt.value,
+                                                            }))
+                                                        }
+                                                        className={`px-4 py-2 rounded-[10px] text-sm font-medium transition-all ${
+                                                            selected ? opt.active : opt.idle
+                                                        }`}
                                                     >
-                                                        {opt}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                                        {opt.value}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
-                                    {/* Media Uploads */}
+                                    {/* Last Visit / Current Visit uploads */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">
+                                            <Label className="text-[#6b7280] text-sm">
                                                 Last Visit
                                             </Label>
                                             <input
@@ -1079,45 +1458,32 @@ export default function AddVisitDataModal({
                                                     const file = e.target.files?.[0];
                                                     e.target.value = "";
                                                     if (file)
-                                                        handleNewIssueMediaUpload(
-                                                            "optimal",
-                                                            file
-                                                        );
+                                                        handleNewIssueMediaUpload("optimal", file);
                                                 }}
                                             />
                                             <div className="flex flex-wrap gap-2 items-center">
-                                                {(
-                                                    newIssue.optimalStateMediaUrls ?? []
-                                                ).map((url, ui) => (
-                                                    <MediaPreview
-                                                        key={ui}
-                                                        url={url}
-                                                        onRemove={() =>
-                                                            removeNewIssueMedia("optimal", ui)
-                                                        }
-                                                    />
-                                                ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
+                                                {(newIssue.optimalStateMediaUrls ?? []).map(
+                                                    (url, ui) => (
+                                                        <MediaPreview
+                                                            key={ui}
+                                                            url={url}
+                                                            onRemove={() =>
+                                                                removeNewIssueMedia("optimal", ui)
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+                                                <UploadBox
+                                                    label="Upload"
+                                                    onTrigger={() =>
                                                         optimalInputRef.current?.click()
                                                     }
-                                                    disabled={uploadingMedia === "optimal"}
-                                                    className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
-                                                >
-                                                    {uploadingMedia === "optimal" ? (
-                                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                                    ) : (
-                                                        <CloudUpload className="w-5 h-5" />
-                                                    )}
-                                                    <span className="text-[12px]">
-                                                        Upload image/video
-                                                    </span>
-                                                </button>
+                                                    uploading={uploadingMedia === "optimal"}
+                                                />
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Label className="text-white text-[14px]">
+                                            <Label className="text-[#6b7280] text-sm">
                                                 Current Visit
                                             </Label>
                                             <input
@@ -1129,46 +1495,103 @@ export default function AddVisitDataModal({
                                                     const file = e.target.files?.[0];
                                                     e.target.value = "";
                                                     if (file)
-                                                        handleNewIssueMediaUpload(
-                                                            "current",
-                                                            file
-                                                        );
+                                                        handleNewIssueMediaUpload("current", file);
                                                 }}
                                             />
                                             <div className="flex flex-wrap gap-2 items-center">
-                                                {(
-                                                    newIssue.currentVisitMediaUrls ?? []
-                                                ).map((url, ui) => (
-                                                    <MediaPreview
-                                                        key={ui}
-                                                        url={url}
-                                                        onRemove={() =>
-                                                            removeNewIssueMedia("current", ui)
-                                                        }
-                                                    />
-                                                ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
+                                                {(newIssue.currentVisitMediaUrls ?? []).map(
+                                                    (url, ui) => (
+                                                        <MediaPreview
+                                                            key={ui}
+                                                            url={url}
+                                                            onRemove={() =>
+                                                                removeNewIssueMedia("current", ui)
+                                                            }
+                                                        />
+                                                    )
+                                                )}
+                                                <UploadBox
+                                                    label="Upload"
+                                                    onTrigger={() =>
                                                         currentInputRef.current?.click()
                                                     }
-                                                    disabled={uploadingMedia === "current"}
-                                                    className="bg-[#171717] border border-[#404040] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#a1a1a1] hover:border-[#525252] hover:text-[#d4d4d4] transition-colors disabled:opacity-50"
-                                                >
-                                                    {uploadingMedia === "current" ? (
-                                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                                    ) : (
-                                                        <CloudUpload className="w-5 h-5" />
-                                                    )}
-                                                    <span className="text-[12px]">
-                                                        Upload image/video
-                                                    </span>
-                                                </button>
+                                                    uploading={uploadingMedia === "current"}
+                                                />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-end gap-2">
+                                    {/* Spare parts row (one upload box per part) */}
+                                    {newIssue.machineId && (
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Spare Parts
+                                            </Label>
+                                            {loadingSpareParts ? (
+                                                <div className="flex items-center gap-2 text-[#6b7280] text-sm">
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    Loading spare parts...
+                                                </div>
+                                            ) : spareParts.length === 0 ? (
+                                                <p className="text-[#6b7280] text-xs">
+                                                    No spare parts found for this machine.
+                                                </p>
+                                            ) : (
+                                                <div className="grid grid-cols-4 gap-3">
+                                                    {spareParts.map((sp) => {
+                                                        const entry = newIssue.sparePartMedia.find(
+                                                            (m) => m.sparePartId === sp._id
+                                                        );
+                                                        const urls = entry?.mediaUrls || [];
+                                                        return (
+                                                            <div
+                                                                key={sp._id}
+                                                                className="flex flex-col gap-1.5"
+                                                            >
+                                                                <div className="flex flex-wrap gap-1.5 items-start">
+                                                                    {urls.map((url, ui) => (
+                                                                        <MediaPreview
+                                                                            key={ui}
+                                                                            url={url}
+                                                                            onRemove={() =>
+                                                                                removeNewSparePartMedia(
+                                                                                    sp._id,
+                                                                                    ui
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    ))}
+                                                                    <UploadBox
+                                                                        label="Upload"
+                                                                        onTrigger={() => {
+                                                                            sparePartTargetRef.current = {
+                                                                                sparePartId: sp._id,
+                                                                                sparePartName: sp.name,
+                                                                            };
+                                                                            sparePartInputRef.current?.click();
+                                                                        }}
+                                                                        uploading={
+                                                                            uploadingSparePartId === sp._id
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <p className="text-[#1f2937] text-xs truncate">
+                                                                    {sp.name}
+                                                                </p>
+                                                                {sp.klValue && (
+                                                                    <p className="text-[#6b7280] text-[10px] truncate">
+                                                                        {sp.klValue}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end gap-3 pt-2">
                                         <Button
                                             type="button"
                                             variant="outline"
@@ -1176,15 +1599,16 @@ export default function AddVisitDataModal({
                                                 setShowAddIssue(false);
                                                 setNewIssue({ ...EMPTY_ISSUE });
                                                 setFilteredMachines([]);
+                                                setSpareParts([]);
                                             }}
-                                            className="bg-[#262626] border-[#404040] text-white hover:bg-[#333] rounded-[10px] h-9 px-4"
+                                            className="bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280] hover:bg-[#e5e7eb] rounded-[10px] h-9 px-5"
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             type="button"
                                             onClick={handleAddMachineIssue}
-                                            className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white rounded-[10px] h-9 px-4"
+                                            className="bg-[#2D3E5C] hover:bg-[#1f2a44] text-white rounded-[10px] h-9 px-5 font-bold"
                                         >
                                             Add Issue
                                         </Button>
@@ -1194,19 +1618,19 @@ export default function AddVisitDataModal({
                         </div>
                     </div>
 
-                    <DialogFooter className="border-t border-[#262626] px-8 py-4 flex justify-end gap-4 shrink-0">
+                    <DialogFooter className="border-t border-[#96A5BA] px-6 py-4 flex justify-end gap-3 shrink-0">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleClose}
-                            className="border border-[#404040] bg-transparent hover:bg-[#262626] text-[#d4d4d4] text-[16px] font-lato font-bold px-6 py-3 rounded-[10px] h-auto"
+                            className="bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280] text-base hover:bg-[#e5e7eb] px-5 py-[10px] rounded-[10px] h-auto"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             disabled={submitting}
-                            className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[16px] font-lato font-bold px-8 py-3 rounded-[10px] h-auto"
+                            className="bg-[#D45815] hover:bg-[#b8480f] text-white text-base font-bold px-6 py-[10px] rounded-[10px] h-auto"
                         >
                             {submitting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1220,3 +1644,4 @@ export default function AddVisitDataModal({
         </Dialog>
     );
 }
+

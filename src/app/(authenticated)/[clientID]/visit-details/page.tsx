@@ -23,11 +23,7 @@ export default async function VisitDetails({ params }: PageProps) {
         clientRepresentativeDesignation: "",
         visitType: [],
         nextScheduledVisit: "",
-        assignedEngineer: {
-            _id: "",
-            name: "",
-            designation: "",
-        },
+        assignedEngineer: "",
         auditReportUrl: "",
     };
 

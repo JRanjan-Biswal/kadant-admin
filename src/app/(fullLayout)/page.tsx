@@ -64,7 +64,7 @@ export default function Home() {
       </div>
 
       {/* Logo */}
-      <div className="text-white md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
+      <div className="text-gray-900 md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
         <Image
           alt="logo"
           className=""
@@ -94,7 +94,7 @@ export default function Home() {
               <h2 className="text-[48px] font-bold font-montserrat bg-gradient-to-b from-[#eef3ff] to-[#fbfcff] bg-clip-text text-transparent leading-[normal] text-nowrap" style={{ textShadow: '2px 1px 1px rgba(0,0,0,0.25)' }}>
                 Admin Portal
               </h2>
-              <p className="text-[18px] font-semibold font-montserrat text-white leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
+              <p className="text-[18px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
                 Log in to view assigned cases
               </p>
             </div>
@@ -105,7 +105,7 @@ export default function Home() {
                 {/* Admin ID Field */}
                 <div className="relative">
                   <Input
-                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-[#dfe6ec] rounded-[6px] text-[18px] font-medium font-montserrat text-white placeholder:text-white leading-[27px] focus:outline-none transition-all"
+                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-[#dfe6ec] rounded-[6px] text-[18px] font-medium font-montserrat text-gray-900 placeholder:text-gray-900 leading-[27px] focus:outline-none transition-all"
                     type="text"
                     id="email"
                     placeholder="Admin ID"
@@ -116,7 +116,7 @@ export default function Home() {
                 {/* Password Field */}
                 <div className="relative">
                   <Input
-                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-white rounded-[6px] text-[18px] font-medium font-montserrat text-white placeholder:text-white leading-[27px] focus:outline-none transition-all pr-[50px]"
+                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-white rounded-[6px] text-[18px] font-medium font-montserrat text-gray-900 placeholder:text-gray-900 leading-[27px] focus:outline-none transition-all pr-[50px]"
                     type={showPassword ? "text" : "password"}
                     id="password"
                     placeholder="Password"
@@ -129,9 +129,9 @@ export default function Home() {
                     className="absolute right-[14px] top-1/2 -translate-y-1/2 cursor-pointer w-6 h-6"
                   >
                     {showPassword ? (
-                      <LuEye className="w-5 h-5 text-white" />
+                      <LuEye className="w-5 h-5 text-gray-900" />
                     ) : (
-                      <LuEyeClosed className="w-5 h-5 text-white" />
+                      <LuEyeClosed className="w-5 h-5 text-gray-900" />
                     )}
                   </button>
                 </div>
@@ -139,7 +139,7 @@ export default function Home() {
                 {/* Forgot Password Link */}
                 <Link
                   href="/forgot-password"
-                  className="text-base font-semibold font-montserrat text-white leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left"
+                  className="text-base font-semibold font-montserrat text-gray-900 leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left"
                 >
                   Forgot Password?
                 </Link>
@@ -151,7 +151,7 @@ export default function Home() {
                 disabled={isLoading}
                 variant="default"
                 size="lg"
-                className="w-full mt-[0px] lg:h-[50px] h-[40px] cursor-pointer hover:bg-secondary hover:text-white font-semibold text-[16px]"
+                className="w-full mt-[0px] lg:h-[50px] h-[40px] cursor-pointer hover:bg-secondary hover:text-gray-900 font-semibold text-[16px]"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -165,7 +165,7 @@ export default function Home() {
                 <BiUser color="#fff" size={24} />
                 <Link
                   href="https://client.healthmonitorapp.online"
-                  className="text-[#fff] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
+                  className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
                 >
                   Login to Client
                 </Link>

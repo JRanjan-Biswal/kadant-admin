@@ -42,7 +42,7 @@ export default function UploadBox({
     };
 
     return (
-        <label className={`border-2 border-dashed border-[#404040] rounded-[10px] flex flex-col items-center justify-center py-8 px-4 cursor-pointer hover:border-[#505050] transition-colors relative overflow-hidden ${className}`}>
+        <label className={`border-2 border-dashed border-[#d1d5db] rounded-[10px] flex flex-col items-center justify-center py-8 px-4 cursor-pointer hover:border-[#505050] transition-colors relative overflow-hidden ${className}`}>
             <input 
                 type="file" 
                 className="hidden" 
@@ -64,7 +64,7 @@ export default function UploadBox({
                         <button
                             type="button"
                             onClick={handleRemove}
-                            className="absolute top-2 right-2 bg-[#262626] hover:bg-[#404040] text-white rounded-full p-1.5 transition-colors z-10"
+                            className="absolute top-2 right-2 bg-[#e5e7eb] hover:bg-[#d1d5db] text-gray-900 rounded-full p-1.5 transition-colors z-10"
                             aria-label="Remove image"
                         >
                             <X className="w-4 h-4" />
@@ -75,9 +75,9 @@ export default function UploadBox({
                 </>
             ) : (
                 <>
-                    <Upload className="w-12 h-12 text-[#737373] mb-2" />
-                    <p className="text-white text-base text-center">{label}</p>
-                    <p className="text-[#737373] text-sm text-center">{sublabel}</p>
+                    <Upload className="w-12 h-12 text-[#6b7280] mb-2" />
+                    <p className="text-gray-900 text-base text-center">{label}</p>
+                    <p className="text-[#6b7280] text-sm text-center">{sublabel}</p>
                 </>
             )}
         </label>

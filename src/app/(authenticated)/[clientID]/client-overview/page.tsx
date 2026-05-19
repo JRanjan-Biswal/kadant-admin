@@ -118,31 +118,42 @@ export default async function ClientOverview({ params }: PageProps) {
         string,
         { status: "healthy" | "warning" | "critical"; healthPercentage: number }
     >();
+    const clientMachineIds = new Set<string>();
+    const clientCategoryIds = new Set<string>();
 
-    ((clientDetails as { machines?: Array<{ machine?: { _id?: string }, status?: "healthy" | "warning" | "critical", healthPercentage?: number }> }).machines || [])
+    ((clientDetails as { machines?: Array<{ machine?: { _id?: string, category?: { _id?: string } | string }, status?: "healthy" | "warning" | "critical", healthPercentage?: number }> }).machines || [])
         .forEach((clientMachine) => {
             const machineId = clientMachine?.machine?._id;
             if (!machineId) return;
-            machineHealthMap.set(machineId.toString(), {
+            const machineIdStr = machineId.toString();
+            clientMachineIds.add(machineIdStr);
+            machineHealthMap.set(machineIdStr, {
                 status: clientMachine?.status || "healthy",
                 healthPercentage:
                     typeof clientMachine?.healthPercentage === "number"
                         ? clientMachine.healthPercentage
                         : 100,
             });
+            const cat = clientMachine?.machine?.category;
+            const catId = typeof cat === "string" ? cat : cat?._id;
+            if (catId) clientCategoryIds.add(catId.toString());
         });
 
-    const categoriesWithMachineHealth = (categories || []).map((category: { machines?: Array<{ _id: string }> }) => ({
-        ...category,
-        machines: (category.machines || []).map((machine: { _id: string }) => {
-            const health = machineHealthMap.get(machine._id?.toString());
-            return {
-                ...machine,
-                status: health?.status || "healthy",
-                healthPercentage: health?.healthPercentage ?? 100,
-            };
-        }),
-    }));
+    const categoriesWithMachineHealth = (categories || [])
+        .filter((category: { _id: string }) => clientCategoryIds.has(category._id?.toString()))
+        .map((category: { machines?: Array<{ _id: string }> }) => ({
+            ...category,
+            machines: (category.machines || [])
+                .filter((machine: { _id: string }) => clientMachineIds.has(machine._id?.toString()))
+                .map((machine: { _id: string }) => {
+                    const health = machineHealthMap.get(machine._id?.toString());
+                    return {
+                        ...machine,
+                        status: health?.status || "healthy",
+                        healthPercentage: health?.healthPercentage ?? 100,
+                    };
+                }),
+        }));
 
     return (
         <ClientOverviewContent 

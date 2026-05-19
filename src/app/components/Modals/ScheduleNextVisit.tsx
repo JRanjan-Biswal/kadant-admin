@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { FaPlus } from "react-icons/fa6";
-import { LuCalendar } from "react-icons/lu";
 import { X } from "lucide-react";
 
 import {
@@ -149,7 +148,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
     };
 
     const getFieldErrorClass = (hasError: boolean) => {
-        return hasError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-[#404040]";
+        return hasError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-[#d1d5db]";
     };
 
     return (
@@ -162,22 +161,22 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                 )}
             </DialogTrigger>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 w-[894px] max-w-[894px] h-[90vh] overflow-y-auto "
+                className="bg-white border border-[#96A5BA] rounded-[10px] p-0 w-[894px] max-w-[894px] h-[90vh] overflow-y-auto "
                 showCloseButton={false}
             >
                 {/* Custom Header */}
-                <div className="bg-[#171717] border-b border-[#262626] flex h-[89px] items-center justify-between px-8">
+                <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[89px] items-center justify-between px-8">
                     <div className="flex gap-3 items-center">
                         <div className="bg-[rgba(255,105,0,0.2)] rounded-[10px] w-10 h-10 flex items-center justify-center">
                             <FaPlus className="w-5 h-5 text-[#ff6900]" />
                         </div>
-                        <h2 className="text-white text-[24px] leading-[32px] font-lato font-normal">
+                        <h2 className="text-gray-900 text-[24px] leading-[32px] font-lato font-normal">
                             Schedule Next Visit
                         </h2>
                     </div>
                     <button
                         onClick={() => setIsOpen(false)}
-                        className="w-6 h-6 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                        className="w-6 h-6 flex items-center justify-center text-gray-900 hover:opacity-70 transition-opacity"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -187,7 +186,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                 <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-[611px] px-8 pt-8">
                     {/* Next Visit Date */}
                     <div className="flex flex-col gap-[8px] mb-6">
-                        <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                        <Label className="text-[#6b7280] text-[16px] leading-[20px] font-lato font-normal">
                             Next Visit Date *
                         </Label>
                         <div className="relative">
@@ -198,11 +197,10 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     <Input
                                         type="date"
                                         {...field}
-                                        className={`bg-[#262626] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5`}
+                                        className={`hide-native-date-icon bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] font-lato placeholder:text-[#4b5563] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                     />
                                 )}
                             />
-                            <LuCalendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#a1a1a1] pointer-events-none" />
                         </div>
                         {errors.nextScheduledVisit && (
                             <p className="text-red-500 text-sm">{errors.nextScheduledVisit.message as string}</p>
@@ -211,7 +209,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
 
                     {/* Visit Type */}
                     <div className="flex flex-col gap-[12px] mb-6">
-                        <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                        <Label className="text-[#6b7280] text-[16px] leading-[20px] font-lato font-normal">
                             Visit Type *
                         </Label>
                         <div className="flex gap-4">
@@ -220,9 +218,9 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     id="process-audit"
                                     checked={visitType.includes('Process Audit')}
                                     onCheckedChange={() => handleVisitTypeChange("Process Audit", visitType)}
-                                    className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                    className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#2D3E5C] data-[state=checked]:border-[#2D3E5C] border-2 border-[#607797] data-[state=checked]:text-white"
                                 />
-                                <Label htmlFor="process-audit" className="text-white text-[16px] leading-[24px] font-lato font-normal cursor-pointer">
+                                <Label htmlFor="process-audit" className="text-gray-900 text-[16px] leading-[24px] font-lato font-normal cursor-pointer">
                                     Process Audit
                                 </Label>
                             </div>
@@ -231,9 +229,9 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     id="mechanical-audit"
                                     checked={visitType.includes('Mechanical Audit')}
                                     onCheckedChange={() => handleVisitTypeChange("Mechanical Audit", visitType)}
-                                    className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#262626] data-[state=checked]:text-white"
+                                    className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#2D3E5C] data-[state=checked]:border-[#2D3E5C] border-2 border-[#607797] data-[state=checked]:text-white"
                                 />
-                                <Label htmlFor="mechanical-audit" className="text-white text-[16px] leading-[24px] font-lato font-normal cursor-pointer">
+                                <Label htmlFor="mechanical-audit" className="text-gray-900 text-[16px] leading-[24px] font-lato font-normal cursor-pointer">
                                     Mechanical Audit
                                 </Label>
                             </div>
@@ -246,25 +244,20 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                     {/* Assign Engineer and Client Representative */}
                     <div className="grid grid-cols-2 gap-6 mb-6">
                         <div className="flex flex-col gap-2">
-                            <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                            <Label className="text-[#6b7280] text-[16px] leading-[20px] font-lato font-normal">
                                 Assign Engineer *
                             </Label>
                             <Controller
                                 name="assignedEngineer"
                                 control={control}
                                 render={({ field }) => (
-                                    <Select value={field.value} onValueChange={field.onChange}>
-                                        <SelectTrigger className={`bg-[#262626] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-white text-[16px] font-lato focus:ring-0`}>
-                                            <SelectValue placeholder="Select Engineer" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-[#262626] border-[#404040]">
-                                            {users?.map((user: Admin) => (
-                                                <SelectItem key={user._id} value={user._id} className="text-white hover:bg-[#404040]">
-                                                    {user?.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Input
+                                        type="text"
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        placeholder="Type engineer name"
+                                        className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.assignedEngineer)} w-full !h-[50px] rounded-[10px] text-gray-900 text-[16px] font-lato placeholder:text-[#6b7280] focus:ring-0`}
+                                    />
                                 )}
                             />
                             {errors.assignedEngineer && (
@@ -272,7 +265,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                             )}
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                            <Label className="text-[#6b7280] text-[16px] leading-[20px] font-lato font-normal">
                                 Client Representative *
                             </Label>
                             <Controller
@@ -282,7 +275,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     <Input
                                         type="text"
                                         {...field}
-                                        className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0`}
+                                        className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.clientRepresentative)} h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] font-lato placeholder:text-[#4b5563] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                         placeholder="Enter client name"
                                     />
                                 )}
@@ -295,7 +288,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
 
                     {/* Client Designation */}
                     <div className="flex flex-col gap-[8px] mb-6">
-                        <Label className="text-[#a1a1a1] text-[16px] leading-[20px] font-lato font-normal">
+                        <Label className="text-[#6b7280] text-[16px] leading-[20px] font-lato font-normal">
                             Client Designation
                         </Label>
                         <Controller
@@ -305,7 +298,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                 <Input
                                     type="text"
                                     {...field}
-                                    className={`bg-[#262626] border ${getFieldErrorClass(!!errors.clientRepresentativeDesignation)} h-[50px] rounded-[10px] px-4 text-white text-[16px] font-lato placeholder:text-[#525252] focus-visible:ring-0 focus-visible:ring-offset-0`}
+                                    className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.clientRepresentativeDesignation)} h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] font-lato placeholder:text-[#4b5563] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                     placeholder="Engineer"
                                 />
                             )}
@@ -321,19 +314,19 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                     </div>
 
                     {/* Footer Buttons */}
-                    <DialogFooter className="border-t border-[#262626] pt-6 pb-3 mt-auto">
+                    <DialogFooter className="border-t border-[#607797] pt-6 pb-3 mt-auto">
                         <div className="flex gap-4 justify-end w-full">
                             <Button
                                 type="button"
                                 onClick={() => setIsOpen(false)}
-                                className="border border-[#404040] bg-transparent hover:bg-[#262626] text-[#d4d4d4] text-[16px] leading-[24px] font-lato font-bold px-[25px] py-[13px] rounded-[10px] h-auto"
+                                className="border border-[#d1d5db] bg-transparent hover:bg-[#e5e7eb] text-[#6b7280] text-[16px] leading-[24px] font-lato font-bold px-[25px] py-[13px] rounded-[10px] h-auto"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[16px] leading-[24px] font-lato font-bold px-8 py-[13px] rounded-[10px] h-auto"
+                                className="bg-[#2D3E5C] hover:bg-[#1f2a44] text-white text-[16px] leading-[24px] font-lato font-bold px-8 py-[13px] rounded-[10px] h-auto"
                             >
                                 {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : "Schedule Visit"}
                             </Button>

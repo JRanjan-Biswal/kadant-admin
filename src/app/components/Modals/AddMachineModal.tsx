@@ -41,13 +41,13 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 {children ?? (
-                    <Button variant="outline" className="border-[#404040] text-white hover:bg-[#262626]">
+                    <Button variant="outline" className="border-[#d1d5db] text-gray-900 hover:bg-[#e5e7eb]">
                         Add Category
                     </Button>
                 )}
             </DialogTrigger>
             <DialogContent
-                className="bg-[#171717] border border-[#262626] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+                className="bg-white border border-[#96A5BA] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
                 onInteractOutside={(e) => {
                     if (closeBlockedRef.current) e.preventDefault();
@@ -59,12 +59,12 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                     }
                 }}
             >
-                <div className="bg-[#171717] border-b border-[#262626] flex h-[64px] items-center justify-between px-6 shrink-0">
-                    <h2 className="text-white text-[20px] font-medium">Add Category, Machine, Spare Parts & Parts</h2>
+                <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0">
+                    <h2 className="text-gray-900 text-[20px] font-medium">Add Category, Machine, Spare Parts & Parts</h2>
                     <button
                         type="button"
                         onClick={() => handleOpenChange(false)}
-                        className="w-8 h-8 flex items-center justify-center text-white hover:opacity-70 transition-opacity"
+                        className="w-8 h-8 flex items-center justify-center text-gray-900 hover:opacity-70 transition-opacity"
                         aria-label="Close"
                     >
                         <X className="w-5 h-5" />

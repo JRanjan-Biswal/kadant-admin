@@ -9,10 +9,10 @@ export interface UpdateCredentialsResult {
     message?: string;
 }
 
-// Update client username (login ID)
-export async function updateClientUsername(
+// Update client login email
+export async function updateClientEmail(
     clientId: string,
-    newUsername: string
+    newEmail: string
 ): Promise<UpdateCredentialsResult> {
     try {
         const currentUser = await getCurrentUser();
@@ -25,35 +25,35 @@ export async function updateClientUsername(
         }
 
         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/credentials/username`,
+            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/credentials/email`,
             {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${currentUser.accessToken}`,
                 },
-                body: JSON.stringify({ newUsername }),
+                body: JSON.stringify({ newEmail }),
             }
         );
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to update username' }));
+            const errorData = await response.json().catch(() => ({ message: 'Failed to update email' }));
             return {
                 success: false,
-                error: errorData.message || 'Failed to update username',
+                error: errorData.message || 'Failed to update email',
             };
         }
 
         const data = await response.json();
-        
+
         revalidatePath('/client-management');
-        
+
         return {
             success: true,
             message: data.message,
         };
     } catch (error) {
-        console.error('Error updating client username:', error);
+        console.error('Error updating client email:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'An unexpected error occurred',

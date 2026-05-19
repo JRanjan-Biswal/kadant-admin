@@ -14,16 +14,24 @@ interface SiteVisitUser {
     designation: string;
 }
 
+export interface SparePartMediaEntry {
+    sparePartId: string;
+    sparePartName: string;
+    mediaUrls: string[];
+}
+
 export interface MachineIssue {
     machineId?: string;
     sparePartId?: string;
     machineName?: string;
     sparePartName?: string;
+    categoryName?: string;
     status?: string;
     conditionAlert?: string;
     actionNeeded?: string;
     optimalStateMediaUrls?: string[];
     currentVisitMediaUrls?: string[];
+    sparePartMedia?: SparePartMediaEntry[];
 }
 
 export interface SiteVisit {
@@ -38,7 +46,9 @@ export interface SiteVisit {
     clientRepresentativeDesignation: string;
     visitType: string[];
     nextScheduledVisit: string;
-    assignedEngineer: SiteVisitUser;
+    // Free-text engineer name (was a populated user ref). Old docs may emit
+    // an ObjectId hex string, but the field is treated as plain text.
+    assignedEngineer: string;
     auditReportUrl?: string;
     machineIssues?: MachineIssue[];
 }

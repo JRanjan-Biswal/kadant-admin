@@ -94,7 +94,7 @@ export function NavUser({
       <TooltipProvider>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <div className="border-b border-[#1a1a1a] pb-px pl-[16px] pr-[24px] pt-[24px] h-[97px] flex flex-col cursor-pointer hover:bg-sidebar-accent/50 transition-colors">
+            <div className="border-b border-[#f9fafb] pb-px pl-[16px] pr-[24px] pt-[24px] h-[97px] flex flex-col cursor-pointer hover:bg-sidebar-accent/50 transition-colors">
               <div className="flex gap-[12px] items-center w-full">
                 <div className="relative rounded-full shrink-0 size-[48px] overflow-hidden">
                   <Avatar className="h-full w-full rounded-full border-0">
@@ -108,7 +108,7 @@ export function NavUser({
                   <div className="flex gap-[8px] h-[24px] items-center">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="h-[24px] font-lato font-normal leading-[24px] text-[#f3f4f6] text-[16px] truncate max-w-[120px]">
+                        <span className="h-[24px] font-lato font-normal leading-[24px] text-[#1f2937] text-[16px] truncate max-w-[120px]">
                           {user.name as string}
                         </span>
                       </TooltipTrigger>

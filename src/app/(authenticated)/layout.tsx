@@ -49,16 +49,16 @@ export default async function RootLayout({
                     <SidebarProvider>
                         <AppSidebar user={currentUser.user} />
                         <SidebarInset>
-                            <header className="flex h-16 shrink-0 justify-between items-center gap-2 border-b border-border px-4 bg-background">
-                                <div className="flex items-center gap-2">
+                            <header className="sticky top-0 z-40 flex h-16 shrink-0 justify-between items-center gap-2 border-b border-border px-4 bg-[#2D3E5C] text-white">
+                                <div className="flex items-center gap-2 opacity-0 pointer-events-none" aria-hidden="true">
                                     <Label htmlFor="on-visit" className="uppercase cursor-pointer text-xs font-semibold text-muted-foreground">On Visit</Label>
-                                    <Switch className="cursor-pointer data-[state=checked]:bg-orange" id="on-visit" />
+                                    <Switch className="cursor-pointer data-[state=checked]:bg-orange" id="on-visit" disabled tabIndex={-1} />
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Notifications />
                                 </div>
                             </header>
-                            <main className="bg-[#0a0a0a] min-h-[calc(100vh-4rem)]">
+                            <main className="bg-white min-h-[calc(100vh-4rem)]">
                                 <Providers>{children}</Providers>
                             </main>
                         </SidebarInset>
@@ -67,7 +67,7 @@ export default async function RootLayout({
                 <Toaster
                     richColors
                     position="top-right"
-                    theme="dark"
+                    theme="light"
                     toastOptions={{
                         style: {
                             background: 'var(--card)',

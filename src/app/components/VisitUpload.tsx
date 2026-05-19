@@ -42,7 +42,7 @@ interface MediaPreviewProps {
 const MediaPreview: React.FC<MediaPreviewProps> = ({ url, onRemove, readOnly = false }) => {
     const isVideo = isVideoUrl(url);
     return (
-        <div className="relative group rounded-lg overflow-hidden bg-[#1a1a1a] border border-border w-[140px] h-[100px]">
+        <div className="relative group rounded-lg overflow-hidden bg-[#f9fafb] border border-border w-[140px] h-[100px]">
             {isVideo ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : (
@@ -53,7 +53,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({ url, onRemove, readOnly = f
                 <button
                     type="button"
                     onClick={onRemove}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-red-600 transition-colors cursor-pointer"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-gray-900 hover:bg-red-600 transition-colors cursor-pointer"
                 >
                     <X className="w-3 h-3" />
                 </button>
@@ -255,28 +255,28 @@ const MachineIssueSection: React.FC<MachineIssueSectionProps> = ({
 
             {/* Last Visit Reference Images */}
             {hasReferenceImages && (
-                <div className="mt-3 border border-[#262626] rounded-lg overflow-hidden">
+                <div className="mt-3 border border-[#607797] rounded-lg overflow-hidden">
                     <button
                         type="button"
                         onClick={() => setShowReference((v) => !v)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 bg-[#171717] hover:bg-[#1f1f1f] transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between px-4 py-2.5 bg-[#ffffff] hover:bg-[#ffffff] transition-colors cursor-pointer"
                     >
                         <div className="flex items-center gap-2">
-                            <History className="w-3.5 h-3.5 text-[#a1a1a1]" />
-                            <span className="text-xs text-[#a1a1a1] font-medium">
+                            <History className="w-3.5 h-3.5 text-[#6b7280]" />
+                            <span className="text-xs text-[#6b7280] font-medium">
                                 Last Visit Reference
                             </span>
                         </div>
-                        <span className="text-[10px] text-[#737373]">
+                        <span className="text-[10px] text-[#6b7280]">
                             {showReference ? "hide" : "show"}
                         </span>
                     </button>
 
                     {showReference && (
-                        <div className="px-4 py-3 bg-[#0d0d0d] flex items-start gap-8">
+                        <div className="px-4 py-3 bg-[#ffffff] flex items-start gap-8">
                             {(referenceIssue?.optimalStateMediaUrls?.length ?? 0) > 0 && (
                                 <div>
-                                    <p className="text-[10px] text-[#737373] mb-2">
+                                    <p className="text-[10px] text-[#6b7280] mb-2">
                                         Optimal State (last visit)
                                     </p>
                                     <div className="flex flex-wrap gap-2">
@@ -288,7 +288,7 @@ const MachineIssueSection: React.FC<MachineIssueSectionProps> = ({
                             )}
                             {(referenceIssue?.currentVisitMediaUrls?.length ?? 0) > 0 && (
                                 <div>
-                                    <p className="text-[10px] text-[#737373] mb-2">
+                                    <p className="text-[10px] text-[#6b7280] mb-2">
                                         Current State (last visit)
                                     </p>
                                     <div className="flex flex-wrap gap-2">
@@ -362,10 +362,7 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                 issuesMap[visit._id] = visit.machineIssues ? [...visit.machineIssues] : [];
                 metaMap[visit._id] = {
                     visitType: visit.visitType ? [...visit.visitType] : [],
-                    assignedEngineer:
-                        visit.assignedEngineer?._id ??
-                        (visit.assignedEngineer as unknown as string) ??
-                        "",
+                    assignedEngineer: (visit.assignedEngineer as unknown as string) ?? "",
                     clientRepresentative: visit.clientRepresentative ?? "",
                     clientRepresentativeDesignation: visit.clientRepresentativeDesignation ?? "",
                 };
@@ -459,7 +456,7 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                         body: JSON.stringify({
                             nextScheduledVisit: visit.nextScheduledVisit,
                             visitType: meta?.visitType ?? visit.visitType,
-                            assignedEngineer: meta?.assignedEngineer ?? (visit.assignedEngineer?._id ?? ""),
+                            assignedEngineer: meta?.assignedEngineer ?? ((visit.assignedEngineer as unknown as string) ?? ""),
                             clientRepresentative: meta?.clientRepresentative ?? visit.clientRepresentative ?? "",
                             clientRepresentativeDesignation: meta?.clientRepresentativeDesignation ?? visit.clientRepresentativeDesignation ?? "",
                             machineIssues: issues,
@@ -516,10 +513,10 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                 return (
                     <div
                         key={visit._id}
-                        className="rounded-[10px] bg-[#0D0D0D] border border-[#262626] overflow-hidden"
+                        className="rounded-[10px] bg-[#ffffff] border border-[#607797] overflow-hidden"
                     >
                         {/* Card Header */}
-                        <div className="flex items-center justify-between bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#262626] rounded-t-[10px] px-6 py-4">
+                        <div className="flex items-center justify-between bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#607797] rounded-t-[10px] px-6 py-4">
                             <h3 className="text-base font-semibold text-foreground">
                                 {visit.client?.name || "Unknown Client"}
                             </h3>
@@ -556,10 +553,10 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                         </div>
 
                         {/* Visit Info — editable */}
-                        <div className="px-6 py-4 border-b border-[#262626] flex flex-col gap-4">
+                        <div className="px-6 py-4 border-b border-[#607797] flex flex-col gap-4">
                             {/* Visit Type */}
                             <div className="flex items-center gap-4">
-                                <FileText className="w-3.5 h-3.5 text-[#a1a1a1] shrink-0" />
+                                <FileText className="w-3.5 h-3.5 text-[#6b7280] shrink-0" />
                                 <span className="text-xs text-muted-foreground shrink-0">Visit Type:</span>
                                 <div className="flex gap-4">
                                     {["Process Audit", "Mechanical Audit"].map((type) => {
@@ -590,9 +587,10 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
 
                             {/* Engineer */}
                             <div className="flex items-center gap-3">
-                                <User className="w-3.5 h-3.5 text-[#a1a1a1] shrink-0" />
+                                <User className="w-3.5 h-3.5 text-[#6b7280] shrink-0" />
                                 <span className="text-xs text-muted-foreground shrink-0">Engineer:</span>
-                                <select
+                                <input
+                                    type="text"
                                     value={localMetaMap[visit._id]?.assignedEngineer ?? ""}
                                     onChange={(e) =>
                                         setLocalMetaMap((prev) => ({
@@ -600,18 +598,14 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                                             [visit._id]: { ...prev[visit._id], assignedEngineer: e.target.value },
                                         }))
                                     }
-                                    className="bg-[#262626] border border-[#404040] text-xs text-foreground rounded-md px-2 py-1 focus:outline-none focus:border-[#ff6900]"
-                                >
-                                    <option value="">Select engineer</option>
-                                    {users.map((u) => (
-                                        <option key={u._id} value={u._id}>{u.name}</option>
-                                    ))}
-                                </select>
+                                    placeholder="Type engineer name"
+                                    className="bg-[#e5e7eb] border border-[#d1d5db] text-xs text-foreground rounded-md px-2 py-1 placeholder:text-[#6b7280] focus:outline-none focus:border-[#ff6900]"
+                                />
                             </div>
 
                             {/* Client Rep */}
                             <div className="flex items-center gap-3">
-                                <User className="w-3.5 h-3.5 text-[#a1a1a1] shrink-0" />
+                                <User className="w-3.5 h-3.5 text-[#6b7280] shrink-0" />
                                 <span className="text-xs text-muted-foreground shrink-0">Client Rep:</span>
                                 <input
                                     type="text"
@@ -623,7 +617,7 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                                         }))
                                     }
                                     placeholder="Client representative"
-                                    className="bg-[#262626] border border-[#404040] text-xs text-foreground rounded-md px-2 py-1 focus:outline-none focus:border-[#ff6900] w-40"
+                                    className="bg-[#e5e7eb] border border-[#d1d5db] text-xs text-foreground rounded-md px-2 py-1 focus:outline-none focus:border-[#ff6900] w-40"
                                 />
                                 <input
                                     type="text"
@@ -635,20 +629,20 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                                         }))
                                     }
                                     placeholder="Designation"
-                                    className="bg-[#262626] border border-[#404040] text-xs text-foreground rounded-md px-2 py-1 focus:outline-none focus:border-[#ff6900] w-32"
+                                    className="bg-[#e5e7eb] border border-[#d1d5db] text-xs text-foreground rounded-md px-2 py-1 focus:outline-none focus:border-[#ff6900] w-32"
                                 />
                             </div>
                         </div>
 
                         {/* Card Body — Machine Issues */}
-                        <div className="bg-[#0D0D0D] p-6 space-y-6">
+                        <div className="bg-[#ffffff] p-6 space-y-6">
                             {issues.length > 0 ? (
                                 issues.map((issue, idx) => (
                                     <div
                                         key={idx}
                                         className={
                                             idx < issues.length - 1
-                                                ? "pb-6 border-b border-[#262626]"
+                                                ? "pb-6 border-b border-[#607797]"
                                                 : ""
                                         }
                                     >

@@ -67,13 +67,13 @@ export function NavMain({
                     <div className="flex gap-[12px] h-[44px] items-center pl-[12px] rounded-[10px] w-[223px] cursor-not-allowed opacity-40">
                       {item.icon && (
                         <div className="relative shrink-0 size-[20px]">
-                          <item.icon className="w-5 h-5 text-[#6a7282]" />
+                          <item.icon className="w-5 h-5 text-[#6b7280]" />
                         </div>
                       )}
-                      <span className="font-lato font-normal leading-[24px] text-[16px] text-[#6a7282]">
+                      <span className="font-lato font-semibold leading-[24px] text-[16px] text-[#6b7280]">
                         {item.title}
                       </span>
-                      <Lock className="ml-auto h-3 w-3 text-[#6a7282]" />
+                      <Lock className="ml-auto h-3 w-3 text-[#6b7280]" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
@@ -101,15 +101,15 @@ export function NavMain({
               >
                 <div className="relative shrink-0 size-[20px]">
                   {isLoadingThis ? (
-                    <Loader2 className="w-5 h-5 text-[#6a7282] animate-spin" />
+                    <Loader2 className="w-5 h-5 text-[#6b7280] animate-spin" />
                   ) : item.icon ? (
-                    <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#6a7282]'}`} />
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#6b7280]'}`} />
                   ) : null}
                 </div>
                 <span
-                  className={`font-lato leading-[20px] text-[15px] ${isActive
-                      ? 'font-bold text-white'
-                      : 'font-normal text-[#6a7282]'
+                  className={`font-lato font-semibold leading-[20px] text-[15px] ${isActive
+                      ? 'text-white'
+                      : 'text-[#6b7280]'
                     }`}
                 >
                   {item.title}

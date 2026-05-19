@@ -149,13 +149,13 @@ const MachineMarker = memo(function MachineMarker({
             >
                 <div className="absolute inset-0 bg-black/40 hover:bg-black/20 transition-colors" />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
-                    <span className="text-white text-[11px] font-medium truncate block leading-tight">
+                    <span className="text-gray-900 text-[11px] font-medium truncate block leading-tight">
                         {machine.name}
                     </span>
                 </div>
                 {isSelected && (
                     <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-[#d45815] flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
+                        <Check className="w-3 h-3 text-gray-900" />
                     </div>
                 )}
                 <div
@@ -306,28 +306,28 @@ function MachineImageMapperContent({
         >
             {/* Header */}
             <div
-                className="shrink-0 flex items-center justify-between px-5 border-b border-[#262626] absolute top-0 left-0 right-0"
-                style={{ height: 56, background: "#171717", zIndex: 10 }}
+                className="shrink-0 flex items-center justify-between px-5 border-b border-[#607797] absolute top-0 left-0 right-0"
+                style={{ height: 56, background: "#ffffff", zIndex: 10 }}
             >
                 <div className="flex items-center gap-4 min-w-0">
-                    <h2 className="text-white text-base font-semibold whitespace-nowrap">Map Machine Positions</h2>
-                    <div className="h-5 w-px bg-[#404040] shrink-0" />
+                    <h2 className="text-gray-900 text-base font-semibold whitespace-nowrap">Map Machine Positions</h2>
+                    <div className="h-5 w-px bg-[#d1d5db] shrink-0" />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button
                                 type="button"
-                                className="flex items-center gap-2 rounded-lg border border-[#404040] bg-[#1f1f1f] px-3 py-2 text-sm text-white hover:bg-[#262626] hover:border-[#525252] transition-colors min-w-0"
+                                className="flex items-center gap-2 rounded-lg border border-[#d1d5db] bg-[#ffffff] px-3 py-2 text-sm text-gray-900 hover:bg-[#e5e7eb] hover:border-[#4b5563] transition-colors min-w-0"
                             >
-                                <span className="text-[#a1a1a1] shrink-0">Machines ({positions.size}/{machines.length})</span>
+                                <span className="text-[#6b7280] shrink-0">Machines ({positions.size}/{machines.length})</span>
                                 <span className="truncate font-medium text-[#d45815]">
                                     {machines.find((m) => m.id === selectedMachine)?.name ?? "Select a machine"}
                                 </span>
-                                <ChevronDown className="w-4 h-4 text-[#737373] shrink-0" />
+                                <ChevronDown className="w-4 h-4 text-[#6b7280] shrink-0" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                             align="start"
-                            className="max-h-[min(60vh,400px)] w-[280px] overflow-y-auto border-[#262626] bg-[#141414] p-1"
+                            className="max-h-[min(60vh,400px)] w-[280px] overflow-y-auto border-[#607797] bg-[#141414] p-1"
                         >
                             {machines.map((m) => {
                                 const isPlaced = positions.has(m.id);
@@ -341,14 +341,14 @@ function MachineImageMapperContent({
                                             ${isActive
                                                 ? "bg-[#d45815]/15 text-[#d45815] ring-1 ring-[#d45815]/40"
                                                 : isPlaced
-                                                    ? "bg-[#1f1f1f] text-white focus:bg-[#262626]"
-                                                    : "text-[#a1a1a1] focus:bg-[#1f1f1f] focus:text-white"
+                                                    ? "bg-[#ffffff] text-gray-900 focus:bg-[#e5e7eb]"
+                                                    : "text-[#6b7280] focus:bg-[#ffffff] focus:text-gray-900"
                                             }
                                         `}
                                     >
                                         <div
                                             className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold ${
-                                                isPlaced ? "bg-[#22c55e] text-white" : "bg-[#333] text-[#737373]"
+                                                isPlaced ? "bg-[#22c55e] text-gray-900" : "bg-[#333] text-[#6b7280]"
                                             }`}
                                         >
                                             {isPlaced ? <Check className="w-3.5 h-3.5" /> : "?"}
@@ -362,7 +362,7 @@ function MachineImageMapperContent({
                                                     e.stopPropagation();
                                                     handleRemovePosition(m.id);
                                                 }}
-                                                className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-[#737373] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+                                                className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-[#6b7280] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
                                                 title="Remove placement"
                                             >
                                                 <X className="w-3 h-3" />
@@ -373,9 +373,11 @@ function MachineImageMapperContent({
                             })}
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <span className="text-[#737373] text-sm hidden sm:inline">
+                    <span className="text-[#6b7280] text-sm hidden sm:inline">
                         {allPlaced
                             ? "All placed — drag to adjust, then save."
+                            : positions.size > 0
+                            ? `${positions.size}/${machines.length} placed — save now or place the rest.`
                             : "Click on the image to place the selected machine."}
                     </span>
                 </div>
@@ -385,7 +387,7 @@ function MachineImageMapperContent({
                         size="sm"
                         variant="ghost"
                         onClick={handleReset}
-                        className="text-[#a1a1a1] hover:bg-[#262626] h-8 gap-1.5"
+                        className="text-[#6b7280] hover:bg-[#e5e7eb] h-8 gap-1.5"
                         disabled={positions.size === 0}
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -395,7 +397,7 @@ function MachineImageMapperContent({
                         type="button"
                         size="sm"
                         onClick={handleSave}
-                        disabled={!allPlaced || saving}
+                        disabled={positions.size === 0 || saving}
                         className="bg-[#d45815] hover:bg-[#d45815]/90 text-white h-8 px-5"
                     >
                         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Positions"}
@@ -403,7 +405,7 @@ function MachineImageMapperContent({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center text-[#a1a1a1] hover:text-white rounded-md hover:bg-[#262626] transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-[#6b7280] hover:text-gray-900 rounded-md hover:bg-[#e5e7eb] transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -420,7 +422,7 @@ function MachineImageMapperContent({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "#0a0a0a",
+                    background: "#ffffff",
                 }}
             >
                 <div
@@ -481,10 +483,10 @@ function MachineImageMapperContent({
                         >
                             <div className="bg-black/70 backdrop-blur-md rounded-2xl px-8 py-5 text-center border border-[#333] shadow-2xl">
                                 <GripVertical className="w-10 h-10 text-[#d45815] mx-auto mb-3" />
-                                <p className="text-white text-base font-semibold">
+                                <p className="text-gray-900 text-base font-semibold">
                                     Click anywhere to place &quot;{machines.find((m) => m.id === selectedMachine)?.name}&quot;
                                 </p>
-                                <p className="text-[#737373] text-sm mt-1.5">
+                                <p className="text-[#6b7280] text-sm mt-1.5">
                                     You can drag to reposition and resize the width after placing
                                 </p>
                             </div>

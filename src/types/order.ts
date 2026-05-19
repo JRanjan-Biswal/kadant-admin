@@ -5,7 +5,7 @@ export interface Order {
     rotor: string;
     installedDate: string;
     replacedDate: string;
-    runningHr: number;
+    runningHrs: number;
     remarks: string;
     machineName?: string;
     date?: string;

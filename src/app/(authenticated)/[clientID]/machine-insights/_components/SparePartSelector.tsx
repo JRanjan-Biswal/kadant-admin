@@ -19,7 +19,7 @@ const SparePartSelector: React.FC<SparePartSelectorProps> = ({
     onSelect,
 }) => {
     return (
-        <div className="bg-[#171717] border border-[#262626] rounded-[10px] px-6 py-4">
+        <div className="bg-white border border-[#96A5BA] rounded-[10px] px-6 py-4">
             <p className="text-sm text-muted-foreground font-medium mb-3">
                 Select Spare Part
             </p>
