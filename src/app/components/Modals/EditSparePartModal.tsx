@@ -152,9 +152,9 @@ export default function EditSparePartModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-[#ffffff] border border-[#1A1A1A] px-0">
-                <DialogHeader className="border-b border-[#1A1A1A] px-4 pb-4">
-                    <DialogTitle className="text-foreground flex items-center gap-3">
+            <DialogContent className="sm:max-w-[500px] bg-white border border-[#d1d5db] rounded-[10px] px-0">
+                <DialogHeader className="border-b border-[#d1d5db] px-6 pb-4">
+                    <DialogTitle className="text-gray-900 text-lg font-medium flex items-center gap-3">
                         Edit Spare Part Details
                         {getStatusIcon(sparePart.status)}
                         <Badge
@@ -166,24 +166,24 @@ export default function EditSparePartModal({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4 px-4">
+                <div className="space-y-4 py-4 px-6">
                     {/* Status Info */}
-                    <div className="bg-[#1A1A1A] rounded-lg p-3 space-y-2">
+                    <div className="bg-[#e5e7eb] rounded-lg p-3 space-y-2 border border-[#d1d5db]">
                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Health Percentage:</span>
-                            <span className="text-foreground font-medium">
+                            <span className="text-[#6b7280]">Health Percentage:</span>
+                            <span className="text-gray-900 font-medium">
                                 {sparePart.healthPercentage}%
                             </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Lifetime of Rotor:</span>
-                            <span className="text-foreground font-medium">
+                            <span className="text-[#6b7280]">Lifetime of Rotor:</span>
+                            <span className="text-gray-900 font-medium">
                                 {sparePart.lifetimeOfRotor?.value || 0} {sparePart.lifetimeOfRotor?.unit || "Hrs"}
                             </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Total Running Hours:</span>
-                            <span className="text-foreground font-medium">
+                            <span className="text-[#6b7280]">Total Running Hours:</span>
+                            <span className="text-gray-900 font-medium">
                                 {sparePart.totalRunningHours?.value || 0} {sparePart.totalRunningHours?.unit || "Hrs"}
                             </span>
                         </div>
@@ -191,26 +191,26 @@ export default function EditSparePartModal({
 
                     {/* Editable Fields */}
                     <div className="space-y-4">
-                        <div className="space-y-4">
-                            <Label htmlFor="customName" className="text-foreground">
+                        <div className="space-y-2">
+                            <Label htmlFor="customName" className="text-[#6b7280] text-sm">
                                 Spare Part Name
                             </Label>
                             <Input
                                 id="customName"
                                 value={customName}
                                 onChange={(e) => setCustomName(e.target.value)}
-                                className="bg-[#1A1A1A] py-5 border-[#272626] text-foreground"
+                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900 placeholder:text-[#9ca3af]"
                                 placeholder={sparePart.originalName}
                             />
                             {customName !== sparePart.originalName && (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-[#6b7280]">
                                     Original name: {sparePart.originalName}
                                 </p>
                             )}
                         </div>
 
-                        <div className="space-y-4">
-                            <Label htmlFor="lastServiceDate" className="text-foreground">
+                        <div className="space-y-2">
+                            <Label htmlFor="lastServiceDate" className="text-[#6b7280] text-sm">
                                 Last Service Date
                             </Label>
                             <Input
@@ -218,12 +218,12 @@ export default function EditSparePartModal({
                                 type="date"
                                 value={lastServiceDate}
                                 onChange={(e) => setLastServiceDate(e.target.value)}
-                                className="bg-[#1A1A1A] py-5 border-[#272626] text-foreground [&::-webkit-calendar-picker-indicator]:invert"
+                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900"
                             />
                         </div>
 
-                        <div className="space-y-4">
-                            <Label htmlFor="installationDate" className="text-foreground">
+                        <div className="space-y-2">
+                            <Label htmlFor="installationDate" className="text-[#6b7280] text-sm">
                                 Installation Date
                             </Label>
                             <Input
@@ -231,40 +231,43 @@ export default function EditSparePartModal({
                                 type="date"
                                 value={installationDate}
                                 onChange={(e) => setInstallationDate(e.target.value)}
-                                className="bg-[#1A1A1A] !py-5 border-[#272626] text-foreground [&::-webkit-calendar-picker-indicator]:invert"
+                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900"
                             />
                         </div>
 
-                        <div className="flex items-center justify-between rounded-lg bg-[#1A1A1A]  border-[#272626] p-3">
-                            <Label htmlFor="isActive" className="text-foreground cursor-pointer">
+                        <div className="flex items-center justify-between rounded-lg bg-[#e5e7eb] border border-[#d1d5db] p-3">
+                            <Label htmlFor="isActive" className="text-[#6b7280] text-sm cursor-pointer">
                                 Current Status
                             </Label>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-sm text-[#6b7280]">
                                     {isActive ? "Active" : "Inactive"}
                                 </span>
                                 <Switch
                                     id="isActive"
                                     checked={isActive}
                                     onCheckedChange={setIsActive}
+                                    className="data-[state=checked]:bg-[#d45815]"
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2 px-4">
+                <DialogFooter className="gap-2 px-6 pb-2">
                     <Button
-                        variant="outline"
+                        type="button"
+                        variant="ghost"
                         onClick={() => onOpenChange(false)}
-                        className="border-border text-foreground hover:bg-muted"
+                        className="text-[#6b7280] hover:bg-[#e5e7eb]"
                     >
                         Cancel
                     </Button>
                     <Button
+                        type="button"
                         onClick={handleSave}
                         disabled={isLoading}
-                        className="bg-orange text-white hover:bg-orange/90"
+                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white"
                     >
                         {isLoading ? (
                             <>
