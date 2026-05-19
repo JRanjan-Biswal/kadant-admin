@@ -1438,84 +1438,241 @@ export default function AddCategoryMachineFlow({
      * end. Per-row Update buttons are hidden in edit mode in favor of this.
      */
     const handleSaveAllEdits = useCallback(async () => {
-        let okCount = 0;
+        if (!categoryId) {
+            toast.error("No category selected");
+            return;
+        }
         const errors: string[] = [];
-
-        const safe = async (label: string, fn: () => Promise<void>) => {
-            try {
-                await fn();
-                okCount += 1;
-            } catch (e) {
-                errors.push(`${label}: ${e instanceof Error ? e.message : "failed"}`);
-            }
-        };
 
         setLoading("save-all");
         try {
-            // 1. Category edits (name and/or new image staged).
-            if (categoryId && isCategoryDirty()) {
-                await safe("Category", handleSaveCategoryEdit);
-            }
-
-            // 2. New machines waiting to be persisted (each creates + uploads).
+            // ── Step 1: insert any NEW rows the user added in edit mode.
+            // (New machines and new spare parts still need their original POST
+            // flow because they don't have createdId yet — the bulk endpoint
+            // only updates existing rows.)
             const hasUnsavedMachines = machines.some(
                 (m) => !m.createdId && m.name.trim() && m.imageFile
             );
-            if (categoryId && hasUnsavedMachines) {
-                await safe("New machines", handleSaveMachines);
+            if (hasUnsavedMachines) {
+                try { await handleSaveMachines(); } catch (e) {
+                    errors.push(`New machines: ${e instanceof Error ? e.message : "failed"}`);
+                }
             }
-
-            // 3. Updates to existing machines — only dirty rows. Skipping
-            //    unchanged rows is what keeps a single category-image edit
-            //    from cascading into N machine + M spare-part PUT calls.
-            for (const m of machines) {
-                if (!m.createdId) continue;
-                if (!isMachineDirty(m)) continue;
-                await safe(`Machine ${m.name || m.id}`, () => handleUpdateMachine(m.id));
-            }
-
-            // 4. New spare parts / parts under each saved machine.
             for (const m of machines) {
                 if (!m.createdId) continue;
                 const hasNewSP = m.spareParts.some(
                     (sp) => !sp.createdId && sp.name.trim() && sp.klValue.trim() && sp.imageFile
                 );
                 if (hasNewSP) {
-                    await safe(`Spare parts for ${m.name || m.id}`, () =>
-                        handleSaveSparePartsAndParts(m.id)
-                    );
-                }
-            }
-
-            // 5. Updates to existing spare parts — only dirty rows.
-            for (const m of machines) {
-                if (!m.createdId) continue;
-                for (const sp of m.spareParts) {
-                    if (!sp.createdId) continue;
-                    if (!isSparePartDirty(sp)) continue;
-                    await safe(`Spare part ${sp.name || sp.id}`, () =>
-                        handleUpdateSparePart(m.id, sp.id)
-                    );
-                }
-            }
-
-            // 6. Updates to existing parts — only dirty rows.
-            for (const m of machines) {
-                if (!m.createdId) continue;
-                for (const sp of m.spareParts) {
-                    if (!sp.createdId) continue;
-                    for (const pt of sp.parts) {
-                        if (!pt.createdId) continue;
-                        if (!isPartDirty(pt)) continue;
-                        await safe(`Part ${pt.name || pt.id}`, () =>
-                            handleUpdatePart(m.id, sp.id, pt.id)
-                        );
+                    try { await handleSaveSparePartsAndParts(m.id); } catch (e) {
+                        errors.push(`Spare parts for ${m.name || m.id}: ${e instanceof Error ? e.message : "failed"}`);
                     }
                 }
             }
 
+            // ── Step 2: single bulk PUT for all text-field edits on existing
+            // rows. Server diffs vs DB and only writes what's actually
+            // different, so this replaces what used to be N+M+P sequential
+            // PUTs and N+M+P "X updated" toasts.
+            const dirtyMachines = machines
+                .filter((m) => m.createdId)
+                .map((m) => {
+                    const machineDirty = isMachineDirty(m);
+                    const dirtySpareParts = (m.spareParts || [])
+                        .filter((sp) => sp.createdId)
+                        .map((sp) => {
+                            const spDirty = isSparePartDirty(sp);
+                            const dirtyParts = (sp.parts || [])
+                                .filter((pt) => pt.createdId && isPartDirty(pt))
+                                .map((pt) => ({ _id: pt.createdId, name: pt.name.trim() }));
+                            if (!spDirty && dirtyParts.length === 0) return null;
+                            return {
+                                _id: sp.createdId,
+                                ...(spDirty ? { name: sp.name.trim(), klValue: sp.klValue.trim() } : {}),
+                                parts: dirtyParts,
+                            };
+                        })
+                        .filter((sp): sp is NonNullable<typeof sp> => !!sp);
+                    if (!machineDirty && dirtySpareParts.length === 0) return null;
+                    return {
+                        _id: m.createdId,
+                        ...(machineDirty
+                            ? {
+                                  name: m.name.trim(),
+                                  modelNumber: m.modelNumber ?? "",
+                                  description: m.description ?? "",
+                                  installationDate: m.installationDate || null,
+                              }
+                            : {}),
+                        spareParts: dirtySpareParts,
+                    };
+                })
+                .filter((m): m is NonNullable<typeof m> => !!m);
+
+            const bulkBody: {
+                name?: string;
+                machines: typeof dirtyMachines;
+            } = { machines: dirtyMachines };
+            const newCatName = (categoryEditName || categoryName).trim();
+            if (isCategoryDirty() && newCatName) {
+                bulkBody.name = newCatName;
+            }
+
+            if (bulkBody.name !== undefined || dirtyMachines.length > 0) {
+                try {
+                    const res = await fetch(
+                        `/api/machines/machine-category/${categoryId}/full`,
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(bulkBody),
+                        }
+                    );
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.error || "Bulk update failed");
+                    }
+                } catch (e) {
+                    errors.push(`Text fields: ${e instanceof Error ? e.message : "failed"}`);
+                }
+            }
+
+            // ── Step 3: image / video uploads. These have to be separate
+            // multipart requests, but we only hit the upload endpoints for
+            // entities where the user actually picked a new file.
+            const uploadCategoryImage = categoryEditImage || categoryImage;
+            if (uploadCategoryImage) {
+                try {
+                    const uploaded = await uploadEntityImage("category", categoryId, uploadCategoryImage);
+                    if (uploaded?.imageUrl) setCategoryImageUrl(uploaded.imageUrl);
+                    setCategoryEditImage(null);
+                } catch (e) {
+                    errors.push(`Category image: ${e instanceof Error ? e.message : "failed"}`);
+                }
+            }
+
+            for (const m of machines) {
+                if (!m.createdId) continue;
+                if (m.imageFile) {
+                    try {
+                        const uploaded = await uploadEntityImage("machine", m.createdId, m.imageFile);
+                        if (uploaded?.imageUrl) {
+                            setMachines((prev) =>
+                                prev.map((x) =>
+                                    x.id === m.id ? { ...x, imageUrl: uploaded.imageUrl, imageFile: null } : x
+                                )
+                            );
+                        } else {
+                            setMachines((prev) => prev.map((x) => (x.id === m.id ? { ...x, imageFile: null } : x)));
+                        }
+                    } catch (e) {
+                        errors.push(`Machine ${m.name || m.id} image: ${e instanceof Error ? e.message : "failed"}`);
+                    }
+                }
+                for (const gi of m.galleryImages) {
+                    if (!gi.file) continue;
+                    try {
+                        await uploadMachineGalleryImage(m.createdId, gi.file);
+                        setMachines((prev) =>
+                            prev.map((x) =>
+                                x.id === m.id
+                                    ? {
+                                          ...x,
+                                          galleryImages: x.galleryImages.map((g) =>
+                                              g.id === gi.id ? { ...g, file: null } : g
+                                          ),
+                                      }
+                                    : x
+                            )
+                        );
+                    } catch (e) {
+                        errors.push(`Gallery image: ${e instanceof Error ? e.message : "failed"}`);
+                    }
+                }
+                for (const sp of m.spareParts) {
+                    if (!sp.createdId) continue;
+                    if (sp.imageFile) {
+                        try {
+                            await uploadEntityImage("sparePart", sp.createdId, sp.imageFile);
+                            setMachines((prev) =>
+                                prev.map((x) =>
+                                    x.id === m.id
+                                        ? {
+                                              ...x,
+                                              spareParts: x.spareParts.map((s) =>
+                                                  s.id === sp.id ? { ...s, imageFile: null } : s
+                                              ),
+                                          }
+                                        : x
+                                )
+                            );
+                        } catch (e) {
+                            errors.push(`Spare part ${sp.name || sp.id} image: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
+                    if (sp.optimalStateVideoFile) {
+                        try {
+                            const vidResult = await uploadEntityVideo("sparePart", sp.createdId, sp.optimalStateVideoFile);
+                            setMachines((prev) =>
+                                prev.map((x) =>
+                                    x.id === m.id
+                                        ? {
+                                              ...x,
+                                              spareParts: x.spareParts.map((s) =>
+                                                  s.id === sp.id
+                                                      ? {
+                                                            ...s,
+                                                            optimalStateVideoFile: null,
+                                                            optimalStateVideoUrl:
+                                                                vidResult?.optimalStateVideoUrl ?? s.optimalStateVideoUrl,
+                                                        }
+                                                      : s
+                                              ),
+                                          }
+                                        : x
+                                )
+                            );
+                        } catch (e) {
+                            errors.push(`Spare part ${sp.name || sp.id} video: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
+                    for (const pt of sp.parts) {
+                        if (!pt.createdId) continue;
+                        if (pt.imageFile) {
+                            try {
+                                await uploadEntityImage("part", pt.createdId, pt.imageFile);
+                                setMachines((prev) =>
+                                    prev.map((x) =>
+                                        x.id === m.id
+                                            ? {
+                                                  ...x,
+                                                  spareParts: x.spareParts.map((s) =>
+                                                      s.id === sp.id
+                                                          ? {
+                                                                ...s,
+                                                                parts: s.parts.map((p) =>
+                                                                    p.id === pt.id ? { ...p, imageFile: null } : p
+                                                                ),
+                                                            }
+                                                          : s
+                                                  ),
+                                              }
+                                            : x
+                                    )
+                                );
+                            } catch (e) {
+                                errors.push(`Part ${pt.name || pt.id} image: ${e instanceof Error ? e.message : "failed"}`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Step 4: refresh baseline so a second click with no changes
+            // is a no-op, and emit a single toast.
+            captureBaseline(machines, newCatName, categoryImageUrl);
             if (errors.length === 0) {
-                toast.success(okCount === 0 ? "Nothing to save." : "All changes saved.");
+                toast.success("All changes saved.");
             } else {
                 toast.error(`Saved with ${errors.length} error${errors.length === 1 ? "" : "s"}: ${errors[0]}`);
                 console.warn("Bulk save errors:", errors);
@@ -1526,21 +1683,23 @@ export default function AddCategoryMachineFlow({
         }
     }, [
         categoryId,
+        categoryName,
         categoryEditName,
         categoryEditImage,
         categoryImage,
+        categoryImageUrl,
         machines,
-        handleSaveCategoryEdit,
         handleSaveMachines,
-        handleUpdateMachine,
         handleSaveSparePartsAndParts,
-        handleUpdateSparePart,
-        handleUpdatePart,
         onSuccess,
         isCategoryDirty,
         isMachineDirty,
         isSparePartDirty,
         isPartDirty,
+        captureBaseline,
+        uploadEntityImage,
+        uploadEntityVideo,
+        uploadMachineGalleryImage,
     ]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
