@@ -1930,7 +1930,7 @@ export default function AddCategoryMachineFlow({
                                     className="bg-white border border-[#d1d5db] rounded-[8px] px-3 py-2 text-gray-900 text-[13px] placeholder:text-[#4b5563] resize-y min-h-[60px]"
                                 />
                             </div>
-                            {/* <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-[#6b7280] text-[12px]">Additional images</Label>
                                     <Button
@@ -1952,12 +1952,14 @@ export default function AddCategoryMachineFlow({
                                                 className="relative w-20 h-20 rounded-lg border border-[#d1d5db] bg-white overflow-hidden flex items-center justify-center"
                                             >
                                                 {gi.file ? (
+                                                    /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img
                                                         src={URL.createObjectURL(gi.file)}
                                                         alt=""
                                                         className="w-full h-full object-cover"
                                                     />
                                                 ) : gi.imageUrl ? (
+                                                    /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img src={gi.imageUrl} alt="" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span className="text-[#4b5563] text-xs">No preview</span>
@@ -1965,11 +1967,17 @@ export default function AddCategoryMachineFlow({
                                                 <button
                                                     type="button"
                                                     onClick={() => removeMachineGalleryImage(m.id, gi.id)}
-                                                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-black/70 text-white flex items-center justify-center hover:bg-[#bf1e21] text-xs"
+                                                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-black/70 text-white flex items-center justify-center hover:bg-[#bf1e21] text-xs z-10"
                                                 >
                                                     ×
                                                 </button>
-                                                <label className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/40 hover:bg-black/50 opacity-0 hover:opacity-100 transition-opacity">
+                                                <label
+                                                    className={`absolute inset-0 flex items-center justify-center cursor-pointer transition-opacity ${
+                                                        gi.imageUrl || gi.file
+                                                            ? "bg-black/40 hover:bg-black/50 opacity-0 hover:opacity-100"
+                                                            : "bg-black/40 hover:bg-black/60 opacity-100"
+                                                    }`}
+                                                >
                                                     <input
                                                         type="file"
                                                         accept="image/jpeg,image/png,image/webp"
@@ -1979,13 +1987,16 @@ export default function AddCategoryMachineFlow({
                                                             if (file) setMachineGalleryImageFile(m.id, gi.id, file);
                                                         }}
                                                     />
-                                                    <span className="text-gray-900 text-xs">{(gi.imageUrl || gi.file) ? "Change" : "Choose"}</span>
+                                                    <span className="text-white text-xs">{(gi.imageUrl || gi.file) ? "Change" : "Choose"}</span>
                                                 </label>
                                             </div>
                                         ))}
                                     </div>
                                 )}
-                            </div> */}
+                                <p className="text-[#6b7280] text-[11px]">
+                                    Click <strong>Add image</strong> to add as many additional images as you need.
+                                </p>
+                            </div>
                                             {m.createdId && (
                                                 <div className="flex items-center gap-2">
                                                     {!isEditMode && (
