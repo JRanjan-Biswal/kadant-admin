@@ -489,7 +489,7 @@ export default function ClientOverviewContent({
                                     </span>
                                 </div>
                             </div>
-                            <AddMachineModal onSuccess={() => router.refresh()}>
+                            <AddMachineModal clientID={currentClientId} onSuccess={() => router.refresh()}>
                                 <Button
                                     className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
                                 >

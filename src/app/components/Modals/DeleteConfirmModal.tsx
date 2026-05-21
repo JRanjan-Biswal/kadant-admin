@@ -47,14 +47,16 @@ export default function DeleteConfirmModal({
             >
                 <div className="border-b border-[#607797] px-6 py-[17px]">
                     <p className="text-[#1f2937] text-xl leading-8 font-medium">{title}</p>
-                    <p className="text-[#6b7280] text-sm mt-1">{message}</p>
                 </div>
-                <div className="border-t border-[#607797] flex items-center justify-end gap-3 px-6 py-6">
+                <div className="px-6 pt-4">
+                    <p className="text-[#6b7280] text-sm">{message}</p>
+                </div>
+                <div className="flex items-center justify-end gap-3 px-6 py-6">
                     <button
                         type="button"
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="bg-[#f9fafb] text-[#1f2937] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors disabled:opacity-50"
+                        className="bg-[#f9fafb] text-[#1f2937] border border-[#d1d5db] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors disabled:opacity-50"
                     >
                         No
                     </button>
@@ -62,7 +64,7 @@ export default function DeleteConfirmModal({
                         type="button"
                         onClick={handleConfirm}
                         disabled={isLoading}
-                        className="bg-[#d45815] text-[#1f2937] px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors flex items-center gap-[9px] disabled:opacity-50"
+                        className="bg-[#d45815] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors flex items-center gap-[9px] disabled:opacity-50"
                     >
                         {isLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

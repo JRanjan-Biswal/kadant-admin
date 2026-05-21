@@ -14,11 +14,31 @@ import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategor
 interface AddMachineModalProps {
     onSuccess?: () => void;
     children?: React.ReactNode;
+    /** When set, machines created in this flow are linked to this client. */
+    clientID?: string;
 }
 
-export default function AddMachineModal({ onSuccess, children }: AddMachineModalProps) {
+export default function AddMachineModal({ onSuccess, children, clientID }: AddMachineModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const closeBlockedRef = useRef(false);
+
+    const handleMachinesCreated = useCallback(async (machineIDs: string[]) => {
+        if (!clientID || machineIDs.length === 0) return;
+        try {
+            const res = await fetch(`/api/clients/${clientID}/client-machines`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ machineIDs }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to link machines to client");
+            }
+            onSuccess?.();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to link machines to client");
+        }
+    }, [clientID, onSuccess]);
 
     const handleOpenChange = useCallback((open: boolean) => {
         if (!open && closeBlockedRef.current) {
@@ -76,6 +96,7 @@ export default function AddMachineModal({ onSuccess, children }: AddMachineModal
                         onSuccess={onSuccess}
                         onComplete={handleComplete}
                         onCloseGuardChange={handleCloseGuardChange}
+                        onMachinesCreated={clientID ? handleMachinesCreated : undefined}
                     />
                 </div>
             </DialogContent>
