@@ -256,7 +256,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
 
                 <Table>
                     <TableHeader>
-                        <TableRow className="border-border hover:bg-transparent">
+                        <TableRow className="border-[#607797] bg-[#e5e7eb] hover:bg-[#e5e7eb]">
                             <TableHead className="text-[#374151] font-semibold text-xs uppercase tracking-wider pl-5">
                                 Order ID
                             </TableHead>

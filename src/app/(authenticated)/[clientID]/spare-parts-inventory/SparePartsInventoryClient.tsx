@@ -42,16 +42,16 @@ const stockStatus = (
     stock: number,
     qtySelected: number
 ): { label: StatusLabel; bg: string; text: string } => {
-    if (stock <= 0) return { label: "Out of Stock", bg: "bg-red-500/20", text: "text-red-400" };
+    if (stock <= 0) return { label: "Out of Stock", bg: "bg-red-500/20", text: "text-red-700" };
     if (qtySelected > 0 && stock < qtySelected)
-        return { label: "Low Stocks", bg: "bg-orange-500/20", text: "text-orange-400" };
-    return { label: "In Stock", bg: "bg-green-500/20", text: "text-green-400" };
+        return { label: "Low Stocks", bg: "bg-orange-500/20", text: "text-orange-700" };
+    return { label: "In Stock", bg: "bg-green-500/20", text: "text-green-700" };
 };
 
 const statusStyle = (label: StatusLabel) => {
-    if (label === "Out of Stock") return { bg: "bg-red-500/20", text: "text-red-400" };
-    if (label === "Low Stocks") return { bg: "bg-orange-500/20", text: "text-orange-400" };
-    return { bg: "bg-green-500/20", text: "text-green-400" };
+    if (label === "Out of Stock") return { bg: "bg-red-500/20", text: "text-red-700" };
+    if (label === "Low Stocks") return { bg: "bg-orange-500/20", text: "text-orange-700" };
+    return { bg: "bg-green-500/20", text: "text-green-700" };
 };
 
 const effectiveStatus = (part: InventorySparePart) => {
@@ -119,9 +119,9 @@ const dominantAction = (schedule: MaintenanceScheduleEntry[]): "Change" | "Check
 };
 
 const actionPill = (action: string) => {
-    if (action === "Change") return "bg-orange-500/20 text-orange-300";
-    if (action === "Check") return "bg-emerald-500/20 text-emerald-300";
-    return "bg-zinc-700/40 text-zinc-300";
+    if (action === "Change") return "bg-orange-500/20 text-orange-700";
+    if (action === "Check") return "bg-emerald-500/20 text-emerald-700";
+    return "bg-zinc-200 text-zinc-700";
 };
 
 const instructionText = (
@@ -350,7 +350,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                         <p className="text-sm text-[#6b7280]">No categories.</p>
                     ) : (
                         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger className="h-11 bg-[#96A5BA] border-[#607797]">
+                            <SelectTrigger className="h-11 bg-[#DFE6EC] border-[#C5D1DC] text-[#2D3E5C] rounded-[8px]">
                                 <SelectValue placeholder="Select a category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -375,7 +375,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                         </p>
                     ) : (
                         <Select value={selectedMachine} onValueChange={setSelectedMachine}>
-                            <SelectTrigger className="h-11 bg-[#96A5BA] border-[#607797]">
+                            <SelectTrigger className="h-11 bg-[#DFE6EC] border-[#C5D1DC] text-[#2D3E5C] rounded-[8px]">
                                 <SelectValue placeholder="Select a machine" />
                             </SelectTrigger>
                             <SelectContent>
@@ -392,7 +392,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             </div>
 
             {error && (
-                <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-md p-2">
+                <div className="bg-red-500/10 border border-red-500/40 text-red-700 text-sm rounded-md p-2">
                     {error}
                 </div>
             )}
@@ -431,13 +431,13 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center py-12 text-gray-500">
                                     Loading…
                                 </TableCell>
                             </TableRow>
                         ) : inventory.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center py-12 text-gray-500">
                                     No spare parts found for this machine.
                                 </TableCell>
                             </TableRow>
@@ -460,19 +460,19 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                 return (
                                     <TableRow
                                         key={part._id}
-                                        className="border-border transition-colors hover:bg-muted/40"
+                                        className="border-[#607797]/40 transition-colors hover:bg-[#96A5BA]/20"
                                     >
-                                        <TableCell className="pl-5">
+                                        <TableCell className="pl-5 max-w-[200px]">
                                             <div className="flex flex-col gap-0.5">
-                                                <span className="font-semibold text-foreground">
+                                                <span className="font-semibold text-gray-900 block max-w-[200px] whitespace-normal break-words">
                                                     {part.name}
                                                 </span>
                                                 {part.klValue && (
-                                                    <span className="text-xs text-muted-foreground font-mono">
+                                                    <span className="text-xs text-gray-500 font-mono">
                                                         {part.klValue}
                                                     </span>
                                                 )}
-                                                <span className="text-xs text-muted-foreground">
+                                                <span className="text-xs text-gray-500">
                                                     Installed: {installedAtText(part, machineInstallDate)}
                                                 </span>
                                             </div>
@@ -483,7 +483,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                             {isEditing ? (
                                                 <div className="flex flex-col gap-1.5 text-sm">
                                                     <label className="flex items-center gap-2">
-                                                        <span className="text-foreground w-[60px]">Current</span>
+                                                        <span className="text-gray-900 w-[60px]">Current</span>
                                                         <Input
                                                             type="number"
                                                             min={0}
@@ -491,11 +491,11 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                             onChange={(e) =>
                                                                 setDraft({ ...draft!, current: Math.max(0, parseInt(e.target.value || "0", 10)) })
                                                             }
-                                                            className="h-8 w-20 bg-white border-[#d1d5db]"
+                                                            className="h-8 w-20 bg-white border-[#d1d5db] text-gray-900"
                                                         />
                                                     </label>
                                                     <label className="flex items-center gap-2">
-                                                        <span className="text-muted-foreground w-[60px]">Required</span>
+                                                        <span className="text-gray-600 w-[60px]">Required</span>
                                                         <Input
                                                             type="number"
                                                             min={0}
@@ -503,20 +503,20 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                             onChange={(e) =>
                                                                 setDraft({ ...draft!, required: Math.max(0, parseInt(e.target.value || "0", 10)) })
                                                             }
-                                                            className="h-8 w-20 bg-white border-[#d1d5db]"
+                                                            className="h-8 w-20 bg-white border-[#d1d5db] text-gray-900"
                                                         />
                                                     </label>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-0.5 text-sm">
-                                                    <span className="text-foreground">Current - {stock}</span>
-                                                    <span className="text-muted-foreground">Required - {required}</span>
+                                                    <span className="text-gray-900">Current - {stock}</span>
+                                                    <span className="text-gray-600">Required - {required}</span>
                                                 </div>
                                             )}
                                         </TableCell>
 
                                         {/* Delivery Time */}
-                                        <TableCell className="text-muted-foreground text-sm">
+                                        <TableCell className="text-gray-700 text-sm">
                                             {isEditing ? (
                                                 <div className="flex items-center gap-2">
                                                     <Input
@@ -526,7 +526,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         onChange={(e) =>
                                                             setDraft({ ...draft!, deliveryWeeks: Math.max(0, parseInt(e.target.value || "0", 10)) })
                                                         }
-                                                        className="h-8 w-20 bg-white border-[#d1d5db]"
+                                                        className="h-8 w-20 bg-white border-[#d1d5db] text-gray-900"
                                                     />
                                                     <span>Weeks</span>
                                                 </div>
@@ -536,7 +536,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                         </TableCell>
 
                                         {/* Frequency */}
-                                        <TableCell className="text-muted-foreground text-sm">
+                                        <TableCell className="text-gray-700 text-sm">
                                             {isEditing ? (
                                                 <div className="flex items-center gap-2">
                                                     <span>Every</span>
@@ -547,7 +547,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         onChange={(e) =>
                                                             setDraft({ ...draft!, frequencyWeeks: Math.max(0, parseInt(e.target.value || "0", 10)) })
                                                         }
-                                                        className="h-8 w-20 bg-white border-[#d1d5db]"
+                                                        className="h-8 w-20 bg-white border-[#d1d5db] text-gray-900"
                                                     />
                                                     <span>weeks</span>
                                                 </div>
@@ -583,7 +583,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                         </TableCell>
 
                                         {/* Instructions */}
-                                        <TableCell className="text-muted-foreground text-xs max-w-[260px]">
+                                        <TableCell className="text-gray-700 text-xs max-w-[220px]">
                                             {isEditing ? (
                                                 <textarea
                                                     rows={2}
@@ -591,10 +591,10 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                     onChange={(e) =>
                                                         setDraft({ ...draft!, instructions: e.target.value })
                                                     }
-                                                    className="w-full text-xs bg-white border border-[#96A5BA] rounded px-2 py-1 text-foreground"
+                                                    className="w-full text-xs bg-white border border-[#96A5BA] rounded px-2 py-1 text-gray-900"
                                                 />
                                             ) : (
-                                                <span className="line-clamp-2 break-words leading-snug">
+                                                <span className="block leading-snug max-w-[220px] whitespace-normal break-words">
                                                     {instructionText(part, status.label)}
                                                 </span>
                                             )}
@@ -639,7 +639,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         <button
                                                             onClick={() => saveInline(part)}
                                                             disabled={saving}
-                                                            className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer disabled:opacity-50"
+                                                            className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer disabled:opacity-50"
                                                             title="Save"
                                                         >
                                                             {saving ? (
@@ -652,7 +652,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         <button
                                                             onClick={cancelEdit}
                                                             disabled={saving}
-                                                            className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer disabled:opacity-50"
+                                                            className="inline-flex items-center gap-1 text-zinc-600 hover:text-zinc-800 transition-colors cursor-pointer disabled:opacity-50"
                                                             title="Cancel"
                                                         >
                                                             <X className="w-4 h-4" />

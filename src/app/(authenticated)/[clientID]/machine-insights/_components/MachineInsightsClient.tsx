@@ -426,7 +426,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
             )}
 
             <InsightSection
-                title="Metrix"
+                title="Matrix"
                 onEdit={editingSection === "metrix" ? undefined : () => startEditSection("metrix")}
                 isEditing={editingSection === "metrix"}
                 onSave={saveEditSection}
