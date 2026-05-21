@@ -197,6 +197,7 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     <Input
                                         type="date"
                                         {...field}
+                                        onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
                                         className={`hide-native-date-icon bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 text-gray-900 text-[16px] font-lato placeholder:text-[#4b5563] focus-visible:ring-0 focus-visible:ring-offset-0`}
                                     />
                                 )}

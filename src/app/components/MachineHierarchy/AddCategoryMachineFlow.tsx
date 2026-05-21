@@ -681,6 +681,42 @@ export default function AddCategoryMachineFlow({
         }
     }, []);
 
+    /**
+     * POSTs a single new part for an already-persisted spare part, then uploads
+     * its image / optimal-state video. Throws on failure (no toast / no state
+     * change) so callers can decide how to surface success or errors. Used both
+     * by the per-row "Create" button and the edit-mode bulk save.
+     */
+    const persistNewPart = useCallback(
+        async (
+            machineCreatedId: string,
+            sparePartCreatedId: string,
+            pt: PartRow
+        ): Promise<{ id: string; imageUrl: string | null }> => {
+            const name = pt.name.trim();
+            const partRes = await fetch("/api/machines/spare-parts-part", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, machineID: machineCreatedId, sparePartID: sparePartCreatedId }),
+            });
+            if (!partRes.ok) {
+                const err = await partRes.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to add part");
+            }
+            const partData = await partRes.json();
+            let imageUrl: string | null = partData.imageUrl ?? null;
+            if (pt.imageFile) {
+                const imgResult = await uploadEntityImage("part", partData._id, pt.imageFile);
+                imageUrl = imgResult?.imageUrl ?? imageUrl;
+            }
+            if (pt.optimalStateVideoFile) {
+                await uploadEntityVideo("part", partData._id, pt.optimalStateVideoFile);
+            }
+            return { id: partData._id as string, imageUrl };
+        },
+        [uploadEntityImage, uploadEntityVideo]
+    );
+
     const handleAddCategory = useCallback(async () => {
         const name = categoryName.trim();
         if (!name) {
@@ -1235,8 +1271,13 @@ export default function AddCategoryMachineFlow({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to update part");
             }
+            // Keep the existing image visible after a save; only swap it when a
+            // new file was actually uploaded. (Previously this reset imageUrl to
+            // undefined, wiping the preview whenever a part was updated.)
+            let nextImageUrl: string | null | undefined = pt.imageUrl;
             if (pt.imageFile) {
-                await uploadEntityImage("part", pt.createdId, pt.imageFile);
+                const imgResult = await uploadEntityImage("part", pt.createdId, pt.imageFile);
+                nextImageUrl = imgResult?.imageUrl ?? nextImageUrl;
             }
             if (pt.optimalStateVideoFile) {
                 const vidResult = await uploadEntityVideo("part", pt.createdId, pt.optimalStateVideoFile);
@@ -1250,7 +1291,7 @@ export default function AddCategoryMachineFlow({
                                           ? {
                                                 ...s,
                                                 parts: s.parts.map((p) =>
-                                                    p.id === partId ? { ...p, imageUrl: undefined, imageFile: null, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? p.optimalStateVideoUrl } : p
+                                                    p.id === partId ? { ...p, imageUrl: nextImageUrl, imageFile: null, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? p.optimalStateVideoUrl } : p
                                                 ),
                                             }
                                           : s
@@ -1269,7 +1310,7 @@ export default function AddCategoryMachineFlow({
                                       s.id === sparePartId
                                           ? {
                                                 ...s,
-                                                parts: s.parts.map((p) => (p.id === partId ? { ...p, imageFile: null, optimalStateVideoFile: null } : p)),
+                                                parts: s.parts.map((p) => (p.id === partId ? { ...p, imageUrl: nextImageUrl, imageFile: null, optimalStateVideoFile: null } : p)),
                                             }
                                           : s
                                   ),
@@ -1286,6 +1327,58 @@ export default function AddCategoryMachineFlow({
             setLoading(null);
         }
     }, [machines, uploadEntityImage, uploadEntityVideo, onSuccess]);
+
+    /**
+     * Creates a NEW part on an already-saved spare part. The "Save Spare Parts
+     * & Parts" / bulk-edit flows only persist parts for brand-new spare parts,
+     * so parts added via "Add Part" on an existing spare part need this path —
+     * without it the new part row is never uploaded.
+     */
+    const handleCreatePart = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
+        const machine = machines.find((m) => m.id === machineRowId);
+        const sp = machine?.spareParts.find((s) => s.id === sparePartId);
+        const pt = sp?.parts.find((p) => p.id === partId);
+        if (!machine?.createdId || !sp?.createdId || !pt) return;
+        if (!pt.name.trim()) {
+            toast.error("Part name is required");
+            return;
+        }
+        if (!pt.imageFile) {
+            toast.error("Part image is required");
+            return;
+        }
+        setLoading(`part-create-${partId}`);
+        try {
+            const { id: createdId, imageUrl } = await persistNewPart(machine.createdId, sp.createdId, pt);
+            setMachines((prev) =>
+                prev.map((m) =>
+                    m.id === machineRowId
+                        ? {
+                              ...m,
+                              spareParts: m.spareParts.map((s) =>
+                                  s.id === sparePartId
+                                      ? {
+                                            ...s,
+                                            parts: s.parts.map((p) =>
+                                                p.id === partId
+                                                    ? { ...p, createdId, imageUrl, imageFile: null, optimalStateVideoFile: null }
+                                                    : p
+                                            ),
+                                        }
+                                      : s
+                              ),
+                          }
+                        : m
+                )
+            );
+            toast.success("Part added.");
+            onSuccess?.();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to add part");
+        } finally {
+            setLoading(null);
+        }
+    }, [machines, persistNewPart, onSuccess]);
 
     const handleSaveSparePartsAndParts = useCallback(async (machineRowId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
@@ -1470,6 +1563,65 @@ export default function AddCategoryMachineFlow({
                 }
             }
 
+            // ── Step 1b: create NEW parts added to EXISTING spare parts.
+            // handleSaveSparePartsAndParts only persists parts for brand-new
+            // spare parts, so parts added via "Add Part" on an already-saved
+            // spare part need their own POST here.
+            const createdParts: Array<{
+                machineId: string;
+                sparePartId: string;
+                partId: string;
+                createdId: string;
+                imageUrl: string | null;
+            }> = [];
+            for (const m of machines) {
+                if (!m.createdId) continue;
+                for (const sp of m.spareParts) {
+                    if (!sp.createdId) continue;
+                    const newParts = sp.parts.filter(
+                        (pt) => !pt.createdId && pt.name.trim() && pt.imageFile
+                    );
+                    for (const pt of newParts) {
+                        try {
+                            const { id: createdId, imageUrl } = await persistNewPart(m.createdId, sp.createdId, pt);
+                            createdParts.push({ machineId: m.id, sparePartId: sp.id, partId: pt.id, createdId, imageUrl });
+                        } catch (e) {
+                            errors.push(`New part for ${sp.name || sp.id}: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
+                }
+            }
+            if (createdParts.length > 0) {
+                setMachines((prev) =>
+                    prev.map((m) => {
+                        const forMachine = createdParts.filter((c) => c.machineId === m.id);
+                        if (forMachine.length === 0) return m;
+                        return {
+                            ...m,
+                            spareParts: m.spareParts.map((s) => {
+                                const forSP = forMachine.filter((c) => c.sparePartId === s.id);
+                                if (forSP.length === 0) return s;
+                                return {
+                                    ...s,
+                                    parts: s.parts.map((p) => {
+                                        const hit = forSP.find((c) => c.partId === p.id);
+                                        return hit
+                                            ? {
+                                                  ...p,
+                                                  createdId: hit.createdId,
+                                                  imageUrl: hit.imageUrl,
+                                                  imageFile: null,
+                                                  optimalStateVideoFile: null,
+                                              }
+                                            : p;
+                                    }),
+                                };
+                            }),
+                        };
+                    })
+                );
+            }
+
             // ── Step 2: single bulk PUT for all text-field edits on existing
             // rows. Server diffs vs DB and only writes what's actually
             // different, so this replaces what used to be N+M+P sequential
@@ -1640,7 +1792,7 @@ export default function AddCategoryMachineFlow({
                         if (!pt.createdId) continue;
                         if (pt.imageFile) {
                             try {
-                                await uploadEntityImage("part", pt.createdId, pt.imageFile);
+                                const imgResult = await uploadEntityImage("part", pt.createdId, pt.imageFile);
                                 setMachines((prev) =>
                                     prev.map((x) =>
                                         x.id === m.id
@@ -1651,7 +1803,9 @@ export default function AddCategoryMachineFlow({
                                                           ? {
                                                                 ...s,
                                                                 parts: s.parts.map((p) =>
-                                                                    p.id === pt.id ? { ...p, imageFile: null } : p
+                                                                    p.id === pt.id
+                                                                        ? { ...p, imageFile: null, imageUrl: imgResult?.imageUrl ?? p.imageUrl }
+                                                                        : p
                                                                 ),
                                                             }
                                                           : s
@@ -1691,6 +1845,7 @@ export default function AddCategoryMachineFlow({
         machines,
         handleSaveMachines,
         handleSaveSparePartsAndParts,
+        persistNewPart,
         onSuccess,
         isCategoryDirty,
         isMachineDirty,
@@ -2233,14 +2388,32 @@ export default function AddCategoryMachineFlow({
                                                                 </>
                                                             ) : null}
                                                             {!pt.createdId && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => removePart(m.id, sp.id, pt.id)}
-                                                                    className="p-1 text-[#6b7280] hover:text-red-400 shrink-0"
-                                                                    title="Remove part"
-                                                                >
-                                                                    <X className="w-3 h-3" />
-                                                                </button>
+                                                                <>
+                                                                    {sp.createdId && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            onClick={() => handleCreatePart(m.id, sp.id, pt.id)}
+                                                                            disabled={
+                                                                                loading === `part-create-${pt.id}` ||
+                                                                                !pt.name.trim() ||
+                                                                                !pt.imageFile
+                                                                            }
+                                                                            className="h-8 px-2 text-[#d45815] hover:bg-[#d45815]/10 text-xs"
+                                                                        >
+                                                                            {loading === `part-create-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Create"}
+                                                                        </Button>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removePart(m.id, sp.id, pt.id)}
+                                                                        className="p-1 text-[#6b7280] hover:text-red-400 shrink-0"
+                                                                        title="Remove part"
+                                                                    >
+                                                                        <X className="w-3 h-3" />
+                                                                    </button>
+                                                                </>
                                                             )}
                                                         </div>
                                                         <VideoUploadBox

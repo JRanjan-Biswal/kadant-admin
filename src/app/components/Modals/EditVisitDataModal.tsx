@@ -58,7 +58,7 @@ function isVideoUrl(url: string): boolean {
 function MediaPreview({ url, onRemove }: { url: string; onRemove: () => void }) {
     const isVideo = isVideoUrl(url);
     return (
-        <div className="relative group rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+        <div className="relative group rounded-[8px] overflow-hidden bg-[#f9fafb] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
             {isVideo ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : (
@@ -82,7 +82,7 @@ function UploadMediaBox({ label, onTrigger, uploading }: { label: string; onTrig
             type="button"
             onClick={onTrigger}
             disabled={uploading}
-            className="w-[80px] h-[60px] rounded-[8px] border border-dashed border-[#d1d5db] bg-[#96A5BA] flex flex-col items-center justify-center gap-0.5 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
+            className="w-[80px] h-[60px] rounded-[8px] border border-dashed border-[#D45815]/50 bg-[#f9fafb] flex flex-col items-center justify-center gap-0.5 text-[#6b7280] hover:border-[#D45815] hover:text-[#D45815] transition-colors disabled:opacity-50"
         >
             {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
             <span className="text-[10px]">{uploading ? "..." : label}</span>
@@ -117,6 +117,7 @@ export default function EditVisitDataModal({
     const [clientMachines, setClientMachines] = useState<{ _id: string; machine: { _id: string; name: string } }[]>([]);
     const [spareParts, setSpareParts] = useState<{ _id: string; name: string; originalName?: string }[]>([]);
     const [loadingSpareParts, setLoadingSpareParts] = useState(false);
+    const [loadingOptimalState, setLoadingOptimalState] = useState(false);
     const [newMachineIssue, setNewMachineIssue] = useState({
         machineId: "",
         sparePartId: "",
@@ -170,14 +171,15 @@ export default function EditVisitDataModal({
             setMachineIssues(data.machineIssues || []);
 
             const d = data as SiteVisit;
-            const dateStr = d.nextScheduledVisit
-                ? new Date(d.nextScheduledVisit).toISOString().slice(0, 10)
+            const rawDate = d.nextScheduledVisit || d.lastVisitOn || "";
+            const dateStr = rawDate
+                ? new Date(rawDate).toISOString().slice(0, 10)
                 : "";
             setValue("nextScheduledVisit", dateStr);
             setValue("visitType", Array.isArray(d.visitType) ? d.visitType : []);
             setValue(
                 "assignedEngineer",
-                (d.assignedEngineer as unknown as string) ?? ""
+                (d.assignedEngineer as unknown as string) || d.engineer?.name || ""
             );
             setValue("clientRepresentative", d.clientRepresentative ?? "");
             setValue("clientRepresentativeDesignation", d.clientRepresentativeDesignation ?? "");
@@ -243,6 +245,50 @@ export default function EditVisitDataModal({
             setLoadingSpareParts(false);
         }
     }, [clientID]);
+
+    // Pull the spare part's stored optimal-state media (images + videos
+    // uploaded for that part on this client machine) and prefill it into the
+    // New Machine Issue form's "Optimal state" field.
+    const fetchOptimalStateForSparePart = useCallback(
+        async (machineId: string, sparePartId: string) => {
+            if (!clientID || !machineId || !sparePartId) return;
+            setLoadingOptimalState(true);
+            try {
+                const base = `/api/clients/${clientID}/client-machines/spare-parts`;
+                const [imgRes, vidRes] = await Promise.all([
+                    fetch(`${base}/spare-parts-uploaded-images/${machineId}`, { cache: "no-store" }),
+                    fetch(`${base}/spare-parts-uploaded-videos/${machineId}`, { cache: "no-store" }),
+                ]);
+                const imgData = imgRes.ok ? await imgRes.json() : [];
+                const vidData = vidRes.ok ? await vidRes.json() : [];
+                const items = [
+                    ...(Array.isArray(imgData) ? imgData : []),
+                    ...(Array.isArray(vidData) ? vidData : []),
+                ] as Array<Record<string, unknown>>;
+                const urls = items
+                    .filter((it) => {
+                        const sp = it.sparePart as { _id?: string } | string | undefined;
+                        const id = typeof sp === "string" ? sp : sp?._id;
+                        return id === sparePartId;
+                    })
+                    .map(
+                        (it) =>
+                            (it.imageUrl ||
+                                it.photoUrl ||
+                                it.videoUrl ||
+                                it.url ||
+                                it.image) as string | undefined
+                    )
+                    .filter((u): u is string => !!u);
+                setNewMachineIssue((p) => ({ ...p, optimalStateMediaUrls: urls }));
+            } catch {
+                // ignore — optimal state stays empty, engineer can upload manually
+            } finally {
+                setLoadingOptimalState(false);
+            }
+        },
+        [clientID]
+    );
 
     useEffect(() => {
         if (open) setIsViewMode(viewOnly);
@@ -699,7 +745,7 @@ export default function EditVisitDataModal({
                             <button
                                 type="button"
                                 onClick={() => setIsViewMode(false)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#D45815] hover:bg-[#b8480f] text-white text-[14px] font-medium transition-colors"
                             >
                                 <Pencil className="w-4 h-4" />
                                 Edit
@@ -743,6 +789,7 @@ export default function EditVisitDataModal({
                                                 <Input
                                                     type="date"
                                                     {...field}
+                                                    onClick={(e) => !isViewMode && (e.currentTarget as HTMLInputElement).showPicker?.()}
                                                     disabled={isViewMode}
                                                     className={`bg-[#e5e7eb] border ${getFieldErrorClass(!!errors.nextScheduledVisit)} h-[50px] rounded-[10px] px-4 pr-12 text-gray-900 text-[16px] placeholder:text-[#4b5563] focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-0 disabled:opacity-70 disabled:cursor-not-allowed`}
                                                 />
@@ -869,7 +916,7 @@ export default function EditVisitDataModal({
                                         <Button
                                             type="button"
                                             onClick={() => setShowAddMachineIssue((v) => !v)}
-                                            className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[14px] font-medium h-9 px-4 rounded-[10px]"
+                                            className="bg-[#D45815] hover:bg-[#b8480f] text-white text-[14px] font-medium h-9 px-4 rounded-[10px]"
                                         >
                                             {showAddMachineIssue ? "Cancel" : "+ Add Machine Issue"}
                                         </Button>
@@ -919,7 +966,7 @@ export default function EditVisitDataModal({
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.optimalStateMediaUrls ?? []).map((url, ui) => (
                                                         isViewMode
-                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#f9fafb] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
                                                                 {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
                                                               </div>
                                                             : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "optimal", url, false)} />
@@ -938,7 +985,7 @@ export default function EditVisitDataModal({
                                                 <div className="flex flex-wrap gap-2 items-start">
                                                     {(issue.currentVisitMediaUrls ?? []).map((url, ui) => (
                                                         isViewMode
-                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#96A5BA] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
+                                                            ? <div key={ui} className="relative rounded-[8px] overflow-hidden bg-[#f9fafb] border border-[#d1d5db] flex items-center justify-center w-full aspect-square max-w-[80px] min-h-[60px]">
                                                                 {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
                                                               </div>
                                                             : <MediaPreview key={ui} url={url} onRemove={() => updateIssueMedia(index, "current", url, false)} />
@@ -973,12 +1020,13 @@ export default function EditVisitDataModal({
                                                             machineName: name ?? "",
                                                             sparePartId: "",
                                                             sparePartName: "",
+                                                            optimalStateMediaUrls: [],
                                                         }));
                                                         setSpareParts([]);
                                                         fetchSparePartsForMachine(value);
                                                     }}
                                                 >
-                                                    <SelectTrigger className="bg-[#96A5BA] w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-white w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select machine" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
@@ -1005,10 +1053,11 @@ export default function EditVisitDataModal({
                                                             sparePartId: value,
                                                             sparePartName: chosen?.name ?? "",
                                                         }));
+                                                        fetchOptimalStateForSparePart(newMachineIssue.machineId, value);
                                                     }}
                                                     disabled={!newMachineIssue.machineId || loadingSpareParts}
                                                 >
-                                                    <SelectTrigger className="bg-[#96A5BA] w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0 disabled:opacity-50">
+                                                    <SelectTrigger className="bg-white w-full border border-[#d1d5db] !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0 disabled:opacity-50">
                                                         <SelectValue placeholder={loadingSpareParts ? "Loading..." : "Select spare part"} />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
@@ -1028,7 +1077,7 @@ export default function EditVisitDataModal({
                                                     value={newMachineIssue.status}
                                                     onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, status: v }))}
                                                 >
-                                                    <SelectTrigger className="bg-[#96A5BA] border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
+                                                    <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                         <SelectValue placeholder="Select status" />
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
@@ -1048,7 +1097,7 @@ export default function EditVisitDataModal({
                                                 value={newMachineIssue.conditionAlert}
                                                 onChange={(e) => setNewMachineIssue((p) => ({ ...p, conditionAlert: e.target.value }))}
                                                 rows={2}
-                                                className="bg-[#96A5BA] border border-[#d1d5db] rounded-[10px] px-4 py-3 text-gray-900 text-[14px] placeholder:text-[#4b5563] focus-visible:ring-0 resize-none outline-none"
+                                                className="bg-white border border-[#d1d5db] rounded-[10px] px-4 py-3 text-gray-900 text-[14px] placeholder:text-[#4b5563] focus-visible:ring-0 resize-none outline-none"
                                                 placeholder="Describe the condition..."
                                             />
                                         </div>
@@ -1059,7 +1108,7 @@ export default function EditVisitDataModal({
                                                 value={newMachineIssue.actionNeeded}
                                                 onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, actionNeeded: v }))}
                                             >
-                                                <SelectTrigger className="bg-[#96A5BA] border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
+                                                <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
                                                     <SelectValue placeholder="Select action" />
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
@@ -1073,7 +1122,10 @@ export default function EditVisitDataModal({
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-gray-900 text-[14px]">Optimal state</Label>
+                                                <Label className="text-gray-900 text-[14px] flex items-center gap-2">
+                                                    Optimal state
+                                                    {loadingOptimalState && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                                </Label>
                                                 <input
                                                     ref={optimalInputRef}
                                                     type="file"
@@ -1089,7 +1141,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => optimalInputRef.current?.click()}
                                                         disabled={uploadingMedia === "optimal"}
-                                                        className="bg-[#96A5BA] border border-[#d1d5db] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
+                                                        className="bg-[#f9fafb] border border-dashed border-[#D45815]/50 h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#D45815] hover:text-[#D45815] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "optimal" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>
@@ -1113,7 +1165,7 @@ export default function EditVisitDataModal({
                                                         type="button"
                                                         onClick={() => currentInputRef.current?.click()}
                                                         disabled={uploadingMedia === "current"}
-                                                        className="bg-[#96A5BA] border border-[#d1d5db] border-dashed h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#4b5563] hover:text-[#6b7280] transition-colors disabled:opacity-50"
+                                                        className="bg-[#f9fafb] border border-dashed border-[#D45815]/50 h-[80px] min-w-[80px] w-full rounded-[10px] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#D45815] hover:text-[#D45815] transition-colors disabled:opacity-50"
                                                     >
                                                         {uploadingMedia === "current" ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
                                                         <span className="text-[12px]">Upload image/video</span>
@@ -1130,14 +1182,14 @@ export default function EditVisitDataModal({
                                                     setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", conditionAlert: "", actionNeeded: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [] });
                                                     setSpareParts([]);
                                                 }}
-                                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900 hover:bg-[#333] rounded-[10px] h-9 px-4"
+                                                className="bg-[#e5e7eb] border-[#d1d5db] text-gray-900 hover:bg-[#d1d5db] rounded-[10px] h-9 px-4"
                                             >
                                                 Cancel
                                             </Button>
                                             <Button
                                                 type="button"
                                                 onClick={handleAddMachineIssue}
-                                                className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white rounded-[10px] h-9 px-4"
+                                                className="bg-[#D45815] hover:bg-[#b8480f] text-white rounded-[10px] h-9 px-4"
                                             >
                                                 Add Issue
                                             </Button>
@@ -1160,7 +1212,7 @@ export default function EditVisitDataModal({
                                 <Button
                                     type="submit"
                                     disabled={submitting}
-                                    className="bg-[#ff6900] hover:bg-[#ff6900]/90 text-white text-[16px] font-bold px-8 py-3 rounded-[10px] h-auto"
+                                    className="bg-[#D45815] hover:bg-[#b8480f] text-white text-[16px] font-bold px-8 py-3 rounded-[10px] h-auto"
                                 >
                                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Visit"}
                                 </Button>

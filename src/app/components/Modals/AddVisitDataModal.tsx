@@ -948,6 +948,7 @@ export default function AddVisitDataModal({
                                             <Input
                                                 type="date"
                                                 {...field}
+                                                onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
                                                 className={`bg-white border ${getFieldErrorClass(
                                                     !!errors.nextScheduledVisit
                                                 )} h-[46px] rounded-[10px] px-4 pr-12 text-[#1f2937] text-base placeholder:text-[#4a4a4a] focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5`}
