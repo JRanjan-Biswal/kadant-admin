@@ -179,6 +179,8 @@ interface NewMachineIssue {
     categoryName: string;
     machineId: string;
     machineName: string;
+    sparePartId: string;
+    sparePartName: string;
     status: string;
     conditionAlert: string;
     actionNeeded: string;
@@ -192,6 +194,8 @@ const EMPTY_ISSUE: NewMachineIssue = {
     categoryName: "",
     machineId: "",
     machineName: "",
+    sparePartId: "",
+    sparePartName: "",
     status: "",
     conditionAlert: "",
     actionNeeded: "",
@@ -546,8 +550,8 @@ export default function AddVisitDataModal({
     };
 
     const handleAddMachineIssue = () => {
-        if (!newIssue.machineId || !newIssue.status) {
-            toast.error("Select machine and status");
+        if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status) {
+            toast.error("Select machine, spare part, and status");
             return;
         }
         setMachineIssues((prev) => [
@@ -555,6 +559,8 @@ export default function AddVisitDataModal({
             {
                 machineId: newIssue.machineId,
                 machineName: newIssue.machineName,
+                sparePartId: newIssue.sparePartId,
+                sparePartName: newIssue.sparePartName,
                 categoryName: newIssue.categoryName,
                 status: newIssue.status,
                 conditionAlert: newIssue.conditionAlert,
@@ -893,7 +899,7 @@ export default function AddVisitDataModal({
                                         const chipDate = format(parseISO(date), "yyyy-MM-dd");
                                         const selected =
                                             !useCustomDate &&
-                                            watch("nextScheduledVisit") === chipDate;
+                                            selectedChipVisitId === id;
                                         return (
                                             <button
                                                 key={id}
@@ -1302,6 +1308,8 @@ export default function AddVisitDataModal({
                                                         categoryName: cat?.name || "",
                                                         machineId: "",
                                                         machineName: "",
+                                                        sparePartId: "",
+                                                        sparePartName: "",
                                                         sparePartMedia: [],
                                                     }));
                                                     setFilteredMachines(cat?.machines || []);
@@ -1339,6 +1347,8 @@ export default function AddVisitDataModal({
                                                         ...p,
                                                         machineId: value,
                                                         machineName: machine?.name ?? "",
+                                                        sparePartId: "",
+                                                        sparePartName: "",
                                                         sparePartMedia: [],
                                                     }));
                                                     fetchSparePartsForMachine(value);
@@ -1367,6 +1377,52 @@ export default function AddVisitDataModal({
                                                 </SelectContent>
                                             </Select>
                                         </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-[#6b7280] text-sm">
+                                            Spare Part *
+                                        </Label>
+                                        <Select
+                                            value={newIssue.sparePartId}
+                                            onValueChange={(value) => {
+                                                const sp = spareParts.find(
+                                                    (s) => s._id === value
+                                                );
+                                                setNewIssue((p) => ({
+                                                    ...p,
+                                                    sparePartId: value,
+                                                    sparePartName: sp?.name || "",
+                                                }));
+                                            }}
+                                            disabled={!newIssue.machineId || loadingSpareParts}
+                                        >
+                                            <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0 disabled:opacity-50">
+                                                <SelectValue
+                                                    placeholder={
+                                                        !newIssue.machineId
+                                                            ? "Select machine first"
+                                                            : loadingSpareParts
+                                                            ? "Loading spare parts..."
+                                                            : spareParts.length === 0
+                                                            ? "No spare parts for this machine"
+                                                            : "Select spare part"
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white border-[#d1d5db]">
+                                                {spareParts.map((sp) => (
+                                                    <SelectItem
+                                                        key={sp._id}
+                                                        value={sp._id}
+                                                        className="text-[#1f2937] hover:bg-[#f3f4f6]"
+                                                    >
+                                                        {sp.name}
+                                                        {sp.klValue ? ` — ${sp.klValue}` : ""}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="flex flex-col gap-2">

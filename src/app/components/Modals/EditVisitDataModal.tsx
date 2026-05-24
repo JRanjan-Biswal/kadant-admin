@@ -171,7 +171,11 @@ export default function EditVisitDataModal({
             setMachineIssues(data.machineIssues || []);
 
             const d = data as SiteVisit;
-            const rawDate = d.nextScheduledVisit || d.lastVisitOn || "";
+            // Edit is opened from the Visit History table, so the relevant
+            // date is the one the visit actually happened on. Prefer
+            // lastVisitOn; fall back to nextScheduledVisit for edge cases
+            // (scheduled-only visit opened in edit mode).
+            const rawDate = d.lastVisitOn || d.nextScheduledVisit || "";
             const dateStr = rawDate
                 ? new Date(rawDate).toISOString().slice(0, 10)
                 : "";
@@ -450,11 +454,22 @@ export default function EditVisitDataModal({
     const onSubmit = async (data: VisitFormData) => {
         setSubmitting(true);
         try {
+            // If the loaded visit had lastVisitOn set, this is a completed
+            // visit being edited from Visit History — the date field maps to
+            // lastVisitOn and nextScheduledVisit must be cleared so the
+            // record stays in History instead of bouncing to Upcoming.
+            // Otherwise (scheduled-only record), treat the date as
+            // nextScheduledVisit.
+            const isCompletedVisit = !!visit?.lastVisitOn;
+            const dateFields = isCompletedVisit
+                ? { lastVisitOn: data.nextScheduledVisit, nextScheduledVisit: null }
+                : { nextScheduledVisit: data.nextScheduledVisit };
+
             const res = await fetch(`/api/clients/${clientID}/site-visits/${visitId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    nextScheduledVisit: data.nextScheduledVisit,
+                    ...dateFields,
                     visitType: data.visitType,
                     assignedEngineer: data.assignedEngineer,
                     clientRepresentative: data.clientRepresentative,
