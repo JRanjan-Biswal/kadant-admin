@@ -40,7 +40,7 @@ const SparePartSelector: React.FC<SparePartSelectorProps> = ({
                         Select Spare Part
                     </p>
                     {selectedPart && (
-                        <span className="text-sm text-foreground font-medium mt-1">
+                        <span className="text-xl text-[#374151] font-bold mt-1">
                             {selectedPart.name}
                         </span>
                     )}
