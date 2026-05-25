@@ -846,6 +846,18 @@ export default function EditVisitDataModal({
                                                 Mechanical Audit
                                             </Label>
                                         </div>
+                                        <div className="flex gap-3 items-center">
+                                            <Checkbox
+                                                id="edit-general-visit"
+                                                checked={visitType.includes("General Visit")}
+                                                onCheckedChange={() => handleVisitTypeChange("General Visit")}
+                                                disabled={isViewMode}
+                                                className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#d45815] data-[state=checked]:border-[#d45815] border-2 border-[#607797] data-[state=checked]:text-white disabled:opacity-70 disabled:cursor-not-allowed"
+                                            />
+                                            <Label htmlFor="edit-general-visit" className="text-gray-900 text-[16px] leading-[24px] font-normal cursor-pointer">
+                                                General Visit
+                                            </Label>
+                                        </div>
                                     </div>
                                     {errors.visitType && (
                                         <p className="text-red-500 text-sm">{errors.visitType.message}</p>

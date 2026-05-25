@@ -1010,6 +1010,22 @@ export default function AddVisitDataModal({
                                         Mechanical Audit
                                     </Label>
                                 </div>
+                                <div className="flex gap-2 items-center">
+                                    <Checkbox
+                                        id="add-general-visit"
+                                        checked={visitType.includes("General Visit")}
+                                        onCheckedChange={() =>
+                                            handleVisitTypeChange("General Visit")
+                                        }
+                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#D45815] data-[state=checked]:border-[#D45815] border-2 border-[#9ca3af] data-[state=checked]:text-white"
+                                    />
+                                    <Label
+                                        htmlFor="add-general-visit"
+                                        className="text-[#1f2937] text-base cursor-pointer"
+                                    >
+                                        General Visit
+                                    </Label>
+                                </div>
                             </div>
                             {errors.visitType && (
                                 <p className="text-red-500 text-sm">

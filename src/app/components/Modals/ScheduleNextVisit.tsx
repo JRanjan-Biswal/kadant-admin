@@ -236,6 +236,17 @@ export default function ScheduleNextVisit({ clientID, onAddSiteVisit, children }
                                     Mechanical Audit
                                 </Label>
                             </div>
+                            <div className="flex gap-3 items-center">
+                                <Checkbox
+                                    id="general-visit"
+                                    checked={visitType.includes('General Visit')}
+                                    onCheckedChange={() => handleVisitTypeChange("General Visit", visitType)}
+                                    className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#2D3E5C] data-[state=checked]:border-[#2D3E5C] border-2 border-[#607797] data-[state=checked]:text-white"
+                                />
+                                <Label htmlFor="general-visit" className="text-gray-900 text-[16px] leading-[24px] font-lato font-normal cursor-pointer">
+                                    General Visit
+                                </Label>
+                            </div>
                         </div>
                         {errors.visitType && (
                             <p className="text-red-500 text-sm">{errors.visitType.message as string}</p>

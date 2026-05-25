@@ -407,17 +407,22 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                         {
                                             (visit.visitType?.length) ? (
                                                 visit.visitType.map((type, idx) => {
-                                                    const isProcess = type === "Process Audit";
+                                                    const badgeStyles: Record<string, { bg: string; text: string }> = {
+                                                        "Process Audit":    { bg: "bg-[rgba(255,105,0,0.2)]",  text: "text-[#c2410c]" },
+                                                        "Mechanical Audit": { bg: "bg-[rgba(43,127,255,0.2)]", text: "text-[#1d4ed8]" },
+                                                        "General Visit":    { bg: "bg-[rgba(147,51,234,0.2)]", text: "text-[#7e22ce]" },
+                                                    };
+                                                    const { bg, text } = badgeStyles[type] ?? { bg: "bg-gray-200", text: "text-gray-700" };
                                                     return (
                                                         <div className="flex gap-2" key={idx}>
-                                                            <div className={`${isProcess ? "bg-[rgba(255,105,0,0.2)]" : "bg-[rgba(43,127,255,0.2)]"} ${idx === 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
-                                                                <p className={`${isProcess ? "text-[#c2410c]" : "text-[#1d4ed8]"} text-[13px] leading-[14px] font-medium`}>{type}</p>
+                                                            <div className={`${bg} ${idx === 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
+                                                                <p className={`${text} text-[13px] leading-[14px] font-medium`}>{type}</p>
                                                             </div>
                                                         </div>
                                                     );
                                                 })
 
-                                            ) 
+                                            )
                                             : null
                                         }
                                     </div>
