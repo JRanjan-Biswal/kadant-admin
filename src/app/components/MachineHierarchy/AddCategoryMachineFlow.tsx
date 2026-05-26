@@ -324,6 +324,8 @@ interface SparePartRow {
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
+    imageUrls: string[];
+    pendingImageFiles: File[];
     optimalStateVideoFile: File | null;
     optimalStateVideoUrl?: string | null;
     parts: PartRow[];
@@ -394,6 +396,8 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
+            imageUrls: (sp as { imageUrls?: string[] }).imageUrls ?? [],
+            pendingImageFiles: [],
             optimalStateVideoFile: null,
             optimalStateVideoUrl: sp.optimalStateVideoUrl ?? null,
             parts: (sp.parts ?? []).map((p) => ({
@@ -428,7 +432,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 description: "",
                 galleryImages: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -445,7 +449,7 @@ const defaultMachineRow = (): MachineRow => ({
     description: "",
     galleryImages: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -475,7 +479,7 @@ export default function AddCategoryMachineFlow({
             description: "",
             galleryImages: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -653,6 +657,32 @@ export default function AddCategoryMachineFlow({
         }
         const data = await res.json();
         return data as { imageUrl?: string };
+    }, []);
+
+    const uploadEntityImageAdd = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
+        const fd = new FormData();
+        fd.append("image", file);
+        fd.append("type", type);
+        fd.append("id", id);
+        const res = await fetch("/api/upload/entity-image-add", { method: "POST", body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Image upload failed");
+        }
+        return res.json() as Promise<{ imageUrls?: string[] }>;
+    }, []);
+
+    const removeEntityImage = useCallback(async (type: "sparePart" | "part", id: string, imageName: string) => {
+        const res = await fetch("/api/upload/entity-image-remove", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, id, imageName }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Image removal failed");
+        }
+        return res.json() as Promise<{ imageUrls?: string[] }>;
     }, []);
 
     const uploadEntityVideo = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
@@ -1044,6 +1074,8 @@ export default function AddCategoryMachineFlow({
                                 name: "",
                                 klValue: "",
                                 imageFile: null,
+                                imageUrls: [],
+                                pendingImageFiles: [],
                                 optimalStateVideoFile: null,
                                 parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                             },
@@ -1412,6 +1444,9 @@ export default function AddCategoryMachineFlow({
                 }
                 const spData = await res.json();
                 await uploadEntityImage("sparePart", spData._id, sp.imageFile!);
+                for (const f of sp.pendingImageFiles) {
+                    await uploadEntityImageAdd("sparePart", spData._id, f);
+                }
                 if (sp.optimalStateVideoFile) {
                     await uploadEntityVideo("sparePart", spData._id, sp.optimalStateVideoFile);
                 }
@@ -1449,6 +1484,8 @@ export default function AddCategoryMachineFlow({
                                       name: "",
                                       klValue: "",
                                       imageFile: null,
+                                      imageUrls: [],
+                                      pendingImageFiles: [],
                                       optimalStateVideoFile: null,
                                       parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                                   },
@@ -1816,6 +1853,34 @@ export default function AddCategoryMachineFlow({
                                 );
                             } catch (e) {
                                 errors.push(`Part ${pt.name || pt.id} image: ${e instanceof Error ? e.message : "failed"}`);
+                            }
+                        }
+                        if (pt.optimalStateVideoFile) {
+                            try {
+                                const vidResult = await uploadEntityVideo("part", pt.createdId, pt.optimalStateVideoFile);
+                                setMachines((prev) =>
+                                    prev.map((x) =>
+                                        x.id === m.id
+                                            ? {
+                                                  ...x,
+                                                  spareParts: x.spareParts.map((s) =>
+                                                      s.id === sp.id
+                                                          ? {
+                                                                ...s,
+                                                                parts: s.parts.map((p) =>
+                                                                    p.id === pt.id
+                                                                        ? { ...p, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? p.optimalStateVideoUrl }
+                                                                        : p
+                                                                ),
+                                                            }
+                                                          : s
+                                                  ),
+                                              }
+                                            : x
+                                    )
+                                );
+                            } catch (e) {
+                                errors.push(`Part ${pt.name || pt.id} video: ${e instanceof Error ? e.message : "failed"}`);
                             }
                         }
                     }
@@ -2246,27 +2311,87 @@ export default function AddCategoryMachineFlow({
                                                     />
                                                 </div>
                                             </div>
-                                            <ImageUploadBox
-                                                file={sp.imageFile}
-                                                onFileChange={(f) => updateSparePart(m.id, sp.id, "imageFile", f)}
-                                                label="Spare Part Image (required for new)"
-                                                compact
-                                                existingUrl={sp.imageUrl}
-                                                onClearExisting={() =>
-                                                    setMachines((prev) =>
-                                                        prev.map((x) =>
-                                                            x.id === m.id
-                                                                ? {
-                                                                      ...x,
-                                                                      spareParts: x.spareParts.map((s) =>
-                                                                          s.id === sp.id ? { ...s, imageFile: null, imageUrl: null } : s
-                                                                      ),
-                                                                  }
-                                                                : x
-                                                        )
-                                                    )
-                                                }
-                                            />
+                                            {/* Multi-image gallery */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-[#6b7280] text-[12px]">Spare Part Images</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {/* Legacy single imageUrl */}
+                                                    {sp.imageUrl && (
+                                                        <div className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={sp.imageUrl} alt="Spare part" className="w-full h-full object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrl: null } : s) } : x))}
+                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {/* Additional imageUrls */}
+                                                    {sp.imageUrls.map((url, idx) => {
+                                                        const fileName = url.split("/uploads/")[1]?.split("?")[0];
+                                                        return (
+                                                            <div key={idx} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-contain" />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        if (sp.createdId && fileName) {
+                                                                            try {
+                                                                                await removeEntityImage("sparePart", sp.createdId, fileName);
+                                                                            } catch { /* swallow, update UI regardless */ }
+                                                                        }
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: s.imageUrls.filter((_, i) => i !== idx) } : s) } : x));
+                                                                    }}
+                                                                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                >
+                                                                    <X className="w-4 h-4 text-white" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* Pending new files */}
+                                                    {sp.pendingImageFiles.map((f, idx) => (
+                                                        <div key={`pending-${idx}`} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d45815] bg-white group">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-full object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: s.pendingImageFiles.filter((_, i) => i !== idx) } : s) } : x))}
+                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {/* Add image button */}
+                                                    <label className="w-[80px] h-[80px] rounded-[6px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#505050] text-[#6b7280]">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/jpeg,image/png,image/webp"
+                                                            className="hidden"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (!file) return;
+                                                                e.target.value = "";
+                                                                if (sp.createdId) {
+                                                                    try {
+                                                                        const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
+                                                                    } catch { /* ignore, user can retry */ }
+                                                                } else {
+                                                                    setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: [...s.pendingImageFiles, file] } : s) } : x));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Upload className="w-4 h-4 mb-1" />
+                                                        <span className="text-[10px]">Add</span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                             <VideoUploadBox
                                                 file={sp.optimalStateVideoFile}
                                                 onFileChange={(f) => updateSparePart(m.id, sp.id, "optimalStateVideoFile", f)}
