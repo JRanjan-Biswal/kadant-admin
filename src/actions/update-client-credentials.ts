@@ -198,3 +198,37 @@ export async function updateClientVisibility(
         };
     }
 }
+
+// Update client customer grouping name
+export async function updateClientCustomer(
+    clientId: string,
+    customer: string
+): Promise<UpdateCredentialsResult> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser?.accessToken) return { success: false, error: 'Unauthorized' };
+
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/customer`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentUser.accessToken}`,
+                },
+                body: JSON.stringify({ customer }),
+            }
+        );
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Failed to update customer' }));
+            return { success: false, error: err.message || 'Failed to update customer' };
+        }
+
+        const data = await response.json();
+        revalidatePath('/client-management');
+        return { success: true, message: data.message };
+    } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unexpected error' };
+    }
+}
