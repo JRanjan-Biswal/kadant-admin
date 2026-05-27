@@ -36,8 +36,8 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
     const [viewModalOpen, setViewModalOpen] = useState(false);
     const [viewingVisitId, setViewingVisitId] = useState<string | null>(null);
 
-    const fetchSiteVisits = useCallback(async () => {
-        setLoading(true);
+    const fetchSiteVisits = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const response = await fetch(`/api/clients/${clientID}/site-visits`, {
                 method: "GET",
@@ -46,7 +46,9 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 },
                 cache: 'no-store'
             });
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const data = await response.json();
+            if (!Array.isArray(data)) throw new Error("Unexpected response format");
 
             const now = new Date();
             const todayStart = startOfDay(now);
@@ -69,17 +71,12 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 });
             setScheduledVisits(scheduled);
 
-            // Visit history = only records where the visit actually happened
-            // (lastVisitOn set and in the past). Scheduled-only records (no
-            // lastVisitOn, or future lastVisitOn) belong in "Upcoming
-            // Scheduled" — they were previously surfaced as confusing
-            // "Not Visited" rows here.
             const scheduledIds = new Set(scheduled.map((v: ScheduledVisit) => v._id));
             const history = data
                 .filter((visit: SiteVisit) => {
                     if (scheduledIds.has(visit._id)) return false;
                     if (!visit.lastVisitOn) return false;
-                    return parseISO(visit.lastVisitOn) < now;
+                    return true;
                 })
                 .sort((a: SiteVisit, b: SiteVisit) => {
                     return (
@@ -91,7 +88,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
         } catch (error) {
             console.error("Error fetching site visits:", error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [clientID]);
 
@@ -148,7 +145,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                         </h1>
                     </div>
                     <div className="flex-1 flex gap-3 items-center justify-end">
-                        <AddVisitDataModal clientID={clientID} onSuccess={fetchSiteVisits}>
+                        <AddVisitDataModal clientID={clientID} onSuccess={() => fetchSiteVisits(true)}>
                             <Button
                                 className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 border-0 h-auto text-white"
                                 variant="ghost"
@@ -157,7 +154,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                                 <span className="text-base leading-6">Add Visit Data</span>
                             </Button>
                         </AddVisitDataModal>
-                        <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                        <ScheduleNextVisit clientID={clientID} onAddSiteVisit={() => fetchSiteVisits(true)}>
                             <Button
                                 className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-4 py-2 rounded-[10px] shrink-0 border-0 h-auto text-white"
                                 variant="ghost"
@@ -187,7 +184,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                             <p className="text-[#6b7280] text-[16px] leading-[24px]">
                                 No upcoming visits scheduled
                             </p>
-                            <ScheduleNextVisit clientID={clientID} onAddSiteVisit={fetchSiteVisits}>
+                            <ScheduleNextVisit clientID={clientID} onAddSiteVisit={() => fetchSiteVisits(true)}>
                                 <Button
                                     className="bg-[#2D3E5C] hover:bg-[#1f2a44] flex gap-2 items-center px-5 py-2.5 rounded-[10px] h-auto text-white"
                                 >
@@ -306,55 +303,27 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 {/* Table */}
                 <div className="flex flex-col">
                     {/* Table Header */}
-                    <div className="bg-white border border-[#96A5BA] flex items-center rounded-t-[10px]">
-                        <div className="flex items-center self-stretch w-[85px]">
-                            <div className="flex h-full items-center justify-center px-5 py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Sr.no
-                                </p>
-                            </div>
+                    <div className="bg-white border border-[#96A5BA] grid grid-cols-7 rounded-t-[10px]">
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Sr.no</p>
                         </div>
-                        <div className="flex items-center justify-center self-stretch">
-                            <div className="flex h-full items-center justify-center px-6 py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Scheduled Date
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Scheduled Date</p>
                         </div>
-                        <div className="flex items-center justify-center self-stretch w-[185px]">
-                            <div className="flex h-full items-center justify-center px-5 py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Engineer Name
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Engineer Name</p>
                         </div>
-                        <div className="flex items-center justify-center self-stretch w-[144px]">
-                            <div className="flex h-full items-center justify-center px-[33px] py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Client
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Client</p>
                         </div>
-                        <div className="flex items-center justify-center self-stretch w-[160px]">
-                            <div className="flex h-full items-center justify-center px-3 py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Visit Type
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Visit Type</p>
                         </div>
-                        <div className="flex items-center justify-center self-stretch">
-                            <div className="flex h-full items-center justify-center px-[40px] py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Visit detail
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Visit Detail</p>
                         </div>
-                        <div className="flex flex-1 items-center justify-center self-stretch">
-                            <div className="flex flex-1 h-full items-center justify-center px-6 py-4">
-                                <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold">
-                                    Actions
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-center px-4 py-4">
+                            <p className="text-[#6b7280] text-[14px] leading-5 tracking-[0.7px] uppercase font-bold text-center">Actions</p>
                         </div>
                     </div>
 
@@ -376,78 +345,58 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                         return (
                             <div
                                 key={visit._id || index}
-                                className="bg-[#DFE6EC] border-b border-l border-r border-[#607797] flex items-center"
+                                className="bg-[#DFE6EC] border-b border-l border-r border-[#607797] grid grid-cols-7"
                             >
-                                <div className="flex justify-center items-center self-stretch w-[85px]">
-                                    <div className="flex h-full items-center justify-center px-9 py-4">
-                                        <p className="text-[#6b7280] text-base leading-6">{index + 1}.</p>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <p className="text-[#6b7280] text-base leading-6">{index + 1}.</p>
                                 </div>
-                                <div className="flex justify-center items-center self-stretch">
-                                    <div className="flex h-full items-center justify-center px-[46px] py-4">
-                                        <p className="text-[#6b7280] text-base leading-6">{dateStr}</p>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <p className="text-[#6b7280] text-base leading-6 text-center">{dateStr}</p>
                                 </div>
-                                <div className="flex justify-center items-center self-stretch w-[171px]">
-                                    <div className="flex h-full items-center justify-center px-6 py-4">
-                                        <p className="text-[#6b7280] text-base leading-6">
-                                            {visit.engineer?.name || "N/A"}
-                                        </p>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <p className="text-[#6b7280] text-base leading-6 text-center">
+                                        {visit.engineer?.name || visit.assignedEngineer || "N/A"}
+                                    </p>
                                 </div>
-                                <div className="flex justify-center items-center self-stretch w-[165px]">
-                                    <div className="flex h-full items-center justify-center px-[33px] py-4">
-                                        <p className="text-[#6b7280] text-base leading-6">
-                                            {visit.client?.name || "N/A"}
-                                        </p>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <p className="text-[#6b7280] text-base leading-6 text-center">
+                                        {visit.client?.name || "N/A"}
+                                    </p>
                                 </div>
-                                <div className="flex justify-center items-center self-stretch w-[180px]">
-                                    <div className="block h-full items-center justify-center px-3 py-4">
-                                        {
-                                            (visit.visitType?.length) ? (
-                                                visit.visitType.map((type, idx) => {
-                                                    const badgeStyles: Record<string, { bg: string; text: string }> = {
-                                                        "Process Audit":    { bg: "bg-[rgba(255,105,0,0.2)]",  text: "text-[#c2410c]" },
-                                                        "Mechanical Audit": { bg: "bg-[rgba(43,127,255,0.2)]", text: "text-[#1d4ed8]" },
-                                                        "General Visit":    { bg: "bg-[rgba(147,51,234,0.2)]", text: "text-[#7e22ce]" },
-                                                    };
-                                                    const { bg, text } = badgeStyles[type] ?? { bg: "bg-gray-200", text: "text-gray-700" };
-                                                    return (
-                                                        <div className="flex gap-2" key={idx}>
-                                                            <div className={`${bg} ${idx === 0 ? "mb-2" : ""} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
-                                                                <p className={`${text} text-[13px] leading-[14px] font-medium`}>{type}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-
-                                            )
-                                            : null
-                                        }
-                                    </div>
+                                <div className="flex flex-col items-center justify-center gap-2 px-3 py-4">
+                                    {(visit.visitType?.length) ? (
+                                        visit.visitType.map((type, idx) => {
+                                            const badgeStyles: Record<string, { bg: string; text: string }> = {
+                                                "Process Audit":    { bg: "bg-[rgba(255,105,0,0.2)]",  text: "text-[#c2410c]" },
+                                                "Mechanical Audit": { bg: "bg-[rgba(43,127,255,0.2)]", text: "text-[#1d4ed8]" },
+                                                "General Visit":    { bg: "bg-[rgba(147,51,234,0.2)]", text: "text-[#7e22ce]" },
+                                            };
+                                            const { bg, text } = badgeStyles[type] ?? { bg: "bg-gray-200", text: "text-gray-700" };
+                                            return (
+                                                <div key={idx} className={`${bg} flex h-[25px] items-center px-[12px] py-[4px] rounded-full whitespace-nowrap`}>
+                                                    <p className={`${text} text-[13px] leading-[14px] font-medium`}>{type}</p>
+                                                </div>
+                                            );
+                                        })
+                                    ) : null}
                                 </div>
-                                <div className="flex justify-center items-center self-stretch">
-                                    <div className="flex h-full items-center px-[40px] py-4">
-                                        <button
-                                            onClick={() => handleViewDetail(visit._id)}
-                                            className="flex gap-2 h-5 items-center"
-                                        >
-                                            <HiOutlineEye className="w-5 h-5 text-[#607797]" />
-                                            <p className="text-[#607797] text-[14px] leading-5 font-medium">Detail</p>
-                                        </button>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <button
+                                        onClick={() => handleViewDetail(visit._id)}
+                                        className="flex gap-2 items-center cursor-pointer"
+                                    >
+                                        <HiOutlineEye className="w-5 h-5 text-[#607797]" />
+                                        <p className="text-[#607797] text-[14px] leading-5 font-medium">Detail</p>
+                                    </button>
                                 </div>
-                                <div className="flex flex-1 items-center self-stretch">
-                                    <div className="flex flex-1 h-full items-center justify-center px-6 py-4">
-                                        <button
-                                            onClick={() => handleEdit(visit._id)}
-                                            className="flex gap-2 h-5 items-center"
-                                        >
-                                            <TbEdit className="w-4 h-4 text-[#ff6900]" />
-                                            <p className="text-[#ff6900] text-[14px] leading-5 font-medium">Edit</p>
-                                        </button>
-                                    </div>
+                                <div className="flex items-center justify-center px-4 py-4">
+                                    <button
+                                        onClick={() => handleEdit(visit._id)}
+                                        className="flex gap-2 items-center cursor-pointer"
+                                    >
+                                        <TbEdit className="w-4 h-4 text-[#ff6900]" />
+                                        <p className="text-[#ff6900] text-[14px] leading-5 font-medium">Edit</p>
+                                    </button>
                                 </div>
                             </div>
                         );
@@ -460,7 +409,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 onOpenChange={setEditModalOpen}
                 visitId={editingVisitId ?? ""}
                 clientID={clientID}
-                onSuccess={fetchSiteVisits}
+                onSuccess={() => fetchSiteVisits(true)}
             />
 
             <EditVisitDataModal
@@ -468,7 +417,7 @@ const VisitDetailsPage = ({ clientID }: VisitDetailsPageProps) => {
                 onOpenChange={setViewModalOpen}
                 visitId={viewingVisitId ?? ""}
                 clientID={clientID}
-                onSuccess={fetchSiteVisits}
+                onSuccess={() => fetchSiteVisits(true)}
                 viewOnly
             />
         </div>

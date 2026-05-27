@@ -29,6 +29,9 @@ export interface Client {
     facilityImage?: string;
     facilityImageUrl?: string;
     facilityImagePath?: string;
+    homeImage?: string;
+    homeImageUrl?: string;
+    homeImagePath?: string;
     createdAt: string;
     updatedAt: string;
     // Extended properties from backend
