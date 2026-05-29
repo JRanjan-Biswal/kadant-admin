@@ -6,6 +6,7 @@ import {
     DialogContent,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +21,11 @@ interface AddMachineModalProps {
 
 export default function AddMachineModal({ onSuccess, children, clientID }: AddMachineModalProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [isSavingAndClosing, setIsSavingAndClosing] = useState(false);
     const closeBlockedRef = useRef(false);
+    const hasUnsavedChangesRef = useRef(false);
+    const saveRef = useRef<(() => Promise<void>) | null>(null);
 
     const handleMachinesCreated = useCallback(async (machineIDs: string[]) => {
         if (!clientID || machineIDs.length === 0) return;
@@ -41,11 +46,12 @@ export default function AddMachineModal({ onSuccess, children, clientID }: AddMa
     }, [clientID, onSuccess]);
 
     const handleOpenChange = useCallback((open: boolean) => {
-        if (!open && closeBlockedRef.current) {
-            toast.error("Please associate all machine positions with the category image before closing.");
-            return;
+        if (!open) {
+            if (hasUnsavedChangesRef.current) { setShowCloseConfirm(true); return; }
+            setIsOpen(false);
+        } else {
+            setIsOpen(true);
         }
-        setIsOpen(open);
     }, []);
 
     const handleCloseGuardChange = useCallback((blocked: boolean) => {
@@ -54,10 +60,12 @@ export default function AddMachineModal({ onSuccess, children, clientID }: AddMa
 
     const handleComplete = useCallback(() => {
         closeBlockedRef.current = false;
+        hasUnsavedChangesRef.current = false;
         setIsOpen(false);
     }, []);
 
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 {children ?? (
@@ -69,17 +77,18 @@ export default function AddMachineModal({ onSuccess, children, clientID }: AddMa
             <DialogContent
                 className="bg-white border border-[#96A5BA] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                 showCloseButton={false}
-                onInteractOutside={(e) => {
-                    if (closeBlockedRef.current) e.preventDefault();
-                }}
+                onInteractOutside={(e) => { e.preventDefault(); }}
                 onEscapeKeyDown={(e) => {
-                    if (closeBlockedRef.current) {
-                        e.preventDefault();
-                        toast.error("Please associate all machine positions with the category image before closing.");
+                    e.preventDefault();
+                    if (hasUnsavedChangesRef.current) {
+                        setShowCloseConfirm(true);
+                    } else {
+                        closeBlockedRef.current = false;
+                        setIsOpen(false);
                     }
                 }}
             >
-                <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0">
+                <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0 sticky top-0 z-10">
                     <h2 className="text-gray-900 text-[20px] font-medium">Add Category, Machine, Spare Parts & Parts</h2>
                     <button
                         type="button"
@@ -96,10 +105,73 @@ export default function AddMachineModal({ onSuccess, children, clientID }: AddMa
                         onSuccess={onSuccess}
                         onComplete={handleComplete}
                         onCloseGuardChange={handleCloseGuardChange}
+                        onHasUnsavedChangesChange={(hasChanges) => { hasUnsavedChangesRef.current = hasChanges; }}
+                        saveRef={saveRef}
                         onMachinesCreated={clientID ? handleMachinesCreated : undefined}
                     />
                 </div>
             </DialogContent>
         </Dialog>
+
+        {/* Unsaved-changes confirmation when user tries to close the add modal */}
+        <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+            <DialogContent
+                showCloseButton={false}
+                className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[440px]"
+            >
+                <div className="border-b border-[#607797] px-6 py-[17px]">
+                    <p className="text-[#1f2937] text-xl leading-8 font-medium">You have unsaved changes.</p>
+                </div>
+                <div className="px-6 pt-4 pb-2">
+                    <p className="text-[#6b7280] text-sm">Do you want to save your changes before closing?</p>
+                    {closeBlockedRef.current && (
+                        <p className="text-amber-600 text-sm mt-2">Note: Some machine positions have not been mapped on the category image.</p>
+                    )}
+                </div>
+                <div className="flex items-center justify-end gap-3 px-6 py-6">
+                    <button
+                        type="button"
+                        disabled={isSavingAndClosing}
+                        onClick={() => setShowCloseConfirm(false)}
+                        className="bg-[#f9fafb] text-[#1f2937] border border-[#d1d5db] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isSavingAndClosing}
+                        onClick={() => {
+                            setShowCloseConfirm(false);
+                            closeBlockedRef.current = false;
+                            hasUnsavedChangesRef.current = false;
+                            setIsOpen(false);
+                        }}
+                        className="bg-[#f9fafb] text-[#dc2626] border border-[#dc2626] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#fef2f2] transition-colors disabled:opacity-50"
+                    >
+                        Discard Changes
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isSavingAndClosing}
+                        onClick={async () => {
+                            setIsSavingAndClosing(true);
+                            setShowCloseConfirm(false);
+                            try {
+                                await saveRef.current?.();
+                            } finally {
+                                setIsSavingAndClosing(false);
+                            }
+                            closeBlockedRef.current = false;
+                            setIsOpen(false);
+                        }}
+                        className="bg-[#d45815] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isSavingAndClosing && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Save &amp; Close
+                    </button>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

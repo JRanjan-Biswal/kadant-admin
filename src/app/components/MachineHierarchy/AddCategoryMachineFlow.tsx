@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, memo, useRef } from "react";
+import { useState, useCallback, useEffect, memo, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -294,6 +294,10 @@ export interface AddCategoryMachineFlowProps {
     categoryIdForEdit?: string | null;
     /** Called whenever the "can close" status changes. Parent should use this to guard close actions. */
     onCloseGuardChange?: (blocked: boolean) => void;
+    /** Called whenever unsaved-changes status changes so the parent can show a confirmation before closing. */
+    onHasUnsavedChangesChange?: (hasChanges: boolean) => void;
+    /** Parent assigns this ref to receive a handle that triggers save programmatically (e.g. "Save & Close"). */
+    saveRef?: { current: (() => Promise<void>) | null };
     /** Called after machines are persisted so a parent (e.g. onboarding form) can link them to a client. */
     onMachinesCreated?: (machineIds: string[]) => void;
     /** When set, machines are filtered to only those linked to this client. */
@@ -468,6 +472,8 @@ export default function AddCategoryMachineFlow({
     initialData,
     categoryIdForEdit,
     onCloseGuardChange,
+    onHasUnsavedChangesChange,
+    saveRef,
     onMachinesCreated,
     clientID,
 }: AddCategoryMachineFlowProps) {
@@ -597,6 +603,24 @@ export default function AddCategoryMachineFlow({
     useEffect(() => {
         onCloseGuardChange?.(closeBlocked);
     }, [closeBlocked, onCloseGuardChange]);
+
+    const hasUnsavedChanges = useMemo(() => {
+        if (isCategoryDirty()) return true;
+        for (const m of machines) {
+            if (isMachineDirty(m)) return true;
+            for (const sp of m.spareParts) {
+                if (isSparePartDirty(sp)) return true;
+                for (const pt of sp.parts) {
+                    if (isPartDirty(pt)) return true;
+                }
+            }
+        }
+        return false;
+    }, [machines, isCategoryDirty, isMachineDirty, isSparePartDirty, isPartDirty]);
+
+    useEffect(() => {
+        onHasUnsavedChangesChange?.(hasUnsavedChanges);
+    }, [hasUnsavedChanges, onHasUnsavedChangesChange]);
 
     const handleAttemptClose = useCallback(() => {
         if (closeBlocked) {
@@ -1972,6 +1996,10 @@ export default function AddCategoryMachineFlow({
         uploadMachineGalleryImage,
         deleteMachineGalleryImage,
     ]);
+
+    useEffect(() => {
+        if (saveRef) saveRef.current = handleSaveAllEdits;
+    }, [saveRef, handleSaveAllEdits]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
         if (!categoryId) return;
