@@ -296,12 +296,15 @@ export interface AddCategoryMachineFlowProps {
     onCloseGuardChange?: (blocked: boolean) => void;
     /** Called after machines are persisted so a parent (e.g. onboarding form) can link them to a client. */
     onMachinesCreated?: (machineIds: string[]) => void;
+    /** When set, machines are filtered to only those linked to this client. */
+    clientID?: string;
 }
 
 interface MachineGalleryImage {
     id: string;
     file: File | null;
     imageUrl?: string | null;
+    imageName?: string | null;
 }
 
 interface MachineRow {
@@ -314,6 +317,7 @@ interface MachineRow {
     imageUrl?: string | null;
     description: string;
     galleryImages: MachineGalleryImage[];
+    deletedGalleryImageNames: string[];
     spareParts: SparePartRow[];
 }
 
@@ -384,11 +388,13 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
         createdId: m._id,
         imageUrl: m.imageUrl ?? null,
         description: (m as { description?: string }).description ?? "",
-        galleryImages: ((m as { galleryWithUrls?: Array<{ imageUrl?: string }> }).galleryWithUrls ?? []).map((g, i) => ({
+        galleryImages: ((m as { galleryWithUrls?: Array<{ imageUrl?: string; imageName?: string }> }).galleryWithUrls ?? []).map((g, i) => ({
             id: `gi_${m._id}_${i}`,
             file: null,
             imageUrl: g.imageUrl ?? null,
+            imageName: g.imageName ?? null,
         })),
+        deletedGalleryImageNames: [],
         spareParts: (m.spareParts ?? []).map((sp) => ({
             id: sp._id,
             name: sp.name ?? "",
@@ -431,6 +437,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 imageFile: null,
                 description: "",
                 galleryImages: [],
+                deletedGalleryImageNames: [],
                 spareParts: [
                     { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
@@ -448,6 +455,7 @@ const defaultMachineRow = (): MachineRow => ({
     imageFile: null,
     description: "",
     galleryImages: [],
+    deletedGalleryImageNames: [],
     spareParts: [
         { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
@@ -461,6 +469,7 @@ export default function AddCategoryMachineFlow({
     categoryIdForEdit,
     onCloseGuardChange,
     onMachinesCreated,
+    clientID,
 }: AddCategoryMachineFlowProps) {
     const [categoryName, setCategoryName] = useState("");
     const [categoryImage, setCategoryImage] = useState<File | null>(null);
@@ -478,6 +487,7 @@ export default function AddCategoryMachineFlow({
             imageFile: null,
             description: "",
             galleryImages: [],
+            deletedGalleryImageNames: [],
             spareParts: [
                 { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
@@ -534,6 +544,7 @@ export default function AddCategoryMachineFlow({
         if (!m.createdId) return true;
         if (m.imageFile) return true;
         if (m.galleryImages.some((g) => g.file)) return true;
+        if (m.deletedGalleryImageNames.length > 0) return true;
         const b = machineBaselineRef.current.get(m.createdId);
         if (!b) return true;
         return (
@@ -611,7 +622,7 @@ export default function AddCategoryMachineFlow({
         if (!categoryIdForEdit?.trim()) return;
         let cancelled = false;
         setLoading("edit-load");
-        fetch(`/api/machines/machine-category/${encodeURIComponent(categoryIdForEdit)}/full`)
+        fetch(`/api/machines/machine-category/${encodeURIComponent(categoryIdForEdit)}/full${clientID ? `?clientId=${encodeURIComponent(clientID)}` : ""}`)
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to load category");
                 return res.json();
@@ -860,6 +871,19 @@ export default function AddCategoryMachineFlow({
         return res.json();
     }, []);
 
+    const deleteMachineGalleryImage = useCallback(async (machineId: string, imageName: string) => {
+        const res = await fetch("/api/upload/machine-gallery", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineId, imageName }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Gallery image delete failed");
+        }
+        return res.json();
+    }, []);
+
     const handleUpdateMachine = useCallback(async (machineRowId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
         if (!machine?.createdId) return;
@@ -894,6 +918,16 @@ export default function AddCategoryMachineFlow({
             } else {
                 setMachines((prev) => prev.map((m) => (m.id === machineRowId ? { ...m, imageFile: null } : m)));
             }
+            for (const imageName of machine.deletedGalleryImageNames) {
+                try {
+                    await deleteMachineGalleryImage(machine.createdId, imageName);
+                } catch (e) {
+                    toast.error(`Gallery delete: ${e instanceof Error ? e.message : "failed"}`);
+                }
+            }
+            setMachines((prev) =>
+                prev.map((m) => (m.id === machineRowId ? { ...m, deletedGalleryImageNames: [] } : m))
+            );
             for (const gi of machine.galleryImages) {
                 if (gi.file) {
                     await uploadMachineGalleryImage(machine.createdId, gi.file);
@@ -916,7 +950,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, uploadMachineGalleryImage, onSuccess]);
+    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, onSuccess]);
 
     const addMachine = useCallback(() => {
         setMachines((prev) => [...prev, defaultMachineRow()]);
@@ -968,11 +1002,17 @@ export default function AddCategoryMachineFlow({
 
     const removeMachineGalleryImage = useCallback((machineRowId: string, imageId: string) => {
         setMachines((prev) =>
-            prev.map((m) =>
-                m.id === machineRowId
-                    ? { ...m, galleryImages: m.galleryImages.filter((gi) => gi.id !== imageId) }
-                    : m
-            )
+            prev.map((m) => {
+                if (m.id !== machineRowId) return m;
+                const removed = m.galleryImages.find((gi) => gi.id === imageId);
+                return {
+                    ...m,
+                    galleryImages: m.galleryImages.filter((gi) => gi.id !== imageId),
+                    deletedGalleryImageNames: removed?.imageName
+                        ? [...m.deletedGalleryImageNames, removed.imageName]
+                        : m.deletedGalleryImageNames,
+                };
+            })
         );
     }, []);
 
@@ -1758,6 +1798,16 @@ export default function AddCategoryMachineFlow({
                         errors.push(`Machine ${m.name || m.id} image: ${e instanceof Error ? e.message : "failed"}`);
                     }
                 }
+                for (const imageName of m.deletedGalleryImageNames) {
+                    try {
+                        await deleteMachineGalleryImage(m.createdId, imageName);
+                    } catch (e) {
+                        errors.push(`Gallery delete: ${e instanceof Error ? e.message : "failed"}`);
+                    }
+                }
+                setMachines((prev) =>
+                    prev.map((x) => (x.id === m.id ? { ...x, deletedGalleryImageNames: [] } : x))
+                );
                 for (const gi of m.galleryImages) {
                     if (!gi.file) continue;
                     try {
@@ -1920,6 +1970,7 @@ export default function AddCategoryMachineFlow({
         uploadEntityImage,
         uploadEntityVideo,
         uploadMachineGalleryImage,
+        deleteMachineGalleryImage,
     ]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
