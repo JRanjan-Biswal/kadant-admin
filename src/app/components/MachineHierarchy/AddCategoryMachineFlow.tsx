@@ -954,13 +954,19 @@ export default function AddCategoryMachineFlow({
             );
             for (const gi of machine.galleryImages) {
                 if (gi.file) {
-                    await uploadMachineGalleryImage(machine.createdId, gi.file);
+                    const result = await uploadMachineGalleryImage(machine.createdId, gi.file);
+                    const uploadedList: Array<{ imageName: string; imageUrl: string | null }> = result?.galleryWithUrls ?? [];
+                    const newEntry = uploadedList[uploadedList.length - 1];
                     setMachines((prev) =>
                         prev.map((m) =>
                             m.id === machineRowId
                                 ? {
                                       ...m,
-                                      galleryImages: m.galleryImages.map((g) => (g.id === gi.id ? { ...g, file: null } : g)),
+                                      galleryImages: m.galleryImages.map((g) =>
+                                          g.id === gi.id
+                                              ? { ...g, file: null, imageUrl: newEntry?.imageUrl ?? null, imageName: newEntry?.imageName ?? null }
+                                              : g
+                                      ),
                                   }
                                 : m
                         )
@@ -1835,14 +1841,18 @@ export default function AddCategoryMachineFlow({
                 for (const gi of m.galleryImages) {
                     if (!gi.file) continue;
                     try {
-                        await uploadMachineGalleryImage(m.createdId, gi.file);
+                        const result = await uploadMachineGalleryImage(m.createdId, gi.file);
+                        const uploadedList: Array<{ imageName: string; imageUrl: string | null }> = result?.galleryWithUrls ?? [];
+                        const newEntry = uploadedList[uploadedList.length - 1];
                         setMachines((prev) =>
                             prev.map((x) =>
                                 x.id === m.id
                                     ? {
                                           ...x,
                                           galleryImages: x.galleryImages.map((g) =>
-                                              g.id === gi.id ? { ...g, file: null } : g
+                                              g.id === gi.id
+                                                  ? { ...g, file: null, imageUrl: newEntry?.imageUrl ?? null, imageName: newEntry?.imageName ?? null }
+                                                  : g
                                           ),
                                       }
                                     : x
