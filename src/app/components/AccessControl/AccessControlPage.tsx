@@ -35,6 +35,7 @@ import EditAdminModal from "./EditAdminModal";
 import AssignAccessModal from "./AssignAccessModal";
 
 interface Props {
+    isSuperAdmin: boolean;
     stats: AccessStats;
     superAdmin: AccessAdmin | null;
     admins: AccessAdmin[];
@@ -61,6 +62,7 @@ const initials = (name?: string) =>
         .toUpperCase();
 
 export default function AccessControlPage({
+    isSuperAdmin,
     stats,
     superAdmin,
     admins,
@@ -129,14 +131,16 @@ export default function AccessControlPage({
                         <ShieldCheck className="w-5 h-5 text-[#2D3E5C]" />
                         <h2 className="text-base font-semibold text-gray-900">Super Admin</h2>
                     </div>
-                    <Button
-                        onClick={() => setOpenSuper(true)}
-                        disabled={!superAdmin}
-                        className="bg-[#2D3E5C] hover:bg-[#1f2c44] text-white rounded-[10px] h-10 px-4"
-                    >
-                        <KeyRound className="w-4 h-4 mr-2" />
-                        Update Credentials
-                    </Button>
+                    {isSuperAdmin && (
+                        <Button
+                            onClick={() => setOpenSuper(true)}
+                            disabled={!superAdmin}
+                            className="bg-[#2D3E5C] hover:bg-[#1f2c44] text-white rounded-[10px] h-10 px-4"
+                        >
+                            <KeyRound className="w-4 h-4 mr-2" />
+                            Update Credentials
+                        </Button>
+                    )}
                 </header>
                 {superAdmin ? (
                     <div className="px-5 py-5 grid grid-cols-1 md:grid-cols-4 gap-6 items-center bg-white">

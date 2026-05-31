@@ -111,8 +111,8 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           onNavigateStart={(url: string) => setNavigatingUrl(url)}
         />
       </SidebarContent>
-      {/* Bottom Section: Access Control (superadmin only) */}
-      {user?.role === "superadmin" && (
+      {/* Bottom Section: Access Control (super admin + admin) */}
+      {(user?.role === "superadmin" || user?.role === "admin") && (
         <div className="border-t border-[#607797] flex shrink-0 flex-col items-start justify-center p-[16px]">
           <Link
             href="/access-control"

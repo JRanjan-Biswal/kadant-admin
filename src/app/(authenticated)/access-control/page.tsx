@@ -53,7 +53,8 @@ export default async function AccessControlRoute() {
     if (!currentUser) {
         redirect("/");
     }
-    if (currentUser.user?.role !== "superadmin") {
+    const role = currentUser.user?.role;
+    if (role !== "superadmin" && role !== "admin") {
         return (
             <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
                 <div className="bg-white border border-[#96A5BA] rounded-[10px] p-10 max-w-md text-center">
@@ -97,6 +98,7 @@ export default async function AccessControlRoute() {
 
     return (
         <AccessControlPage
+            isSuperAdmin={role === "superadmin"}
             stats={statsRes}
             superAdmin={superRes.superAdmin}
             admins={adminsRes.admins}
