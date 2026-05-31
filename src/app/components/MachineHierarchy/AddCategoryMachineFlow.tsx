@@ -2377,29 +2377,26 @@ export default function AddCategoryMachineFlow({
                                                                 </button>
                                                             </div>
                                                         ))}
-                                                        {/* Add image button */}
-                                                        <label className="w-[110px] h-[110px] rounded-[8px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#96A5BA] text-[#6b7280]">
-                                                            <input
-                                                                type="file"
-                                                                accept="image/jpeg,image/png,image/webp"
-                                                                className="hidden"
-                                                                onChange={async (e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (!file) return;
-                                                                    e.target.value = "";
+                                                        {/* Add image → compression modal (same logic as category/machine/part images) */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setImageModal({
+                                                                title: "Spare Part Image",
+                                                                currentUrl: null,
+                                                                onSave: async (file) => {
                                                                     if (sp.createdId) {
-                                                                        try {
-                                                                            const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
-                                                                            setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
-                                                                        } catch { /* ignore, user can retry */ }
+                                                                        const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
                                                                     } else {
                                                                         setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: [...s.pendingImageFiles, file] } : s) } : x));
                                                                     }
-                                                                }}
-                                                            />
+                                                                },
+                                                            })}
+                                                            className="w-[110px] h-[110px] rounded-[8px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#96A5BA] text-[#6b7280]"
+                                                        >
                                                             <Upload className="w-5 h-5 mb-1 text-[#4b5563]" />
                                                             <span className="text-[11px] text-[#6b7280]">Add <span className="text-orange font-medium">image</span></span>
-                                                        </label>
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 <VideoUploadBox

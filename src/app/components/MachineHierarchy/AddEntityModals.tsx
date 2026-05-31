@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import ImageUploadModal from "./ImageUploadModal";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const ACCEPTED_IMAGE = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ACCEPTED_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
-const MAX_IMAGE = 5 * 1024 * 1024; // 5 MB
 const MAX_VIDEO = 50 * 1024 * 1024; // 50 MB
+// Image picking/validation/compression is handled by ImageUploadModal.
 
 // ─── Upload helpers (same endpoints the inline editor uses) ─────────────────
 
@@ -116,55 +116,63 @@ const ModalShell: React.FC<ModalShellProps> = ({ title, onClose, saving, childre
     </div>
 );
 
-/** Single image drop zone: grey dashed border, orange keyword, preview + remove. */
+/** Opens the shared compression modal (Original vs Compressed) and hands back the
+ *  chosen File via onPicked. Used everywhere an image is picked in these modals so
+ *  the compression UX is identical to the inline editor. */
+const CompressedImageButton: React.FC<{ modalTitle: string; onPicked: (f: File) => void; className?: string; children: React.ReactNode }> = ({ modalTitle, onPicked, className, children }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <>
+            <button type="button" onClick={() => setOpen(true)} className={className}>{children}</button>
+            <ImageUploadModal open={open} onClose={() => setOpen(false)} title={modalTitle} onSave={async (f) => { onPicked(f); }} />
+        </>
+    );
+};
+
+/** Single image drop zone: grey dashed border, orange keyword, preview + remove.
+ *  Clicking opens the compression modal so the user chooses Original vs Compressed. */
 const ImageZone: React.FC<{ label: string; file: File | null; onChange: (f: File | null) => void; className?: string }> = ({
     label,
     file,
     onChange,
     className,
 }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [open, setOpen] = useState(false);
     const previewUrl = file ? URL.createObjectURL(file) : null;
-    const handlePick = (f?: File) => {
-        if (!f) return;
-        if (!ACCEPTED_IMAGE.includes(f.type)) { toast.error("Only PNG, JPG, and WebP images are allowed."); return; }
-        if (f.size > MAX_IMAGE) { toast.error("Image must be less than 5 MB."); return; }
-        onChange(f);
-    };
     return (
-        <label
-            className={`border-2 border-dashed border-[#d1d5db] rounded-[10px] bg-white flex flex-col items-center justify-center min-h-[120px] cursor-pointer hover:border-[#96A5BA] transition-colors overflow-hidden relative group ${className ?? ""}`}
-        >
-            <input
-                ref={inputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => { handlePick(e.target.files?.[0]); e.target.value = ""; }}
-            />
-            {previewUrl ? (
-                <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewUrl} alt={label} className="max-h-[180px] w-full object-contain" />
-                    <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(null); }}
-                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center"
-                        title="Remove image"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </>
-            ) : (
-                <div className="flex flex-col items-center justify-center gap-1 py-6 px-4">
-                    <Upload className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-foreground text-[13px]">
-                        Upload <span className="text-orange font-medium">{label}</span>
-                    </span>
-                    <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — max 5MB</span>
-                </div>
-            )}
-        </label>
+        <>
+            <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpen(true)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
+                className={`border-2 border-dashed border-[#d1d5db] rounded-[10px] bg-white flex flex-col items-center justify-center min-h-[120px] cursor-pointer hover:border-[#96A5BA] transition-colors overflow-hidden relative group ${className ?? ""}`}
+            >
+                {previewUrl ? (
+                    <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={previewUrl} alt={label} className="max-h-[180px] w-full object-contain" />
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onChange(null); }}
+                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center"
+                            title="Remove image"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center gap-1 py-6 px-4">
+                        <Upload className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-foreground text-[13px]">
+                            Upload <span className="text-orange font-medium">{label}</span>
+                        </span>
+                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — choose quality</span>
+                    </div>
+                )}
+            </div>
+            <ImageUploadModal open={open} onClose={() => setOpen(false)} title={`Upload ${label}`} currentImageUrl={previewUrl} onSave={async (f) => { onChange(f); }} />
+        </>
     );
 };
 
@@ -312,11 +320,10 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                     <Label className="text-[#6b7280] text-[12px]">Additional images</Label>
-                    <label className="text-[#d45815] hover:bg-[#d45815]/10 rounded-md h-7 px-2 text-xs flex items-center gap-1 cursor-pointer">
-                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && ACCEPTED_IMAGE.includes(f.type) && f.size <= MAX_IMAGE) setGalleryFiles((p) => [...p, f]); else if (f) toast.error("Image must be PNG/JPG/WebP under 5MB"); }} />
+                    <CompressedImageButton modalTitle="Add Image" onPicked={(f) => setGalleryFiles((p) => [...p, f])}
+                        className="text-[#d45815] hover:bg-[#d45815]/10 rounded-md h-7 px-2 text-xs flex items-center gap-1 cursor-pointer">
                         <Plus className="w-3 h-3" /> Add image
-                    </label>
+                    </CompressedImageButton>
                 </div>
                 {galleryFiles.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -437,11 +444,10 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                     <Label className="text-[#6b7280] text-[12px]">Additional images</Label>
-                    <label className="text-[#d45815] hover:bg-[#d45815]/10 rounded-md h-7 px-2 text-xs flex items-center gap-1 cursor-pointer">
-                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && ACCEPTED_IMAGE.includes(f.type) && f.size <= MAX_IMAGE) setAdditionalFiles((p) => [...p, f]); else if (f) toast.error("Image must be PNG/JPG/WebP under 5MB"); }} />
+                    <CompressedImageButton modalTitle="Add Image" onPicked={(f) => setAdditionalFiles((p) => [...p, f])}
+                        className="text-[#d45815] hover:bg-[#d45815]/10 rounded-md h-7 px-2 text-xs flex items-center gap-1 cursor-pointer">
                         <Plus className="w-3 h-3" /> Add image
-                    </label>
+                    </CompressedImageButton>
                 </div>
                 {additionalFiles.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -478,16 +484,15 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                             <Input value={pt.name} placeholder="e.g. Power Saver, Foil"
                                 onChange={(e) => setParts((p) => p.map((x) => x.id === pt.id ? { ...x, name: e.target.value } : x))}
                                 className="bg-white border-[#d1d5db] h-[32px] rounded-[4px] px-2 text-gray-900 text-[11px] flex-1" />
-                            <label className="w-[60px] h-[44px] shrink-0 border border-dashed border-[#d1d5db] rounded-[6px] bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#96A5BA] relative">
-                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (!ACCEPTED_IMAGE.includes(f.type) || f.size > MAX_IMAGE) { toast.error("Image must be PNG/JPG/WebP under 5MB"); return; } setParts((p) => p.map((x) => x.id === pt.id ? { ...x, imageFile: f } : x)); }} />
+                            <CompressedImageButton modalTitle="Part Image" onPicked={(f) => setParts((p) => p.map((x) => x.id === pt.id ? { ...x, imageFile: f } : x))}
+                                className="w-[60px] h-[44px] shrink-0 border border-dashed border-[#d1d5db] rounded-[6px] bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#96A5BA] relative">
                                 {pt.imageFile ? (
                                     /* eslint-disable-next-line @next/next/no-img-element */
                                     <img src={URL.createObjectURL(pt.imageFile)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <Upload className="w-4 h-4 text-[#4b5563]" />
                                 )}
-                            </label>
+                            </CompressedImageButton>
                             <button type="button" onClick={() => setParts((p) => p.filter((x) => x.id !== pt.id))}
                                 className="p-1 text-[#6b7280] hover:text-[#bf1e21] shrink-0" title="Remove part">
                                 <Trash2 className="w-3.5 h-3.5" />
