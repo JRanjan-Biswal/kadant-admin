@@ -976,11 +976,11 @@ export default function AddCategoryMachineFlow({
         );
     }, []);
 
-    const addMachineGalleryImage = useCallback((machineRowId: string) => {
+    const addMachineGalleryImage = useCallback((machineRowId: string, file: File | null = null) => {
         setMachines((prev) =>
             prev.map((m) =>
                 m.id === machineRowId
-                    ? { ...m, galleryImages: [...m.galleryImages, { id: `gi_${Date.now()}`, file: null, imageUrl: null }] }
+                    ? { ...m, galleryImages: [...m.galleryImages, { id: `gi_${Date.now()}`, file, imageUrl: null }] }
                     : m
             )
         );
@@ -2219,7 +2219,11 @@ export default function AddCategoryMachineFlow({
                                         ))}
                                         <button
                                             type="button"
-                                            onClick={() => addMachineGalleryImage(m.id)}
+                                            onClick={() => setImageModal({
+                                                title: "Machine Image",
+                                                currentUrl: null,
+                                                onSave: async (file) => { addMachineGalleryImage(m.id, file); },
+                                            })}
                                             className="w-20 h-20 rounded-lg border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#96A5BA] text-[#6b7280] gap-1"
                                             title="Add image"
                                         >
