@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, memo, useRef } from "react";
+import { useState, useCallback, useEffect, memo, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -294,14 +294,21 @@ export interface AddCategoryMachineFlowProps {
     categoryIdForEdit?: string | null;
     /** Called whenever the "can close" status changes. Parent should use this to guard close actions. */
     onCloseGuardChange?: (blocked: boolean) => void;
+    /** Called whenever unsaved-changes status changes so the parent can show a confirmation before closing. */
+    onHasUnsavedChangesChange?: (hasChanges: boolean) => void;
+    /** Parent assigns this ref to receive a handle that triggers save programmatically (e.g. "Save & Close"). */
+    saveRef?: { current: (() => Promise<void>) | null };
     /** Called after machines are persisted so a parent (e.g. onboarding form) can link them to a client. */
     onMachinesCreated?: (machineIds: string[]) => void;
+    /** When set, machines are filtered to only those linked to this client. */
+    clientID?: string;
 }
 
 interface MachineGalleryImage {
     id: string;
     file: File | null;
     imageUrl?: string | null;
+    imageName?: string | null;
 }
 
 interface MachineRow {
@@ -314,6 +321,7 @@ interface MachineRow {
     imageUrl?: string | null;
     description: string;
     galleryImages: MachineGalleryImage[];
+    deletedGalleryImageNames: string[];
     spareParts: SparePartRow[];
 }
 
@@ -324,6 +332,8 @@ interface SparePartRow {
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
+    imageUrls: string[];
+    pendingImageFiles: File[];
     optimalStateVideoFile: File | null;
     optimalStateVideoUrl?: string | null;
     parts: PartRow[];
@@ -382,11 +392,13 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
         createdId: m._id,
         imageUrl: m.imageUrl ?? null,
         description: (m as { description?: string }).description ?? "",
-        galleryImages: ((m as { galleryWithUrls?: Array<{ imageUrl?: string }> }).galleryWithUrls ?? []).map((g, i) => ({
+        galleryImages: ((m as { galleryWithUrls?: Array<{ imageUrl?: string; imageName?: string }> }).galleryWithUrls ?? []).map((g, i) => ({
             id: `gi_${m._id}_${i}`,
             file: null,
             imageUrl: g.imageUrl ?? null,
+            imageName: g.imageName ?? null,
         })),
+        deletedGalleryImageNames: [],
         spareParts: (m.spareParts ?? []).map((sp) => ({
             id: sp._id,
             name: sp.name ?? "",
@@ -394,6 +406,8 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
+            imageUrls: (sp as { imageUrls?: string[] }).imageUrls ?? [],
+            pendingImageFiles: [],
             optimalStateVideoFile: null,
             optimalStateVideoUrl: sp.optimalStateVideoUrl ?? null,
             parts: (sp.parts ?? []).map((p) => ({
@@ -427,8 +441,9 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 imageFile: null,
                 description: "",
                 galleryImages: [],
+                deletedGalleryImageNames: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -444,8 +459,9 @@ const defaultMachineRow = (): MachineRow => ({
     imageFile: null,
     description: "",
     galleryImages: [],
+    deletedGalleryImageNames: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -456,7 +472,10 @@ export default function AddCategoryMachineFlow({
     initialData,
     categoryIdForEdit,
     onCloseGuardChange,
+    onHasUnsavedChangesChange,
+    saveRef,
     onMachinesCreated,
+    clientID,
 }: AddCategoryMachineFlowProps) {
     const [categoryName, setCategoryName] = useState("");
     const [categoryImage, setCategoryImage] = useState<File | null>(null);
@@ -474,8 +493,9 @@ export default function AddCategoryMachineFlow({
             imageFile: null,
             description: "",
             galleryImages: [],
+            deletedGalleryImageNames: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", imageFile: null, optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -530,6 +550,7 @@ export default function AddCategoryMachineFlow({
         if (!m.createdId) return true;
         if (m.imageFile) return true;
         if (m.galleryImages.some((g) => g.file)) return true;
+        if (m.deletedGalleryImageNames.length > 0) return true;
         const b = machineBaselineRef.current.get(m.createdId);
         if (!b) return true;
         return (
@@ -583,6 +604,24 @@ export default function AddCategoryMachineFlow({
         onCloseGuardChange?.(closeBlocked);
     }, [closeBlocked, onCloseGuardChange]);
 
+    const hasUnsavedChanges = useMemo(() => {
+        if (isCategoryDirty()) return true;
+        for (const m of machines) {
+            if (isMachineDirty(m)) return true;
+            for (const sp of m.spareParts) {
+                if (isSparePartDirty(sp)) return true;
+                for (const pt of sp.parts) {
+                    if (isPartDirty(pt)) return true;
+                }
+            }
+        }
+        return false;
+    }, [machines, isCategoryDirty, isMachineDirty, isSparePartDirty, isPartDirty]);
+
+    useEffect(() => {
+        onHasUnsavedChangesChange?.(hasUnsavedChanges);
+    }, [hasUnsavedChanges, onHasUnsavedChangesChange]);
+
     const handleAttemptClose = useCallback(() => {
         if (closeBlocked) {
             toast.error("Please map all machine positions on the category image before closing.");
@@ -607,7 +646,7 @@ export default function AddCategoryMachineFlow({
         if (!categoryIdForEdit?.trim()) return;
         let cancelled = false;
         setLoading("edit-load");
-        fetch(`/api/machines/machine-category/${encodeURIComponent(categoryIdForEdit)}/full`)
+        fetch(`/api/machines/machine-category/${encodeURIComponent(categoryIdForEdit)}/full${clientID ? `?clientId=${encodeURIComponent(clientID)}` : ""}`)
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to load category");
                 return res.json();
@@ -653,6 +692,32 @@ export default function AddCategoryMachineFlow({
         }
         const data = await res.json();
         return data as { imageUrl?: string };
+    }, []);
+
+    const uploadEntityImageAdd = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
+        const fd = new FormData();
+        fd.append("image", file);
+        fd.append("type", type);
+        fd.append("id", id);
+        const res = await fetch("/api/upload/entity-image-add", { method: "POST", body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Image upload failed");
+        }
+        return res.json() as Promise<{ imageUrls?: string[] }>;
+    }, []);
+
+    const removeEntityImage = useCallback(async (type: "sparePart" | "part", id: string, imageName: string) => {
+        const res = await fetch("/api/upload/entity-image-remove", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, id, imageName }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Image removal failed");
+        }
+        return res.json() as Promise<{ imageUrls?: string[] }>;
     }, []);
 
     const uploadEntityVideo = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
@@ -830,6 +895,19 @@ export default function AddCategoryMachineFlow({
         return res.json();
     }, []);
 
+    const deleteMachineGalleryImage = useCallback(async (machineId: string, imageName: string) => {
+        const res = await fetch("/api/upload/machine-gallery", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineId, imageName }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Gallery image delete failed");
+        }
+        return res.json();
+    }, []);
+
     const handleUpdateMachine = useCallback(async (machineRowId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
         if (!machine?.createdId) return;
@@ -864,15 +942,31 @@ export default function AddCategoryMachineFlow({
             } else {
                 setMachines((prev) => prev.map((m) => (m.id === machineRowId ? { ...m, imageFile: null } : m)));
             }
+            for (const imageName of machine.deletedGalleryImageNames) {
+                try {
+                    await deleteMachineGalleryImage(machine.createdId, imageName);
+                } catch (e) {
+                    toast.error(`Gallery delete: ${e instanceof Error ? e.message : "failed"}`);
+                }
+            }
+            setMachines((prev) =>
+                prev.map((m) => (m.id === machineRowId ? { ...m, deletedGalleryImageNames: [] } : m))
+            );
             for (const gi of machine.galleryImages) {
                 if (gi.file) {
-                    await uploadMachineGalleryImage(machine.createdId, gi.file);
+                    const result = await uploadMachineGalleryImage(machine.createdId, gi.file);
+                    const uploadedList: Array<{ imageName: string; imageUrl: string | null }> = result?.galleryWithUrls ?? [];
+                    const newEntry = uploadedList[uploadedList.length - 1];
                     setMachines((prev) =>
                         prev.map((m) =>
                             m.id === machineRowId
                                 ? {
                                       ...m,
-                                      galleryImages: m.galleryImages.map((g) => (g.id === gi.id ? { ...g, file: null } : g)),
+                                      galleryImages: m.galleryImages.map((g) =>
+                                          g.id === gi.id
+                                              ? { ...g, file: null, imageUrl: newEntry?.imageUrl ?? null, imageName: newEntry?.imageName ?? null }
+                                              : g
+                                      ),
                                   }
                                 : m
                         )
@@ -886,7 +980,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, uploadMachineGalleryImage, onSuccess]);
+    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, onSuccess]);
 
     const addMachine = useCallback(() => {
         setMachines((prev) => [...prev, defaultMachineRow()]);
@@ -938,11 +1032,17 @@ export default function AddCategoryMachineFlow({
 
     const removeMachineGalleryImage = useCallback((machineRowId: string, imageId: string) => {
         setMachines((prev) =>
-            prev.map((m) =>
-                m.id === machineRowId
-                    ? { ...m, galleryImages: m.galleryImages.filter((gi) => gi.id !== imageId) }
-                    : m
-            )
+            prev.map((m) => {
+                if (m.id !== machineRowId) return m;
+                const removed = m.galleryImages.find((gi) => gi.id === imageId);
+                return {
+                    ...m,
+                    galleryImages: m.galleryImages.filter((gi) => gi.id !== imageId),
+                    deletedGalleryImageNames: removed?.imageName
+                        ? [...m.deletedGalleryImageNames, removed.imageName]
+                        : m.deletedGalleryImageNames,
+                };
+            })
         );
     }, []);
 
@@ -1044,6 +1144,8 @@ export default function AddCategoryMachineFlow({
                                 name: "",
                                 klValue: "",
                                 imageFile: null,
+                                imageUrls: [],
+                                pendingImageFiles: [],
                                 optimalStateVideoFile: null,
                                 parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                             },
@@ -1412,6 +1514,9 @@ export default function AddCategoryMachineFlow({
                 }
                 const spData = await res.json();
                 await uploadEntityImage("sparePart", spData._id, sp.imageFile!);
+                for (const f of sp.pendingImageFiles) {
+                    await uploadEntityImageAdd("sparePart", spData._id, f);
+                }
                 if (sp.optimalStateVideoFile) {
                     await uploadEntityVideo("sparePart", spData._id, sp.optimalStateVideoFile);
                 }
@@ -1449,6 +1554,8 @@ export default function AddCategoryMachineFlow({
                                       name: "",
                                       klValue: "",
                                       imageFile: null,
+                                      imageUrls: [],
+                                      pendingImageFiles: [],
                                       optimalStateVideoFile: null,
                                       parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
                                   },
@@ -1721,17 +1828,31 @@ export default function AddCategoryMachineFlow({
                         errors.push(`Machine ${m.name || m.id} image: ${e instanceof Error ? e.message : "failed"}`);
                     }
                 }
+                for (const imageName of m.deletedGalleryImageNames) {
+                    try {
+                        await deleteMachineGalleryImage(m.createdId, imageName);
+                    } catch (e) {
+                        errors.push(`Gallery delete: ${e instanceof Error ? e.message : "failed"}`);
+                    }
+                }
+                setMachines((prev) =>
+                    prev.map((x) => (x.id === m.id ? { ...x, deletedGalleryImageNames: [] } : x))
+                );
                 for (const gi of m.galleryImages) {
                     if (!gi.file) continue;
                     try {
-                        await uploadMachineGalleryImage(m.createdId, gi.file);
+                        const result = await uploadMachineGalleryImage(m.createdId, gi.file);
+                        const uploadedList: Array<{ imageName: string; imageUrl: string | null }> = result?.galleryWithUrls ?? [];
+                        const newEntry = uploadedList[uploadedList.length - 1];
                         setMachines((prev) =>
                             prev.map((x) =>
                                 x.id === m.id
                                     ? {
                                           ...x,
                                           galleryImages: x.galleryImages.map((g) =>
-                                              g.id === gi.id ? { ...g, file: null } : g
+                                              g.id === gi.id
+                                                  ? { ...g, file: null, imageUrl: newEntry?.imageUrl ?? null, imageName: newEntry?.imageName ?? null }
+                                                  : g
                                           ),
                                       }
                                     : x
@@ -1818,6 +1939,34 @@ export default function AddCategoryMachineFlow({
                                 errors.push(`Part ${pt.name || pt.id} image: ${e instanceof Error ? e.message : "failed"}`);
                             }
                         }
+                        if (pt.optimalStateVideoFile) {
+                            try {
+                                const vidResult = await uploadEntityVideo("part", pt.createdId, pt.optimalStateVideoFile);
+                                setMachines((prev) =>
+                                    prev.map((x) =>
+                                        x.id === m.id
+                                            ? {
+                                                  ...x,
+                                                  spareParts: x.spareParts.map((s) =>
+                                                      s.id === sp.id
+                                                          ? {
+                                                                ...s,
+                                                                parts: s.parts.map((p) =>
+                                                                    p.id === pt.id
+                                                                        ? { ...p, optimalStateVideoFile: null, optimalStateVideoUrl: vidResult?.optimalStateVideoUrl ?? p.optimalStateVideoUrl }
+                                                                        : p
+                                                                ),
+                                                            }
+                                                          : s
+                                                  ),
+                                              }
+                                            : x
+                                    )
+                                );
+                            } catch (e) {
+                                errors.push(`Part ${pt.name || pt.id} video: ${e instanceof Error ? e.message : "failed"}`);
+                            }
+                        }
                     }
                 }
             }
@@ -1855,7 +2004,12 @@ export default function AddCategoryMachineFlow({
         uploadEntityImage,
         uploadEntityVideo,
         uploadMachineGalleryImage,
+        deleteMachineGalleryImage,
     ]);
+
+    useEffect(() => {
+        if (saveRef) saveRef.current = handleSaveAllEdits;
+    }, [saveRef, handleSaveAllEdits]);
 
     const handleSavePositions = useCallback(async (positions: MachinePosition[]) => {
         if (!categoryId) return;
@@ -2246,27 +2400,87 @@ export default function AddCategoryMachineFlow({
                                                     />
                                                 </div>
                                             </div>
-                                            <ImageUploadBox
-                                                file={sp.imageFile}
-                                                onFileChange={(f) => updateSparePart(m.id, sp.id, "imageFile", f)}
-                                                label="Spare Part Image (required for new)"
-                                                compact
-                                                existingUrl={sp.imageUrl}
-                                                onClearExisting={() =>
-                                                    setMachines((prev) =>
-                                                        prev.map((x) =>
-                                                            x.id === m.id
-                                                                ? {
-                                                                      ...x,
-                                                                      spareParts: x.spareParts.map((s) =>
-                                                                          s.id === sp.id ? { ...s, imageFile: null, imageUrl: null } : s
-                                                                      ),
-                                                                  }
-                                                                : x
-                                                        )
-                                                    )
-                                                }
-                                            />
+                                            {/* Multi-image gallery */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-[#6b7280] text-[12px]">Spare Part Images</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {/* Legacy single imageUrl */}
+                                                    {sp.imageUrl && (
+                                                        <div className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={sp.imageUrl} alt="Spare part" className="w-full h-full object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrl: null } : s) } : x))}
+                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {/* Additional imageUrls */}
+                                                    {sp.imageUrls.map((url, idx) => {
+                                                        const fileName = url.split("/uploads/")[1]?.split("?")[0];
+                                                        return (
+                                                            <div key={idx} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-contain" />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        if (sp.createdId && fileName) {
+                                                                            try {
+                                                                                await removeEntityImage("sparePart", sp.createdId, fileName);
+                                                                            } catch { /* swallow, update UI regardless */ }
+                                                                        }
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: s.imageUrls.filter((_, i) => i !== idx) } : s) } : x));
+                                                                    }}
+                                                                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                >
+                                                                    <X className="w-4 h-4 text-white" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* Pending new files */}
+                                                    {sp.pendingImageFiles.map((f, idx) => (
+                                                        <div key={`pending-${idx}`} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d45815] bg-white group">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-full object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: s.pendingImageFiles.filter((_, i) => i !== idx) } : s) } : x))}
+                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {/* Add image button */}
+                                                    <label className="w-[80px] h-[80px] rounded-[6px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#505050] text-[#6b7280]">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/jpeg,image/png,image/webp"
+                                                            className="hidden"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (!file) return;
+                                                                e.target.value = "";
+                                                                if (sp.createdId) {
+                                                                    try {
+                                                                        const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
+                                                                    } catch { /* ignore, user can retry */ }
+                                                                } else {
+                                                                    setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: [...s.pendingImageFiles, file] } : s) } : x));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Upload className="w-4 h-4 mb-1" />
+                                                        <span className="text-[10px]">Add</span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                             <VideoUploadBox
                                                 file={sp.optimalStateVideoFile}
                                                 onFileChange={(f) => updateSparePart(m.id, sp.id, "optimalStateVideoFile", f)}

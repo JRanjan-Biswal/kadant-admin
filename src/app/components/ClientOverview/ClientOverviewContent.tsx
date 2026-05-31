@@ -120,7 +120,10 @@ export default function ClientOverviewContent({
     const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
     const [loadingParts, setLoadingParts] = useState(false);
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    const [showEditCloseConfirm, setShowEditCloseConfirm] = useState(false);
     const editCloseBlockedRef = useRef(false);
+    const editHasUnsavedChangesRef = useRef(false);
+    const editSaveRef = useRef<(() => Promise<void>) | null>(null);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -717,32 +720,32 @@ export default function ClientOverviewContent({
 
             {/* Edit Category modal – full hierarchy pre-populated */}
             <Dialog open={!!editingCategoryId} onOpenChange={(open) => {
-                if (!open && editCloseBlockedRef.current) {
-                    toast.error("Please associate all machine positions with the category image before closing.");
-                    return;
+                if (!open) {
+                    if (editHasUnsavedChangesRef.current) { setShowEditCloseConfirm(true); return; }
+                    editCloseBlockedRef.current = false;
+                    setEditingCategoryId(null);
                 }
-                if (!open) { editCloseBlockedRef.current = false; setEditingCategoryId(null); }
             }}>
                 <DialogContent
                     className="bg-white border border-[#96A5BA] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
                     showCloseButton={false}
-                    onInteractOutside={(e) => { if (editCloseBlockedRef.current) e.preventDefault(); }}
+                    onInteractOutside={(e) => { e.preventDefault(); }}
                     onEscapeKeyDown={(e) => {
-                        if (editCloseBlockedRef.current) {
-                            e.preventDefault();
-                            toast.error("Please associate all machine positions with the category image before closing.");
+                        e.preventDefault();
+                        if (editHasUnsavedChangesRef.current) {
+                            setShowEditCloseConfirm(true);
+                        } else {
+                            editCloseBlockedRef.current = false;
+                            setEditingCategoryId(null);
                         }
                     }}
                 >
-                    <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0">
+                    <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0 sticky top-0 z-10">
                         <h2 className="text-gray-900 text-[20px] font-medium">Edit Category, Machine, Spare Parts &amp; Parts</h2>
                         <button
                             type="button"
                             onClick={() => {
-                                if (editCloseBlockedRef.current) {
-                                    toast.error("Please associate all machine positions with the category image before closing.");
-                                    return;
-                                }
+                                if (editHasUnsavedChangesRef.current) { setShowEditCloseConfirm(true); return; }
                                 editCloseBlockedRef.current = false;
                                 setEditingCategoryId(null);
                             }}
@@ -756,12 +759,66 @@ export default function ClientOverviewContent({
                         {editingCategoryId && (
                             <AddCategoryMachineFlow
                                 compact={false}
+                                clientID={currentClientId}
                                 categoryIdForEdit={editingCategoryId}
                                 onSuccess={() => router.refresh()}
                                 onComplete={() => { editCloseBlockedRef.current = false; setEditingCategoryId(null); }}
                                 onCloseGuardChange={(blocked) => { editCloseBlockedRef.current = blocked; }}
+                                onHasUnsavedChangesChange={(hasChanges) => { editHasUnsavedChangesRef.current = hasChanges; }}
+                                saveRef={editSaveRef}
                             />
                         )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Unsaved-changes confirmation when user tries to close the edit modal */}
+            <Dialog open={showEditCloseConfirm} onOpenChange={setShowEditCloseConfirm}>
+                <DialogContent
+                    showCloseButton={false}
+                    className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[440px]"
+                >
+                    <div className="border-b border-[#607797] px-6 py-[17px]">
+                        <p className="text-[#1f2937] text-xl leading-8 font-medium">You have unsaved changes.</p>
+                    </div>
+                    <div className="px-6 pt-4 pb-2">
+                        <p className="text-[#6b7280] text-sm">Do you want to save your changes before closing?</p>
+                        {editCloseBlockedRef.current && (
+                            <p className="text-amber-600 text-sm mt-2">Note: Some machine positions have not been mapped on the category image.</p>
+                        )}
+                    </div>
+                    <div className="flex items-center justify-end gap-3 px-6 py-6">
+                        <button
+                            type="button"
+                            onClick={() => setShowEditCloseConfirm(false)}
+                            className="bg-[#f9fafb] text-[#1f2937] border border-[#d1d5db] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowEditCloseConfirm(false);
+                                editCloseBlockedRef.current = false;
+                                editHasUnsavedChangesRef.current = false;
+                                setEditingCategoryId(null);
+                            }}
+                            className="bg-[#f9fafb] text-[#dc2626] border border-[#dc2626] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#fef2f2] transition-colors"
+                        >
+                            Discard Changes
+                        </button>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                setShowEditCloseConfirm(false);
+                                await editSaveRef.current?.();
+                                editCloseBlockedRef.current = false;
+                                setEditingCategoryId(null);
+                            }}
+                            className="bg-[#d45815] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors"
+                        >
+                            Save &amp; Close
+                        </button>
                     </div>
                 </DialogContent>
             </Dialog>

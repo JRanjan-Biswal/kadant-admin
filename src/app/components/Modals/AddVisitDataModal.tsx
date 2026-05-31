@@ -162,6 +162,32 @@ function UploadBox({
     );
 }
 
+function WideUploadBox({
+    onTrigger,
+    uploading,
+    label = "Upload image/video",
+}: {
+    onTrigger: () => void;
+    uploading?: boolean;
+    label?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onTrigger}
+            disabled={uploading}
+            className="w-full h-[80px] rounded-[10px] border border-dashed border-[#9ca3af] bg-[#f9fafb] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#2D3E5C] hover:text-[#2D3E5C] transition-colors disabled:opacity-50"
+        >
+            {uploading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+                <CloudUpload className="w-5 h-5" />
+            )}
+            <span className="text-xs">{uploading ? "Uploading..." : label}</span>
+        </button>
+    );
+}
+
 interface MachineCategory {
     _id: string;
     name: string;
@@ -172,6 +198,7 @@ interface SparePartLite {
     _id: string;
     name: string;
     klValue?: string;
+    optimalStateVideoUrl?: string | null;
 }
 
 interface NewMachineIssue {
@@ -179,12 +206,15 @@ interface NewMachineIssue {
     categoryName: string;
     machineId: string;
     machineName: string;
+    sparePartId: string;
+    sparePartName: string;
     status: string;
     conditionAlert: string;
     actionNeeded: string;
     optimalStateMediaUrls: string[];
     currentVisitMediaUrls: string[];
     sparePartMedia: SparePartMediaEntry[];
+    subPartPhotos: { [partId: string]: string[] };
 }
 
 const EMPTY_ISSUE: NewMachineIssue = {
@@ -192,12 +222,15 @@ const EMPTY_ISSUE: NewMachineIssue = {
     categoryName: "",
     machineId: "",
     machineName: "",
+    sparePartId: "",
+    sparePartName: "",
     status: "",
     conditionAlert: "",
     actionNeeded: "",
     optimalStateMediaUrls: [],
     currentVisitMediaUrls: [],
     sparePartMedia: [],
+    subPartPhotos: {},
 };
 
 interface AddVisitDataModalProps {
@@ -245,6 +278,11 @@ export default function AddVisitDataModal({
     const sparePartTargetRef = useRef<{ sparePartId: string; sparePartName: string } | null>(
         null
     );
+    const [subParts, setSubParts] = useState<{ _id: string; name: string; optimalStateVideoUrl?: string | null }[]>([]);
+    const [selectedSubPartId, setSelectedSubPartId] = useState<string>("");
+    const [uploadingSubPart, setUploadingSubPart] = useState<string | null>(null);
+    const subPartInputRef = useRef<HTMLInputElement>(null);
+    const subPartTargetRef = useRef<string | null>(null);
     const [uploadTarget, setUploadTarget] = useState<{
         index: number;
         type: "optimal" | "current";
@@ -397,6 +435,7 @@ export default function AddVisitDataModal({
                         _id: p._id,
                         name: p.name,
                         klValue: p.klValue,
+                        optimalStateVideoUrl: p.optimalStateVideoUrl ?? null,
                     }))
                 );
             } catch {
@@ -545,16 +584,86 @@ export default function AddVisitDataModal({
         }));
     };
 
-    const handleAddMachineIssue = () => {
-        if (!newIssue.machineId || !newIssue.status) {
-            toast.error("Select machine and status");
+    const handleSubPartUpload = (partId: string) => {
+        subPartTargetRef.current = partId;
+        subPartInputRef.current?.click();
+    };
+
+    const handleSubPartInputChange = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const partId = subPartTargetRef.current;
+            subPartTargetRef.current = null;
+            if (!file || !partId) return;
+            setUploadingSubPart(partId);
+            try {
+                const url = await uploadFile(file);
+                setNewIssue((p) => ({
+                    ...p,
+                    subPartPhotos: {
+                        ...p.subPartPhotos,
+                        [partId]: [...(p.subPartPhotos[partId] || []), url],
+                    },
+                }));
+                toast.success("File uploaded");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingSubPart(null);
+            }
+        },
+        [uploadFile]
+    );
+
+    const removeSubPartPhoto = (partId: string, index: number) => {
+        setNewIssue((p) => ({
+            ...p,
+            subPartPhotos: {
+                ...p.subPartPhotos,
+                [partId]: (p.subPartPhotos[partId] || []).filter((_, i) => i !== index),
+            },
+        }));
+    };
+
+    const handleAddMachineIssue = async () => {
+        if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status) {
+            toast.error("Select machine, spare part, and status");
             return;
         }
+
+        const subPartEntries = Object.entries(newIssue.subPartPhotos)
+            .filter(([, urls]) => urls.length > 0)
+            .map(([partId, imageUrls]) => ({
+                partId,
+                sparePartId: newIssue.sparePartId,
+                machineId: newIssue.machineId,
+                clientId: clientID,
+                imageUrls,
+            }));
+
+        if (subPartEntries.length > 0) {
+            try {
+                await fetch(
+                    `/api/clients/${clientID}/client-machines/spare-parts/spare-parts-uploaded-images/${newIssue.machineId}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(subPartEntries),
+                    }
+                );
+            } catch {
+                toast.error("Failed to upload some part inspection photos");
+            }
+        }
+
         setMachineIssues((prev) => [
             ...prev,
             {
                 machineId: newIssue.machineId,
                 machineName: newIssue.machineName,
+                sparePartId: newIssue.sparePartId,
+                sparePartName: newIssue.sparePartName,
                 categoryName: newIssue.categoryName,
                 status: newIssue.status,
                 conditionAlert: newIssue.conditionAlert,
@@ -567,6 +676,8 @@ export default function AddVisitDataModal({
         setNewIssue({ ...EMPTY_ISSUE });
         setFilteredMachines([]);
         setSpareParts([]);
+        setSubParts([]);
+        setSelectedSubPartId("");
         setShowAddIssue(false);
     };
 
@@ -807,6 +918,8 @@ export default function AddVisitDataModal({
         setMachineIssues([]);
         setNewIssue({ ...EMPTY_ISSUE });
         setSpareParts([]);
+        setSubParts([]);
+        setSelectedSubPartId("");
         setShowAddIssue(false);
         setScheduledToday([]);
         setUseCustomDate(false);
@@ -893,7 +1006,7 @@ export default function AddVisitDataModal({
                                         const chipDate = format(parseISO(date), "yyyy-MM-dd");
                                         const selected =
                                             !useCustomDate &&
-                                            watch("nextScheduledVisit") === chipDate;
+                                            selectedChipVisitId === id;
                                         return (
                                             <button
                                                 key={id}
@@ -1002,6 +1115,22 @@ export default function AddVisitDataModal({
                                         className="text-[#1f2937] text-base cursor-pointer"
                                     >
                                         Mechanical Audit
+                                    </Label>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <Checkbox
+                                        id="add-general-visit"
+                                        checked={visitType.includes("General Visit")}
+                                        onCheckedChange={() =>
+                                            handleVisitTypeChange("General Visit")
+                                        }
+                                        className="w-5 h-5 rounded-[4px] data-[state=checked]:bg-[#D45815] data-[state=checked]:border-[#D45815] border-2 border-[#9ca3af] data-[state=checked]:text-white"
+                                    />
+                                    <Label
+                                        htmlFor="add-general-visit"
+                                        className="text-[#1f2937] text-base cursor-pointer"
+                                    >
+                                        General Visit
                                     </Label>
                                 </div>
                             </div>
@@ -1160,72 +1289,48 @@ export default function AddVisitDataModal({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="flex flex-col gap-1.5">
-                                            <p className="text-[#6b7280] text-xs">
-                                                Last Visit
-                                            </p>
-                                            <div className="flex flex-wrap gap-2 items-start">
-                                                {(issue.optimalStateMediaUrls ?? []).map(
-                                                    (url, ui) => (
+                                            <p className="text-[#6b7280] text-xs">Last Visit</p>
+                                            {(issue.optimalStateMediaUrls ?? []).length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-1">
+                                                    {(issue.optimalStateMediaUrls ?? []).map((url, ui) => (
                                                         <MediaPreview
                                                             key={ui}
                                                             url={url}
-                                                            onRemove={() =>
-                                                                updateIssueMedia(
-                                                                    index,
-                                                                    "optimal",
-                                                                    url,
-                                                                    false
-                                                                )
-                                                            }
+                                                            onRemove={() => updateIssueMedia(index, "optimal", url, false)}
                                                         />
-                                                    )
-                                                )}
-                                                <UploadBox
-                                                    label="Add"
-                                                    onTrigger={() => {
-                                                        setUploadTarget({ index, type: "optimal" });
-                                                        existingMediaInputRef.current?.click();
-                                                    }}
-                                                    uploading={
-                                                        uploadingExisting?.index === index &&
-                                                        uploadingExisting?.type === "optimal"
-                                                    }
-                                                />
-                                            </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <WideUploadBox
+                                                label="Add image/video"
+                                                onTrigger={() => {
+                                                    setUploadTarget({ index, type: "optimal" });
+                                                    existingMediaInputRef.current?.click();
+                                                }}
+                                                uploading={uploadingExisting?.index === index && uploadingExisting?.type === "optimal"}
+                                            />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <p className="text-[#6b7280] text-xs">
-                                                Current Visit
-                                            </p>
-                                            <div className="flex flex-wrap gap-2 items-start">
-                                                {(issue.currentVisitMediaUrls ?? []).map(
-                                                    (url, ui) => (
+                                            <p className="text-[#6b7280] text-xs">Current Visit</p>
+                                            {(issue.currentVisitMediaUrls ?? []).length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-1">
+                                                    {(issue.currentVisitMediaUrls ?? []).map((url, ui) => (
                                                         <MediaPreview
                                                             key={ui}
                                                             url={url}
-                                                            onRemove={() =>
-                                                                updateIssueMedia(
-                                                                    index,
-                                                                    "current",
-                                                                    url,
-                                                                    false
-                                                                )
-                                                            }
+                                                            onRemove={() => updateIssueMedia(index, "current", url, false)}
                                                         />
-                                                    )
-                                                )}
-                                                <UploadBox
-                                                    label="Add"
-                                                    onTrigger={() => {
-                                                        setUploadTarget({ index, type: "current" });
-                                                        existingMediaInputRef.current?.click();
-                                                    }}
-                                                    uploading={
-                                                        uploadingExisting?.index === index &&
-                                                        uploadingExisting?.type === "current"
-                                                    }
-                                                />
-                                            </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <WideUploadBox
+                                                label="Add image/video"
+                                                onTrigger={() => {
+                                                    setUploadTarget({ index, type: "current" });
+                                                    existingMediaInputRef.current?.click();
+                                                }}
+                                                uploading={uploadingExisting?.index === index && uploadingExisting?.type === "current"}
+                                            />
                                         </div>
                                     </div>
 
@@ -1302,10 +1407,14 @@ export default function AddVisitDataModal({
                                                         categoryName: cat?.name || "",
                                                         machineId: "",
                                                         machineName: "",
+                                                        sparePartId: "",
+                                                        sparePartName: "",
                                                         sparePartMedia: [],
+                                                        subPartPhotos: {},
                                                     }));
                                                     setFilteredMachines(cat?.machines || []);
                                                     setSpareParts([]);
+                                                    setSubParts([]);
                                                 }}
                                             >
                                                 <SelectTrigger className="bg-white w-full border border-[#d1d5db] !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0">
@@ -1339,8 +1448,12 @@ export default function AddVisitDataModal({
                                                         ...p,
                                                         machineId: value,
                                                         machineName: machine?.name ?? "",
+                                                        sparePartId: "",
+                                                        sparePartName: "",
                                                         sparePartMedia: [],
+                                                        subPartPhotos: {},
                                                     }));
+                                                    setSubParts([]);
                                                     fetchSparePartsForMachine(value);
                                                 }}
                                                 disabled={!newIssue.categoryId}
@@ -1371,6 +1484,69 @@ export default function AddVisitDataModal({
 
                                     <div className="flex flex-col gap-2">
                                         <Label className="text-[#6b7280] text-sm">
+                                            Spare Part *
+                                        </Label>
+                                        <Select
+                                            value={newIssue.sparePartId}
+                                            onValueChange={(value) => {
+                                                const sp = spareParts.find(
+                                                    (s) => s._id === value
+                                                );
+                                                setNewIssue((p) => ({
+                                                    ...p,
+                                                    sparePartId: value,
+                                                    sparePartName: sp?.name || "",
+                                                    subPartPhotos: {},
+                                                }));
+                                                setSubParts([]);
+                                                setSelectedSubPartId("");
+                                                fetch(`/api/machines/spare-parts/${value}/parts`, { cache: "no-store" })
+                                                    .then((r) => (r.ok ? r.json() : []))
+                                                    .then((data) =>
+                                                        setSubParts(
+                                                            Array.isArray(data)
+                                                                ? data.map((p: { _id: string; name: string; optimalStateVideoUrl?: string | null }) => ({
+                                                                      _id: p._id,
+                                                                      name: p.name,
+                                                                      optimalStateVideoUrl: p.optimalStateVideoUrl ?? null,
+                                                                  }))
+                                                                : []
+                                                        )
+                                                    )
+                                                    .catch(() => setSubParts([]));
+                                            }}
+                                            disabled={!newIssue.machineId || loadingSpareParts}
+                                        >
+                                            <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0 disabled:opacity-50">
+                                                <SelectValue
+                                                    placeholder={
+                                                        !newIssue.machineId
+                                                            ? "Select machine first"
+                                                            : loadingSpareParts
+                                                            ? "Loading spare parts..."
+                                                            : spareParts.length === 0
+                                                            ? "No spare parts for this machine"
+                                                            : "Select spare part"
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white border-[#d1d5db]">
+                                                {spareParts.map((sp) => (
+                                                    <SelectItem
+                                                        key={sp._id}
+                                                        value={sp._id}
+                                                        className="text-[#1f2937] hover:bg-[#f3f4f6]"
+                                                    >
+                                                        {sp.name}
+                                                        {sp.klValue ? ` — ${sp.klValue}` : ""}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-[#6b7280] text-sm">
                                             Status *
                                         </Label>
                                         <Select
@@ -1394,6 +1570,82 @@ export default function AddVisitDataModal({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+
+                                    {/* Last Visit / Current Visit — Figma order: before Condition Alert */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Last Visit
+                                            </Label>
+                                            <input
+                                                ref={optimalInputRef}
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    e.target.value = "";
+                                                    if (file)
+                                                        handleNewIssueMediaUpload("optimal", file);
+                                                }}
+                                            />
+                                            {(newIssue.optimalStateMediaUrls ?? []).length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-1">
+                                                    {(newIssue.optimalStateMediaUrls ?? []).map(
+                                                        (url, ui) => (
+                                                            <MediaPreview
+                                                                key={ui}
+                                                                url={url}
+                                                                onRemove={() =>
+                                                                    removeNewIssueMedia("optimal", ui)
+                                                                }
+                                                            />
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+                                            <WideUploadBox
+                                                onTrigger={() => optimalInputRef.current?.click()}
+                                                uploading={uploadingMedia === "optimal"}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Current Visit
+                                            </Label>
+                                            <input
+                                                ref={currentInputRef}
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    e.target.value = "";
+                                                    if (file)
+                                                        handleNewIssueMediaUpload("current", file);
+                                                }}
+                                            />
+                                            {(newIssue.currentVisitMediaUrls ?? []).length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-1">
+                                                    {(newIssue.currentVisitMediaUrls ?? []).map(
+                                                        (url, ui) => (
+                                                            <MediaPreview
+                                                                key={ui}
+                                                                url={url}
+                                                                onRemove={() =>
+                                                                    removeNewIssueMedia("current", ui)
+                                                                }
+                                                            />
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+                                            <WideUploadBox
+                                                onTrigger={() => currentInputRef.current?.click()}
+                                                uploading={uploadingMedia === "current"}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-col gap-2">
@@ -1444,151 +1696,88 @@ export default function AddVisitDataModal({
                                         </div>
                                     </div>
 
-                                    {/* Last Visit / Current Visit uploads */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex flex-col gap-2">
-                                            <Label className="text-[#6b7280] text-sm">
-                                                Last Visit
-                                            </Label>
-                                            <input
-                                                ref={optimalInputRef}
-                                                type="file"
-                                                accept="image/*,video/*"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const file = e.target.files?.[0];
-                                                    e.target.value = "";
-                                                    if (file)
-                                                        handleNewIssueMediaUpload("optimal", file);
-                                                }}
-                                            />
-                                            <div className="flex flex-wrap gap-2 items-center">
-                                                {(newIssue.optimalStateMediaUrls ?? []).map(
-                                                    (url, ui) => (
-                                                        <MediaPreview
-                                                            key={ui}
-                                                            url={url}
-                                                            onRemove={() =>
-                                                                removeNewIssueMedia("optimal", ui)
-                                                            }
-                                                        />
-                                                    )
-                                                )}
-                                                <UploadBox
-                                                    label="Upload"
-                                                    onTrigger={() =>
-                                                        optimalInputRef.current?.click()
-                                                    }
-                                                    uploading={uploadingMedia === "optimal"}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            <Label className="text-[#6b7280] text-sm">
-                                                Current Visit
-                                            </Label>
-                                            <input
-                                                ref={currentInputRef}
-                                                type="file"
-                                                accept="image/*,video/*"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const file = e.target.files?.[0];
-                                                    e.target.value = "";
-                                                    if (file)
-                                                        handleNewIssueMediaUpload("current", file);
-                                                }}
-                                            />
-                                            <div className="flex flex-wrap gap-2 items-center">
-                                                {(newIssue.currentVisitMediaUrls ?? []).map(
-                                                    (url, ui) => (
-                                                        <MediaPreview
-                                                            key={ui}
-                                                            url={url}
-                                                            onRemove={() =>
-                                                                removeNewIssueMedia("current", ui)
-                                                            }
-                                                        />
-                                                    )
-                                                )}
-                                                <UploadBox
-                                                    label="Upload"
-                                                    onTrigger={() =>
-                                                        currentInputRef.current?.click()
-                                                    }
-                                                    uploading={uploadingMedia === "current"}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {/* Hidden file input for sub-part current state photos */}
+                                    <input
+                                        ref={subPartInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleSubPartInputChange}
+                                    />
 
-                                    {/* Spare parts row (one upload box per part) */}
-                                    {newIssue.machineId && (
-                                        <div className="flex flex-col gap-2">
-                                            <Label className="text-[#6b7280] text-sm">
-                                                Spare Parts
-                                            </Label>
-                                            {loadingSpareParts ? (
-                                                <div className="flex items-center gap-2 text-[#6b7280] text-sm">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Loading spare parts...
-                                                </div>
-                                            ) : spareParts.length === 0 ? (
-                                                <p className="text-[#6b7280] text-xs">
-                                                    No spare parts found for this machine.
-                                                </p>
-                                            ) : (
-                                                <div className="grid grid-cols-4 gap-3">
-                                                    {spareParts.map((sp) => {
-                                                        const entry = newIssue.sparePartMedia.find(
-                                                            (m) => m.sparePartId === sp._id
-                                                        );
-                                                        const urls = entry?.mediaUrls || [];
-                                                        return (
-                                                            <div
-                                                                key={sp._id}
-                                                                className="flex flex-col gap-1.5"
+                                    {/* Sub-part dropdown + Optimal State / Current Visit State */}
+                                    {subParts.length > 0 && (
+                                        <div className="flex flex-col gap-3">
+                                            <div className="flex flex-col gap-2">
+                                                <Label className="text-[#6b7280] text-sm">Sub-Part</Label>
+                                                <Select value={selectedSubPartId} onValueChange={setSelectedSubPartId}>
+                                                    <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0">
+                                                        <SelectValue placeholder="Select sub-part" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-white border-[#d1d5db]">
+                                                        {subParts.map((pt) => (
+                                                            <SelectItem
+                                                                key={pt._id}
+                                                                value={pt._id}
+                                                                className="text-[#1f2937] hover:bg-[#f3f4f6]"
                                                             >
-                                                                <div className="flex flex-wrap gap-1.5 items-start">
-                                                                    {urls.map((url, ui) => (
-                                                                        <MediaPreview
-                                                                            key={ui}
-                                                                            url={url}
-                                                                            onRemove={() =>
-                                                                                removeNewSparePartMedia(
-                                                                                    sp._id,
-                                                                                    ui
-                                                                                )
-                                                                            }
+                                                                {pt.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {selectedSubPartId && (() => {
+                                                const selectedPart = subParts.find((pt) => pt._id === selectedSubPartId);
+                                                const photos = newIssue.subPartPhotos[selectedSubPartId] ?? [];
+                                                const isUploading = uploadingSubPart === selectedSubPartId;
+                                                return (
+                                                    <div className="flex flex-col gap-2">
+                                                        <Label className="text-[#6b7280] text-sm font-medium">
+                                                            {selectedPart?.name} — Media
+                                                        </Label>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="flex flex-col gap-2">
+                                                                <Label className="text-[#6b7280] text-xs font-medium">Optimal State</Label>
+                                                                {selectedPart?.optimalStateVideoUrl ? (
+                                                                    <div className="rounded-[10px] overflow-hidden border border-[#d1d5db] bg-[#e5e7eb] h-[80px]">
+                                                                        <video
+                                                                            src={selectedPart.optimalStateVideoUrl}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                            controls
                                                                         />
-                                                                    ))}
-                                                                    <UploadBox
-                                                                        label="Upload"
-                                                                        onTrigger={() => {
-                                                                            sparePartTargetRef.current = {
-                                                                                sparePartId: sp._id,
-                                                                                sparePartName: sp.name,
-                                                                            };
-                                                                            sparePartInputRef.current?.click();
-                                                                        }}
-                                                                        uploading={
-                                                                            uploadingSparePartId === sp._id
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <p className="text-[#1f2937] text-xs truncate">
-                                                                    {sp.name}
-                                                                </p>
-                                                                {sp.klValue && (
-                                                                    <p className="text-[#6b7280] text-[10px] truncate">
-                                                                        {sp.klValue}
-                                                                    </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-full h-[80px] rounded-[10px] border border-dashed border-[#d1d5db] bg-[#f9fafb] flex items-center justify-center">
+                                                                        <span className="text-[#9ca3af] text-xs italic">No optimal state recorded</span>
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                            <div className="flex flex-col gap-2">
+                                                                <Label className="text-[#6b7280] text-xs font-medium">Current Visit State</Label>
+                                                                {photos.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-2 mb-1">
+                                                                        {photos.map((url, ui) => (
+                                                                            <MediaPreview
+                                                                                key={ui}
+                                                                                url={url}
+                                                                                onRemove={() => removeSubPartPhoto(selectedSubPartId, ui)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <WideUploadBox
+                                                                    label="Upload image/video"
+                                                                    onTrigger={() => handleSubPartUpload(selectedSubPartId)}
+                                                                    uploading={isUploading}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     )}
 
@@ -1601,6 +1790,8 @@ export default function AddVisitDataModal({
                                                 setNewIssue({ ...EMPTY_ISSUE });
                                                 setFilteredMachines([]);
                                                 setSpareParts([]);
+                                                setSubParts([]);
+                                                setSelectedSubPartId("");
                                             }}
                                             className="bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280] hover:bg-[#e5e7eb] rounded-[10px] h-9 px-5"
                                         >

@@ -66,6 +66,10 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
     const [facilityImagePath, setFacilityImagePath] = useState<string | null>(client?.facilityImagePath || null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+    const [homeImage, setHomeImage] = useState<string | null>(client?.homeImageUrl || null);
+    const [homeImagePath, setHomeImagePath] = useState<string | null>(client?.homeImagePath || null);
+    const [isUploadingHomeImage, setIsUploadingHomeImage] = useState(false);
+
     useEffect(() => {
         setIsReadOnly(session?.user?.isReadOnly || false);
     }, [session]);
@@ -164,6 +168,52 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
         setFacilityImagePath(null);
     };
 
+    const handleHomeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('File size must be less than 10MB');
+            return;
+        }
+
+        try {
+            setIsUploadingHomeImage(true);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upload image');
+            }
+
+            const data = await response.json();
+            setHomeImage(data.url);
+            setHomeImagePath(data.path || null);
+            toast.success('Home image uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading home image:', error);
+            toast.error('Failed to upload home image');
+        } finally {
+            setIsUploadingHomeImage(false);
+        }
+    };
+
+    const removeHomeImage = () => {
+        setHomeImage(null);
+        setHomeImagePath(null);
+    };
+
     // const getProducts = async () => {
     //     try {
     //         setIsLoading(true);
@@ -222,6 +272,7 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
             location: clientDetails.location,
             // Send the relative path; backend rebuilds the public URL via virtual.
             facilityImage: facilityImagePath,
+            homeImage: homeImagePath,
             // Machines are managed in the dedicated machine flow — do NOT send
             // them from this modal or the backend will treat the absence as
             // "delete the rest" and wipe the client's ClientMachine rows.
@@ -418,6 +469,72 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                                     disabled={isUploadingImage}
                                 />
                                 {isUploadingImage ? (
+                                    <Loader2 className="animate-spin" size={16} />
+                                ) : (
+                                    <>
+                                        <TbUpload size={16} />
+                                        <span className="text-sm">Change</span>
+                                    </>
+                                )}
+                            </label>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
+                </div>
+
+                {/* Home Image Upload Section */}
+                <div className="mt-5">
+                    <Label className="text-muted-foreground text-sm">Home Image</Label>
+                    <div className="flex items-center gap-4 mt-2">
+                        {homeImage ? (
+                            <div className="relative shrink-0">
+                                <div className="w-40 h-24 border border-border rounded-md overflow-hidden">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <Image
+                                        width={160}
+                                        height={90}
+                                        src={homeImage || ''}
+                                        alt="Home"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={removeHomeImage}
+                                    className="absolute -top-2 -right-2 bg-destructive text-gray-900 rounded-full p-1 hover:bg-destructive/80 transition-colors"
+                                >
+                                    <TbX size={14} />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30 shrink-0">
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    onChange={handleHomeImageUpload}
+                                    className="hidden"
+                                    disabled={isUploadingHomeImage}
+                                />
+                                {isUploadingHomeImage ? (
+                                    <Loader2 className="animate-spin text-orange" />
+                                ) : (
+                                    <>
+                                        <TbUpload className="text-muted-foreground text-xl mb-1" />
+                                        <span className="text-xs text-muted-foreground">Upload Image</span>
+                                    </>
+                                )}
+                            </label>
+                        )}
+                        {homeImage && (
+                            <label className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0">
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    onChange={handleHomeImageUpload}
+                                    className="hidden"
+                                    disabled={isUploadingHomeImage}
+                                />
+                                {isUploadingHomeImage ? (
                                     <Loader2 className="animate-spin" size={16} />
                                 ) : (
                                     <>

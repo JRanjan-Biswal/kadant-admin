@@ -17,13 +17,15 @@ import {
 import ChangeIdModal from "./modals/ChangeIdModal";
 import ChangePasswordModal from "./modals/ChangePasswordModal";
 import ChangeRegionModal from "./modals/ChangeRegionModal";
+import ChangeCustomerModal from "./modals/ChangeCustomerModal";
 import ConfirmationDialog from "./modals/ConfirmationDialog";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
-import { 
+import {
     updateClientEmail,
     updateClientPassword,
     updateClientVisibility,
     updateClientRegion,
+    updateClientCustomer,
 } from "@/actions/update-client-credentials";
 
 interface ViewCustomerDetailsProps {
@@ -140,11 +142,13 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
             : "N/A"
     );
     const [currentRegion, setCurrentRegion] = useState(client.region || "");
-    
+    const [currentCustomer, setCurrentCustomer] = useState(client.customer || "");
+
     // Modal states
     const [showChangeIdModal, setShowChangeIdModal] = useState(false);
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const [showChangeRegionModal, setShowChangeRegionModal] = useState(false);
+    const [showChangeCustomerModal, setShowChangeCustomerModal] = useState(false);
     const [showEditBusinessModal, setShowEditBusinessModal] = useState(false);
     const [showVisibilityConfirmation, setShowVisibilityConfirmation] = useState(false);
     const [pendingVisibilityChange, setPendingVisibilityChange] = useState<boolean | null>(null);
@@ -188,6 +192,17 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
             toast.success(result.message || "Region updated successfully");
         } else {
             toast.error(result.error || "Failed to update region");
+            throw new Error(result.error);
+        }
+    };
+
+    const handleSaveCustomer = async (customer: string) => {
+        const result = await updateClientCustomer(client._id, customer);
+        if (result.success) {
+            setCurrentCustomer(customer);
+            toast.success(result.message || "Customer updated successfully");
+        } else {
+            toast.error(result.error || "Failed to update customer");
             throw new Error(result.error);
         }
     };
@@ -340,6 +355,11 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                     value={currentRegion || "Not set"}
                                     onEdit={() => setShowChangeRegionModal(true)}
                                 />
+                                <AccountRow
+                                    label="Change Customer"
+                                    value={currentCustomer || "Not set"}
+                                    onEdit={() => setShowChangeCustomerModal(true)}
+                                />
                                 <div className="flex items-center justify-between">
                                     <span className="text-[#6b7280] text-base leading-6">Account Status</span>
                                     <VisibilityToggle 
@@ -380,6 +400,13 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                 onOpenChange={setShowChangeRegionModal}
                 currentRegion={currentRegion}
                 onSave={handleSaveRegion}
+            />
+
+            <ChangeCustomerModal
+                open={showChangeCustomerModal}
+                onOpenChange={setShowChangeCustomerModal}
+                currentCustomer={currentCustomer}
+                onSave={handleSaveCustomer}
             />
 
             <ConfirmationDialog
