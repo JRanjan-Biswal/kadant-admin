@@ -28,8 +28,9 @@ export async function POST(request: NextRequest) {
         quality = Math.min(100, Math.max(1, quality));
 
         const inputBuffer = Buffer.from(await image.arrayBuffer());
-        const outputBuffer = await sharp(inputBuffer)
+        const outputBuffer = await sharp(inputBuffer, { limitInputPixels: 268402689 * 4 })
             .rotate() // respect EXIF orientation
+            .resize({ width: 2600, height: 2600, fit: "inside", withoutEnlargement: true }) // bound output
             .webp({ quality })
             .toBuffer();
 
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("compress-image error:", error);
-        return NextResponse.json({ error: "Compression failed" }, { status: 500 });
+        // Surface the real reason (e.g. "Input image exceeds pixel limit",
+        // "unsupported image format") instead of a generic message so the
+        // modal can show something actionable.
+        const message = error instanceof Error ? error.message : "Compression failed";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

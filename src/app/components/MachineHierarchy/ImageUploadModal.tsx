@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const MAX = 15 * 1024 * 1024; // 15 MB original cap (it'll be compressed)
+const MAX = 40 * 1024 * 1024;       // accept up to 40 MB; oversized ones are downscaled in-browser first
+const MAX_EDGE = 2600;              // longest side (px) after client-side downscale
+const SAFE_BYTES = 4 * 1024 * 1024; // at/under this and within MAX_EDGE → upload as-is
 
 function fmtSize(bytes?: number): string {
     if (bytes == null) return "";
@@ -30,6 +32,39 @@ async function compressViaServer(file: File, quality: number): Promise<File> {
     return new File([blob], `${base}-q${quality}.webp`, { type: "image/webp" });
 }
 
+/**
+ * Downscale very large / high-resolution images in the browser *before* they're
+ * uploaded. This keeps the request body small (so it never hits the server's
+ * sharp pixel limit or a platform body cap — e.g. Vercel's 4.5 MB function limit)
+ * and avoids decoding a 100+ megapixel file server-side. Returns the original
+ * file untouched when it's already within limits.
+ */
+async function prepareForUpload(file: File): Promise<{ file: File; resized: boolean }> {
+    let bmp: ImageBitmap;
+    try {
+        bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+        return { file, resized: false }; // undecodable here — let the server attempt it
+    }
+    const longest = Math.max(bmp.width, bmp.height);
+    if (longest <= MAX_EDGE && file.size <= SAFE_BYTES) { bmp.close(); return { file, resized: false }; }
+
+    const scale = MAX_EDGE / longest < 1 ? MAX_EDGE / longest : 1;
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bmp.close(); return { file, resized: false }; }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    if (!blob) return { file, resized: false };
+    const base = file.name.replace(/\.[^.]+$/, "") || "image";
+    return { file: new File([blob], `${base}.jpg`, { type: "image/jpeg" }), resized: true };
+}
+
 interface ImageUploadModalProps {
     open: boolean;
     onClose: () => void;
@@ -47,6 +82,7 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const [choice, setChoice] = useState<"original" | "compressed">("compressed");
     const [compressing, setCompressing] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [notice, setNotice] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const reset = useCallback(() => {
@@ -56,6 +92,7 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         setCompressedFile(null);
         setQuality(70);
         setChoice("compressed");
+        setNotice(null);
     }, []);
 
     useEffect(() => () => {
@@ -76,14 +113,18 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         }
     }, []);
 
-    const handlePick = useCallback((file?: File) => {
+    const handlePick = useCallback(async (file?: File) => {
         if (!file) return;
         if (!ACCEPTED.includes(file.type)) { toast.error("Only PNG, JPG, and WebP images are allowed."); return; }
-        if (file.size > MAX) { toast.error("Image must be under 15 MB."); return; }
-        setPickedFile(file);
-        setPickedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+        if (file.size > MAX) { toast.error("Image must be under 40 MB."); return; }
+        // Downscale huge / high-resolution images in-browser first so the upload
+        // stays small and reliable (avoids the server pixel limit + prod body caps).
+        const { file: prepared, resized } = await prepareForUpload(file);
+        setNotice(resized ? `Large image resized to ${MAX_EDGE}px for a faster, reliable upload.` : null);
+        setPickedFile(prepared);
+        setPickedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(prepared); });
         setChoice("compressed");
-        runCompress(file, quality);
+        runCompress(prepared, quality);
     }, [quality, runCompress]);
 
     const onSlider = useCallback((q: number) => {
@@ -142,8 +183,12 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                         <span className="text-foreground text-[13px]">
                             {pickedFile ? "Choose a different image" : <>Upload <span className="text-orange font-medium">new image</span></>}
                         </span>
-                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP</span>
+                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — large images are auto-resized</span>
                     </label>
+
+                    {notice && (
+                        <p className="text-[#6b7280] text-[11px] bg-[#f3f4f6] border border-[#e5e7eb] rounded-[6px] px-2.5 py-1.5">{notice}</p>
+                    )}
 
                     {pickedFile && (
                         <>
