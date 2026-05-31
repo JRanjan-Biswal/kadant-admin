@@ -258,7 +258,11 @@ export default function CreateAdminModal({
                                 Full access to everything. Turn off to scope this user to a region or customer.
                             </p>
                         </div>
-                        <Switch checked={isAdmin} onCheckedChange={setIsAdmin} />
+                        <Switch
+                            checked={isAdmin}
+                            onCheckedChange={setIsAdmin}
+                            className="data-[state=unchecked]:bg-[#96A5BA] data-[state=checked]:bg-[#d45815]"
+                        />
                     </div>
 
                     <div className="space-y-1.5">
