@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const MAX = 40 * 1024 * 1024;       // accept up to 40 MB; oversized ones are downscaled in-browser first
-const MAX_EDGE = 2600;              // longest side (px) after client-side downscale
-const SAFE_BYTES = 4 * 1024 * 1024; // at/under this and within MAX_EDGE → upload as-is
+const MAX = 40 * 1024 * 1024;       // accept up to 40 MB (the Original is uploaded untouched)
+const MAX_EDGE = 2600;              // longest side (px) for the downscaled *compressed* copy
+const SAFE_BYTES = 4 * 1024 * 1024; // originals over this get a downscaled copy — for the compressed output only
 
 function fmtSize(bytes?: number): string {
     if (bytes == null) return "";
@@ -33,36 +33,38 @@ async function compressViaServer(file: File, quality: number): Promise<File> {
 }
 
 /**
- * Downscale very large / high-resolution images in the browser *before* they're
- * uploaded. This keeps the request body small (so it never hits the server's
- * sharp pixel limit or a platform body cap — e.g. Vercel's 4.5 MB function limit)
- * and avoids decoding a 100+ megapixel file server-side. Returns the original
- * file untouched when it's already within limits.
+ * Returns a transport-safe COPY of the file to feed the compress endpoint. If
+ * the original is large it's downscaled to MAX_EDGE so the request stays under
+ * platform body caps (e.g. Vercel's 4.5 MB function limit) and the server's
+ * pixel limit. The passed-in original is NEVER mutated — this only affects the
+ * *compressed* output. Small files are returned as-is (the server still applies
+ * the final quality + resize).
  */
-async function prepareForUpload(file: File): Promise<{ file: File; resized: boolean }> {
+async function shrinkForCompression(file: File): Promise<File> {
+    if (file.size <= SAFE_BYTES) return file;
     let bmp: ImageBitmap;
     try {
         bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
     } catch {
-        return { file, resized: false }; // undecodable here — let the server attempt it
+        return file; // undecodable here — let the server attempt the original
     }
     const longest = Math.max(bmp.width, bmp.height);
-    if (longest <= MAX_EDGE && file.size <= SAFE_BYTES) { bmp.close(); return { file, resized: false }; }
+    if (longest <= MAX_EDGE) { bmp.close(); return file; }
 
-    const scale = MAX_EDGE / longest < 1 ? MAX_EDGE / longest : 1;
+    const scale = MAX_EDGE / longest;
     const w = Math.round(bmp.width * scale);
     const h = Math.round(bmp.height * scale);
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) { bmp.close(); return { file, resized: false }; }
+    if (!ctx) { bmp.close(); return file; }
     ctx.drawImage(bmp, 0, 0, w, h);
     bmp.close();
 
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-    if (!blob) return { file, resized: false };
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) return file;
     const base = file.name.replace(/\.[^.]+$/, "") || "image";
-    return { file: new File([blob], `${base}.jpg`, { type: "image/jpeg" }), resized: true };
+    return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
 }
 
 interface ImageUploadModalProps {
@@ -82,8 +84,8 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const [choice, setChoice] = useState<"original" | "compressed">("compressed");
     const [compressing, setCompressing] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [notice, setNotice] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const compressInputRef = useRef<File | null>(null); // (possibly downscaled) copy fed to the compressor
 
     const reset = useCallback(() => {
         setPickedUrl((p) => { if (p) URL.revokeObjectURL(p); return null; });
@@ -92,7 +94,7 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         setCompressedFile(null);
         setQuality(70);
         setChoice("compressed");
-        setNotice(null);
+        compressInputRef.current = null;
     }, []);
 
     useEffect(() => () => {
@@ -117,22 +119,25 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         if (!file) return;
         if (!ACCEPTED.includes(file.type)) { toast.error("Only PNG, JPG, and WebP images are allowed."); return; }
         if (file.size > MAX) { toast.error("Image must be under 40 MB."); return; }
-        // Downscale huge / high-resolution images in-browser first so the upload
-        // stays small and reliable (avoids the server pixel limit + prod body caps).
-        const { file: prepared, resized } = await prepareForUpload(file);
-        setNotice(resized ? `Large image resized to ${MAX_EDGE}px for a faster, reliable upload.` : null);
-        setPickedFile(prepared);
-        setPickedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(prepared); });
+        // The Original is kept EXACTLY as the user picked it — never altered.
+        setPickedFile(file);
+        setPickedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
         setChoice("compressed");
-        runCompress(prepared, quality);
+        // Only the *compressed* preview is derived. For large originals we compress
+        // from a downscaled, transport-safe copy (cached so the slider can re-compress
+        // without re-shrinking). The original above is untouched.
+        const input = await shrinkForCompression(file);
+        compressInputRef.current = input;
+        runCompress(input, quality);
     }, [quality, runCompress]);
 
     const onSlider = useCallback((q: number) => {
         setQuality(q);
-        if (!pickedFile) return;
+        const input = compressInputRef.current;
+        if (!input) return;
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => runCompress(pickedFile, q), 300);
-    }, [pickedFile, runCompress]);
+        debounceRef.current = setTimeout(() => runCompress(input, q), 300);
+    }, [runCompress]);
 
     const close = useCallback(() => { if (!saving) { reset(); onClose(); } }, [saving, reset, onClose]);
 
@@ -152,7 +157,8 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     }, [choice, compressedFile, pickedFile, onSave, reset, onClose]);
 
     if (!open) return null;
-    const canSave = !!pickedFile && !compressing;
+    // Original is savable the moment it's picked; Compressed needs its result ready.
+    const canSave = choice === "original" ? !!pickedFile : (!!compressedFile && !compressing);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={close}>
@@ -183,12 +189,8 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                         <span className="text-foreground text-[13px]">
                             {pickedFile ? "Choose a different image" : <>Upload <span className="text-orange font-medium">new image</span></>}
                         </span>
-                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — large images are auto-resized</span>
+                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — Original is kept full size</span>
                     </label>
-
-                    {notice && (
-                        <p className="text-[#6b7280] text-[11px] bg-[#f3f4f6] border border-[#e5e7eb] rounded-[6px] px-2.5 py-1.5">{notice}</p>
-                    )}
 
                     {pickedFile && (
                         <>
