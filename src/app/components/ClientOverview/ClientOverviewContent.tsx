@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback, Fragment, useRef } from "react";
+import { useState, useMemo, useCallback, Fragment } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-} from "@/components/ui/dialog";
 import AddMachineModal from "@/app/components/Modals/AddMachineModal";
 import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 import { Client } from "@/types/client";
@@ -18,7 +14,7 @@ import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, X } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
 const getStatusColor = (status?: string) => {
@@ -106,6 +102,7 @@ export default function ClientOverviewContent({
 }: ClientOverviewContentProps) {
     void allClients; // Reserved for region/customer filtering UI
     const router = useRouter();
+    const [activeTab, setActiveTab] = useState<"overview" | "upload">("overview");
     const [searchQuery, setSearchQuery] = useState("");
     // Only machine row is accordion; category shows table, machine expands to show spare parts table
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -119,11 +116,9 @@ export default function ClientOverviewContent({
     const [partsModalSparePart, setPartsModalSparePart] = useState<{ sparePartId: string; sparePartName: string } | null>(null);
     const [partsList, setPartsList] = useState<{ _id: string; name: string }[]>([]);
     const [loadingParts, setLoadingParts] = useState(false);
+    // Which category is expanded for inline editing in the Upload Data tab.
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-    const [showEditCloseConfirm, setShowEditCloseConfirm] = useState(false);
-    const editCloseBlockedRef = useRef(false);
-    const editHasUnsavedChangesRef = useRef(false);
-    const editSaveRef = useRef<(() => Promise<void>) | null>(null);
+    const [addCategoryOpen, setAddCategoryOpen] = useState(false);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -147,6 +142,25 @@ export default function ClientOverviewContent({
         setExpandedCategory((prev) => (prev === categoryName ? null : categoryName));
         setExpandedMachine(null);
     }, []);
+
+    // Link machines created via the inline Add-Category editor to this client.
+    const handleMachinesCreated = useCallback(async (machineIDs: string[]) => {
+        if (!machineIDs.length) return;
+        try {
+            const res = await fetch(`/api/clients/${currentClientId}/client-machines`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ machineIDs }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to link machines to client");
+            }
+            router.refresh();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to link machines to client");
+        }
+    }, [currentClientId, router]);
 
     const fetchSpareParts = useCallback(async (machineId: string) => {
         if (machineSpareParts[machineId]) {
@@ -359,6 +373,32 @@ export default function ClientOverviewContent({
     return (
         <div className="min-h-screen bg-[#ffffff] p-6">
             <div className="flex flex-col gap-3">
+                {/* Top-level tabs: Overview | Upload Data */}
+                <div className="flex items-center gap-6 border-b border-border">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("overview")}
+                        className={`pb-3 text-sm font-medium transition-colors cursor-pointer ${activeTab === "overview"
+                            ? "text-foreground border-b-2 border-orange"
+                            : "text-muted-foreground hover:text-foreground"
+                            }`}
+                    >
+                        Overview
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("upload")}
+                        className={`pb-3 text-sm font-medium transition-colors cursor-pointer ${activeTab === "upload"
+                            ? "text-foreground border-b-2 border-orange"
+                            : "text-muted-foreground hover:text-foreground"
+                            }`}
+                    >
+                        Upload Data
+                    </button>
+                </div>
+
+                {activeTab === "overview" && (
+                <>
                 {/* Header Section */}
                 <div className="h-[70px] flex items-center justify-between">
                     <h1 className="text-[#2D3E5C] text-[28px] leading-[42px] font-bold">
@@ -547,7 +587,7 @@ export default function ClientOverviewContent({
                                                     type="button"
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={(e) => { e.stopPropagation(); setEditingCategoryId(category._id); }}
+                                                    onClick={(e) => { e.stopPropagation(); setActiveTab("upload"); setEditingCategoryId(category._id); }}
                                                     className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10"
                                                     title="Edit category"
                                                 >
@@ -716,112 +756,91 @@ export default function ClientOverviewContent({
                         </p>
                     </div>
                 </div>
+                </>
+                )}
+
+                {activeTab === "upload" && (
+                    <div className="flex flex-col gap-4">
+                        {/* Page header */}
+                        <div>
+                            <h2 className="text-[#2D3E5C] text-xl font-bold">Edit Machine Data</h2>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Add and manage categories, machines, spare parts &amp; parts for this client.
+                            </p>
+                        </div>
+
+                        {/* Add Category card */}
+                        <div className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setAddCategoryOpen((v) => !v)}
+                                className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors"
+                            >
+                                <span className="flex items-center gap-2 text-base font-semibold text-foreground">
+                                    <FaPlus className="w-4 h-4 text-orange" /> Add Category
+                                </span>
+                                <span className="transition-transform duration-200" style={{ transform: addCategoryOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+                                    <HiOutlineChevronRight className="w-5 h-5 text-gray-900" />
+                                </span>
+                            </button>
+                            {addCategoryOpen && (
+                                <div className="p-6">
+                                    <AddCategoryMachineFlow
+                                        compact
+                                        clientID={currentClientId}
+                                        onMachinesCreated={handleMachinesCreated}
+                                        onSuccess={() => router.refresh()}
+                                        onComplete={() => setAddCategoryOpen(false)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* One card per category – expand to edit the full hierarchy inline */}
+                        {categories.length > 0 ? (
+                            categories.map((category) => {
+                                const isOpen = editingCategoryId === category._id;
+                                return (
+                                    <div key={category._id} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
+                                            className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors"
+                                        >
+                                            <span className="flex items-center gap-3 text-base font-semibold text-foreground">
+                                                <span className="transition-transform duration-200" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+                                                    <HiOutlineChevronRight className="w-5 h-5 text-gray-900" />
+                                                </span>
+                                                {category.name}
+                                                <span className="bg-[#e5e7eb] rounded px-2 py-0.5 text-[#1f2937] text-sm font-semibold">
+                                                    {category.machines?.length || 0}
+                                                </span>
+                                            </span>
+                                        </button>
+                                        {isOpen && (
+                                            <div className="p-6">
+                                                <AddCategoryMachineFlow
+                                                    compact
+                                                    categoryIdForEdit={category._id}
+                                                    clientID={currentClientId}
+                                                    onSuccess={() => router.refresh()}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="rounded-[10px] bg-white border border-[#96A5BA] px-6 py-8 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    No categories yet. Use &ldquo;Add Category&rdquo; above to create one.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Edit Category modal – full hierarchy pre-populated */}
-            <Dialog open={!!editingCategoryId} onOpenChange={(open) => {
-                if (!open) {
-                    if (editHasUnsavedChangesRef.current) { setShowEditCloseConfirm(true); return; }
-                    editCloseBlockedRef.current = false;
-                    setEditingCategoryId(null);
-                }
-            }}>
-                <DialogContent
-                    className="bg-white border border-[#96A5BA] rounded-[10px] p-0 lg:w-[720px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
-                    showCloseButton={false}
-                    onInteractOutside={(e) => { e.preventDefault(); }}
-                    onEscapeKeyDown={(e) => {
-                        e.preventDefault();
-                        if (editHasUnsavedChangesRef.current) {
-                            setShowEditCloseConfirm(true);
-                        } else {
-                            editCloseBlockedRef.current = false;
-                            setEditingCategoryId(null);
-                        }
-                    }}
-                >
-                    <div className="bg-[#DFE6EC] border-b border-[#607797] flex h-[64px] items-center justify-between px-6 shrink-0 sticky top-0 z-10">
-                        <h2 className="text-gray-900 text-[20px] font-medium">Edit Category, Machine, Spare Parts &amp; Parts</h2>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (editHasUnsavedChangesRef.current) { setShowEditCloseConfirm(true); return; }
-                                editCloseBlockedRef.current = false;
-                                setEditingCategoryId(null);
-                            }}
-                            className="w-8 h-8 flex items-center justify-center text-gray-900 hover:opacity-70 transition-opacity"
-                            aria-label="Close"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div className="px-6 py-5">
-                        {editingCategoryId && (
-                            <AddCategoryMachineFlow
-                                compact={false}
-                                clientID={currentClientId}
-                                categoryIdForEdit={editingCategoryId}
-                                onSuccess={() => router.refresh()}
-                                onComplete={() => { editCloseBlockedRef.current = false; setEditingCategoryId(null); }}
-                                onCloseGuardChange={(blocked) => { editCloseBlockedRef.current = blocked; }}
-                                onHasUnsavedChangesChange={(hasChanges) => { editHasUnsavedChangesRef.current = hasChanges; }}
-                                saveRef={editSaveRef}
-                            />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Unsaved-changes confirmation when user tries to close the edit modal */}
-            <Dialog open={showEditCloseConfirm} onOpenChange={setShowEditCloseConfirm}>
-                <DialogContent
-                    showCloseButton={false}
-                    className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[440px]"
-                >
-                    <div className="border-b border-[#607797] px-6 py-[17px]">
-                        <p className="text-[#1f2937] text-xl leading-8 font-medium">You have unsaved changes.</p>
-                    </div>
-                    <div className="px-6 pt-4 pb-2">
-                        <p className="text-[#6b7280] text-sm">Do you want to save your changes before closing?</p>
-                        {editCloseBlockedRef.current && (
-                            <p className="text-amber-600 text-sm mt-2">Note: Some machine positions have not been mapped on the category image.</p>
-                        )}
-                    </div>
-                    <div className="flex items-center justify-end gap-3 px-6 py-6">
-                        <button
-                            type="button"
-                            onClick={() => setShowEditCloseConfirm(false)}
-                            className="bg-[#f9fafb] text-[#1f2937] border border-[#d1d5db] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#e5e7eb] transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setShowEditCloseConfirm(false);
-                                editCloseBlockedRef.current = false;
-                                editHasUnsavedChangesRef.current = false;
-                                setEditingCategoryId(null);
-                            }}
-                            className="bg-[#f9fafb] text-[#dc2626] border border-[#dc2626] px-5 py-[10px] rounded-[10px] text-base leading-6 hover:bg-[#fef2f2] transition-colors"
-                        >
-                            Discard Changes
-                        </button>
-                        <button
-                            type="button"
-                            onClick={async () => {
-                                setShowEditCloseConfirm(false);
-                                await editSaveRef.current?.();
-                                editCloseBlockedRef.current = false;
-                                setEditingCategoryId(null);
-                            }}
-                            className="bg-[#d45815] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#d45815]/90 transition-colors"
-                        >
-                            Save &amp; Close
-                        </button>
-                    </div>
-                </DialogContent>
-            </Dialog>
 
             {/* Delete confirmation modal */}
             {deleteConfirm && (

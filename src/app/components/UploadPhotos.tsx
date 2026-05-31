@@ -72,7 +72,7 @@ const UploadPhotos = ({ clientId }: UploadPhotosProps) => {
             {/* ── Tab Content ── */}
             <div className="p-4">
                 {activeTab === 'machine' ? (
-                    <MachineUpload />
+                    <MachineUpload clientId={clientId} />
                 ) : (
                     <VisitUpload clientId={clientId} />
                 )}

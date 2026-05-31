@@ -32,6 +32,14 @@ export interface Client {
     homeImage?: string;
     homeImageUrl?: string;
     homeImagePath?: string;
+    businessImage?: string;
+    businessImageUrl?: string;
+    flowsheetImage?: string;
+    flowsheetImageUrl?: string;
+    stockPrepImage?: string;
+    stockPrepImageUrl?: string;
+    onboardingImages?: string[];
+    onboardingImageUrls?: string[];
     createdAt: string;
     updatedAt: string;
     // Extended properties from backend

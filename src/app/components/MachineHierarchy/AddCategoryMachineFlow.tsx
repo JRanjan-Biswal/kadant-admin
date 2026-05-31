@@ -4,67 +4,13 @@ import { useState, useCallback, useEffect, memo, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video } from "lucide-react";
+import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import MachineImageMapper, { type MachinePosition } from "./MachineImageMapper";
-
-/** Stable component: file preview or upload placeholder with optional remove (X) overlay. */
-const PartImageUpload = memo(function PartImageUpload({
-    file,
-    onFileChange,
-    existingUrl,
-    onClearExisting,
-}: {
-    file: File | null;
-    onFileChange: (f: File | null) => void;
-    existingUrl?: string | null;
-    onClearExisting?: () => void;
-}) {
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    useEffect(() => {
-        if (!file) {
-            setPreviewUrl(null);
-            return;
-        }
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-        return () => URL.revokeObjectURL(url);
-    }, [file]);
-    const showPreview = !!previewUrl || (!!existingUrl && !file);
-    const previewSrc = previewUrl || existingUrl || null;
-    const handleRemove = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (file) onFileChange(null);
-        else if (existingUrl && onClearExisting) onClearExisting();
-    };
-    return (
-        <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#505050] min-w-[80px] min-h-[80px] w-[80px] h-[80px] shrink-0 relative group">
-            <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-            />
-            {showPreview && previewSrc ? (
-                <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewSrc} alt="Preview" className="w-full h-full object-contain" />
-                    <button
-                        type="button"
-                        onClick={handleRemove}
-                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded"
-                        title="Remove image"
-                    >
-                        <X className="w-4 h-4 text-gray-900" />
-                    </button>
-                </>
-            ) : (
-                <Upload className="w-5 h-5 text-[#4b5563]" />
-            )}
-        </label>
-    );
-});
+import { AddMachineFormModal, AddSparePartFormModal } from "./AddEntityModals";
+import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
+import ImageUploadModal from "./ImageUploadModal";
+import VideoUploadModal from "./VideoUploadModal";
 
 /** Image upload with optional existing URL, compact mode, and remove (X) overlay. */
 const ImageUploadBox = memo(function ImageUploadBox({
@@ -106,7 +52,7 @@ const ImageUploadBox = memo(function ImageUploadBox({
         return (
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[#6b7280] text-[12px]">{label}</Label>
-                <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#505050] min-h-[120px] relative group">
+                <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#96A5BA] min-h-[120px] relative group">
                     <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -131,8 +77,8 @@ const ImageUploadBox = memo(function ImageUploadBox({
                             </button>
                         </div>
                     ) : (
-                        <span className="text-[#6b7280] text-[12px] flex items-center gap-2 py-4">
-                            <Upload className="w-4 h-4" /> Upload
+                        <span className="text-muted-foreground text-[12px] flex items-center gap-2 py-4">
+                            <Upload className="w-4 h-4" /> Upload <span className="text-orange font-medium">Image</span>
                         </span>
                     )}
                 </label>
@@ -170,8 +116,8 @@ const ImageUploadBox = memo(function ImageUploadBox({
                     </>
                 ) : (
                     <>
-                        <Upload className="w-8 h-8 text-[#6b7280] mb-1" />
-                        <span className="text-gray-900 text-[14px]">Upload image (PNG, JPG, WebP, max 5MB)</span>
+                        <Upload className="w-8 h-8 text-muted-foreground mb-1" />
+                        <span className="text-foreground text-[14px]">Upload <span className="text-orange font-medium">image</span> (PNG, JPG, WebP, max 5MB)</span>
                     </>
                 )}
             </label>
@@ -267,15 +213,15 @@ const VideoUploadBox = memo(function VideoUploadBox({
                     />
                 </div>
             ) : (
-                <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#505050] min-h-[80px]">
+                <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#96A5BA] min-h-[110px]">
                     <input
                         type="file"
                         accept="video/mp4,video/webm,video/quicktime"
                         className="hidden"
                         onChange={(e) => onFileChange(e.target.files?.[0] || null)}
                     />
-                    <span className="text-[#6b7280] text-[12px] flex items-center gap-2 py-4">
-                        <Video className="w-4 h-4" /> Upload Video (MP4, WebM, max 50MB)
+                    <span className="text-muted-foreground text-[12px] flex items-center gap-2 py-4">
+                        <Video className="w-4 h-4" /> Upload <span className="text-orange font-medium">Video</span> (MP4, WebM, max 50MB)
                     </span>
                 </label>
             )}
@@ -484,6 +430,18 @@ export default function AddCategoryMachineFlow({
     const [editingCategory, setEditingCategory] = useState(false);
     const [categoryEditName, setCategoryEditName] = useState("");
     const [categoryEditImage, setCategoryEditImage] = useState<File | null>(null);
+    // Accordion open/close state for machine + spare-part cards (default: open when new/unsaved).
+    const [openMachines, setOpenMachines] = useState<Record<string, boolean>>({});
+    const [openSpareParts, setOpenSpareParts] = useState<Record<string, boolean>>({});
+    // "Add Machine" / "Add Spare Part" modals (the latter holds the target machine's DB id).
+    const [addMachineModalOpen, setAddMachineModalOpen] = useState(false);
+    const [addSparePartForMachine, setAddSparePartForMachine] = useState<string | null>(null);
+    // Generic confirm modal used for all delete / remove-media actions.
+    const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; run: () => void | Promise<void> } | null>(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
+    // Shared image upload/replace modal (with sharp compression).
+    const [imageModal, setImageModal] = useState<{ title: string; currentUrl: string | null; onSave: (file: File) => Promise<void> } | null>(null);
+    const [videoModal, setVideoModal] = useState<{ title: string; currentUrl: string | null; onSave: (file: File) => Promise<void> } | null>(null);
     const [machines, setMachines] = useState<MachineRow[]>([
         {
             id: "m1",
@@ -982,10 +940,6 @@ export default function AddCategoryMachineFlow({
         }
     }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, onSuccess]);
 
-    const addMachine = useCallback(() => {
-        setMachines((prev) => [...prev, defaultMachineRow()]);
-    }, []);
-
     const removeMachine = useCallback((id: string) => {
         setMachines((prev) => {
             const next = prev.filter((m) => m.id !== id);
@@ -996,7 +950,6 @@ export default function AddCategoryMachineFlow({
     const handleDeleteMachine = useCallback(async (machineRowId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
         if (!machine?.createdId) return;
-        if (!confirm(`Delete machine "${machine.name}"? This will delete all its spare parts and parts.`)) return;
         setLoading(`delete-machine-${machineRowId}`);
         try {
             const res = await fetch(`/api/machines/${machine.createdId}`, { method: "DELETE" });
@@ -1131,31 +1084,6 @@ export default function AddCategoryMachineFlow({
         }
     }, [categoryId, machines, uploadEntityImage, uploadMachineGalleryImage, onSuccess, onMachinesCreated]);
 
-    const addSparePart = useCallback((machineRowId: string) => {
-        setMachines((prev) =>
-            prev.map((m) =>
-                m.id === machineRowId
-                    ? {
-                          ...m,
-                          spareParts: [
-                            ...m.spareParts,
-                            {
-                                id: `sp_${Date.now()}`,
-                                name: "",
-                                klValue: "",
-                                imageFile: null,
-                                imageUrls: [],
-                                pendingImageFiles: [],
-                                optimalStateVideoFile: null,
-                                parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }],
-                            },
-                          ],
-                      }
-                    : m
-            )
-        );
-    }, []);
-
     const removeSparePart = useCallback((machineRowId: string, sparePartId: string) => {
         setMachines((prev) =>
             prev.map((m) =>
@@ -1246,7 +1174,6 @@ export default function AddCategoryMachineFlow({
     const handleDeleteSparePart = useCallback(async (machineRowId: string, sparePartId: string) => {
         const sp = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId);
         if (!sp?.createdId) return;
-        if (!confirm(`Delete spare part "${sp.name}"? This will delete all its parts.`)) return;
         setLoading(`delete-spare-${sparePartId}`);
         try {
             const res = await fetch(`/api/machines/spare-parts/${sp.createdId}`, { method: "DELETE" });
@@ -1267,7 +1194,6 @@ export default function AddCategoryMachineFlow({
     const handleDeletePart = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
         const pt = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId)?.parts.find((p) => p.id === partId);
         if (!pt?.createdId) return;
-        if (!confirm(`Delete part "${pt.name}"?`)) return;
         setLoading(`delete-part-${partId}`);
         try {
             const res = await fetch(`/api/machines/spare-parts-part/${pt.createdId}`, { method: "DELETE" });
@@ -1599,38 +1525,6 @@ export default function AddCategoryMachineFlow({
         }
     }, [machines, deleteEntityVideo]);
 
-    const handleDeletePartVideo = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
-        const pt = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId)?.parts.find((p) => p.id === partId);
-        if (!pt?.createdId || !pt.optimalStateVideoUrl) return;
-        setLoading(`delete-pt-video-${partId}`);
-        try {
-            await deleteEntityVideo("part", pt.createdId);
-            setMachines((prev) =>
-                prev.map((m) =>
-                    m.id === machineRowId
-                        ? {
-                              ...m,
-                              spareParts: m.spareParts.map((s) =>
-                                  s.id === sparePartId
-                                      ? {
-                                            ...s,
-                                            parts: s.parts.map((p) =>
-                                                p.id === partId ? { ...p, optimalStateVideoUrl: null, optimalStateVideoFile: null } : p
-                                            ),
-                                        }
-                                      : s
-                              ),
-                          }
-                        : m
-                )
-            );
-            toast.success("Part video deleted.");
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Failed to delete video");
-        } finally {
-            setLoading(null);
-        }
-    }, [machines, deleteEntityVideo]);
 
     /**
      * Drives a single "Save Changes" footer in edit mode. Runs entity-level
@@ -2047,73 +1941,82 @@ export default function AddCategoryMachineFlow({
         <div className={containerClass}>
             {/* 1. Category */}
             <div className="flex flex-col gap-3">
-                <h3 className="text-gray-900 text-base font-medium">1. Machine Category</h3>
-                <div className="flex flex-col gap-2">
-                    <Label className="text-[#6b7280] text-[14px]">Category Name</Label>
-                    <Input
-                        value={categoryName}
-                        onChange={(e) => setCategoryName(e.target.value)}
-                        placeholder="e.g. Pulping and Detrashing"
-                        className="bg-[#e5e7eb] border-[#d1d5db] h-[44px] rounded-[10px] px-4 text-gray-900 placeholder:text-[#4b5563]"
-                    />
-                </div>
+                <h3 className="text-gray-900 text-base font-semibold">1. Machine Category</h3>
                 {!categoryId && (
-                    <ImageUploadBox
-                        file={categoryImage}
-                        onFileChange={setCategoryImage}
-                        label="Category Image (required to continue)"
-                    />
-                )}
-                {!categoryId && (
-                    <Button
-                        type="button"
-                        onClick={handleAddCategory}
-                        disabled={loading === "category" || !categoryName.trim() || !categoryImage}
-                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] w-fit"
-                    >
-                        {loading === "category" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Category"}
-                    </Button>
+                    <>
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-[#6b7280] text-[14px]">Category Name</Label>
+                            <Input
+                                value={categoryName}
+                                onChange={(e) => setCategoryName(e.target.value)}
+                                placeholder="e.g. Pulping and Detrashing"
+                                className="bg-white border-[#d1d5db] h-[44px] rounded-[10px] px-4 text-gray-900 placeholder:text-[#4b5563]"
+                            />
+                        </div>
+                        <ImageUploadBox
+                            file={categoryImage}
+                            onFileChange={setCategoryImage}
+                            label="Category Image (required to continue)"
+                        />
+                        <Button
+                            type="button"
+                            onClick={handleAddCategory}
+                            disabled={loading === "category" || !categoryName.trim() || !categoryImage}
+                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] w-fit cursor-pointer"
+                        >
+                            {loading === "category" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Category"}
+                        </Button>
+                    </>
                 )}
                 {categoryId && !editingCategory && (
-                    <div className="flex flex-col gap-3">
-                        {categoryImageUrl && (
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[#6b7280] text-[12px]">Category Image</Label>
-                                <div className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white w-full max-w-[200px] h-[120px] flex items-center justify-center">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                        <button
+                            type="button"
+                            onClick={() => setImageModal({
+                                title: "Category Image",
+                                currentUrl: categoryImageUrl,
+                                onSave: async (file) => { if (!categoryId) return; await uploadEntityImage("category", categoryId, file); setEditDataLoaded(false); onSuccess?.(); },
+                            })}
+                            className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white w-full sm:w-[240px] h-[150px] flex items-center justify-center shrink-0 cursor-pointer hover:border-[#96A5BA] transition-colors relative group"
+                            title="Click to change image"
+                        >
+                            {categoryImageUrl ? (
+                                <>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={categoryImageUrl} alt={categoryName} className="w-full h-full object-contain" />
-                                </div>
+                                    <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">Change image</span>
+                                </>
+                            ) : (
+                                <span className="flex flex-col items-center gap-1 text-[#6b7280]">
+                                    <Upload className="w-6 h-6" />
+                                    <span className="text-[12px]">Upload <span className="text-orange font-medium">image</span></span>
+                                </span>
+                            )}
+                        </button>
+                        <div className="flex flex-col gap-2 flex-1 w-full">
+                            <Label className="text-[#6b7280] text-[14px]">Category Name</Label>
+                            <Input
+                                value={categoryName}
+                                onChange={(e) => setCategoryName(e.target.value)}
+                                placeholder="e.g. Pulping and Detrashing"
+                                className="bg-white border-[#d1d5db] h-[44px] rounded-[10px] px-4 text-gray-900 placeholder:text-[#4b5563]"
+                            />
+                            <div className="flex items-center gap-3 flex-wrap mt-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={handleSaveCategoryNameOnly}
+                                    disabled={loading === "category-name" || !categoryName.trim() || categoryName === categoryBaselineRef.current.name}
+                                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] h-8 cursor-pointer"
+                                >
+                                    {loading === "category-name" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Machine Category"}
+                                </Button>
                             </div>
-                        )}
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={handleSaveCategoryNameOnly}
-                                disabled={loading === "category-name" || !categoryName.trim()}
-                                className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] h-8"
-                            >
-                                {loading === "category-name" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Update category"}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setEditingCategory(true);
-                                    setCategoryEditName(categoryName);
-                                    setCategoryEditImage(null);
-                                }}
-                                className="border-[#d1d5db] text-[#6b7280] hover:bg-[#e5e7eb] h-8 gap-1.5"
-                            >
-                                <Pencil className="w-3.5 h-3.5" />
-                                Edit name & image
-                            </Button>
                         </div>
                     </div>
                 )}
                 {categoryId && editingCategory && (
-                    <div className="bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-3">
+                    <div className="bg-white border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-3">
                         <Label className="text-[#6b7280] text-[14px]">Edit Category Name</Label>
                         <Input
                             value={categoryEditName}
@@ -2160,101 +2063,115 @@ export default function AddCategoryMachineFlow({
             {categoryId && (
                 <div ref={machinesSectionRef} className="flex flex-col gap-4 border-t border-[#607797] pt-5">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-gray-900 text-base font-medium">2. Machines</h3>
+                        <h3 className="text-gray-900 text-base font-semibold">2. Machines</h3>
                         <Button
                             type="button"
-                            onClick={addMachine}
+                            onClick={() => setAddMachineModalOpen(true)}
                             className="bg-[#2D3E5C] hover:bg-[#1f2a44] text-white rounded-[10px] h-9 px-4 flex items-center gap-2 text-sm font-medium"
                         >
                             <Plus className="w-4 h-4" />
                             Add Machine
                         </Button>
                     </div>
-                    {machines.map((m) => (
-                        <div
-                            key={m.id}
-                            className="bg-[#e5e7eb] border border-[#d1d5db] rounded-[10px] p-4 flex flex-col gap-4"
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-gray-900 text-sm font-medium">Machine</span>
-                                {!m.createdId && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeMachine(m.id)}
-                                        className="p-1.5 rounded-md text-[#6b7280] hover:bg-[#d1d5db] hover:text-gray-900"
-                                        title="Remove machine"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                )}
+                    {machines.map((m) => {
+                        const isMachineOpen = openMachines[m.id] ?? !m.createdId;
+                        return (
+                        <div key={m.id} className="flex flex-col gap-3">
+                        <div className="bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
+                            <div
+                                role="button"
+                                onClick={() => setOpenMachines((p) => ({ ...p, [m.id]: !isMachineOpen }))}
+                                className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] cursor-pointer select-none"
+                            >
+                                <span className="flex items-center gap-2 min-w-0">
+                                    <ChevronRight className={`w-4 h-4 text-gray-900 shrink-0 transition-transform ${isMachineOpen ? "rotate-90" : ""}`} />
+                                    <span className="text-gray-900 text-sm font-semibold truncate">{m.name ? `Machine — ${m.name}` : "Machine"}</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); if (m.createdId) { setConfirmAction({ title: "Delete machine?", message: `Delete machine "${m.name || "this machine"}"? This will delete all its spare parts and parts.`, run: () => handleDeleteMachine(m.id) }); } else { removeMachine(m.id); } }}
+                                    className="p-1.5 rounded-md text-[#6b7280] hover:bg-[#bf1e21]/10 hover:text-[#bf1e21] shrink-0 cursor-pointer"
+                                    title="Delete machine"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[#6b7280] text-[12px]">Machine Name</Label>
-                                    <Input
-                                        value={m.name}
-                                        onChange={(e) => updateMachine(m.id, "name", e.target.value)}
-                                        placeholder="e.g. Hydrapulper"
-                                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]"
-                                    />
+                            {isMachineOpen && (
+                            <div className="p-4 flex flex-col gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* Left column: name, installation date, description (description sits below the date) */}
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-[#6b7280] text-[12px]">Machine Name</Label>
+                                        <Input
+                                            value={m.name}
+                                            onChange={(e) => updateMachine(m.id, "name", e.target.value)}
+                                            placeholder="e.g. Hydrapulper"
+                                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-[#6b7280] text-[12px]">Installation Date</Label>
+                                        <Input
+                                            type="date"
+                                            value={m.installationDate || ""}
+                                            onChange={(e) => updateMachine(m.id, "installationDate", e.target.value)}
+                                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-[#6b7280] text-[12px]">Machine description</Label>
+                                        <textarea
+                                            value={m.description ?? ""}
+                                            onChange={(e) => updateMachine(m.id, "description", e.target.value)}
+                                            placeholder="e.g. High-capacity hydrapulper for stock preparation"
+                                            rows={2}
+                                            className="bg-white border border-[#d1d5db] rounded-[8px] px-3 py-2 text-gray-900 text-[13px] placeholder:text-[#4b5563] resize-y min-h-[60px]"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[#6b7280] text-[12px]">Model Number</Label>
-                                    <Input
-                                        value={m.modelNumber}
-                                        onChange={(e) => updateMachine(m.id, "modelNumber", e.target.value)}
-                                        placeholder="e.g. KHP-3200"
-                                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]"
-                                    />
+                                {/* Right column: model number + machine image */}
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-[#6b7280] text-[12px]">Model Number</Label>
+                                        <Input
+                                            value={m.modelNumber}
+                                            onChange={(e) => updateMachine(m.id, "modelNumber", e.target.value)}
+                                            placeholder="e.g. KHP-3200"
+                                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-[#6b7280] text-[12px]">Machine Image</Label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setImageModal({
+                                                title: "Machine Image",
+                                                currentUrl: m.imageUrl ?? null,
+                                                onSave: async (file) => { if (!m.createdId) return; await uploadEntityImage("machine", m.createdId, file); setEditDataLoaded(false); onSuccess?.(); },
+                                            })}
+                                            className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white min-h-[110px] flex items-center justify-center cursor-pointer hover:border-[#96A5BA] transition-colors relative group"
+                                            title="Click to change image"
+                                        >
+                                            {m.imageUrl ? (
+                                                <>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={m.imageUrl} alt={m.name} className="max-h-[140px] w-full object-contain" />
+                                                    <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">Change image</span>
+                                                </>
+                                            ) : (
+                                                <span className="flex flex-col items-center gap-1 text-[#6b7280] py-4">
+                                                    <Upload className="w-5 h-5" />
+                                                    <span className="text-[12px]">Upload <span className="text-orange font-medium">image</span></span>
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[#6b7280] text-[12px]">Installation Date</Label>
-                                    <Input
-                                        type="date"
-                                        value={m.installationDate || ""}
-                                        onChange={(e) => updateMachine(m.id, "installationDate", e.target.value)}
-                                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
-                                    />
-                                </div>
-                                <ImageUploadBox
-                                    file={m.imageFile}
-                                    onFileChange={(f) => updateMachine(m.id, "imageFile", f)}
-                                    label="Machine Image (required for new)"
-                                    compact
-                                    existingUrl={m.imageUrl}
-                                    onClearExisting={() =>
-                                        setMachines((prev) =>
-                                            prev.map((x) => (x.id === m.id ? { ...x, imageFile: null, imageUrl: null } : x))
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[#6b7280] text-[12px]">Machine description</Label>
-                                <textarea
-                                    value={m.description ?? ""}
-                                    onChange={(e) => updateMachine(m.id, "description", e.target.value)}
-                                    placeholder="e.g. High-capacity hydrapulper for stock preparation"
-                                    rows={2}
-                                    className="bg-white border border-[#d1d5db] rounded-[8px] px-3 py-2 text-gray-900 text-[13px] placeholder:text-[#4b5563] resize-y min-h-[60px]"
-                                />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-[#6b7280] text-[12px]">Additional images</Label>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => addMachineGalleryImage(m.id)}
-                                        className="h-7 px-2 text-[#6b7280] hover:bg-[#d1d5db] hover:text-gray-900 text-xs"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Add image
-                                    </Button>
-                                </div>
-                                {m.galleryImages.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
+                                <Label className="text-[#6b7280] text-[12px]">Additional images</Label>
+                                <div className="flex flex-wrap gap-2">
                                         {m.galleryImages.map((gi) => (
                                             <div
                                                 key={gi.id}
@@ -2300,68 +2217,68 @@ export default function AddCategoryMachineFlow({
                                                 </label>
                                             </div>
                                         ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => addMachineGalleryImage(m.id)}
+                                            className="w-20 h-20 rounded-lg border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#96A5BA] text-[#6b7280] gap-1"
+                                            title="Add image"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            <span className="text-[10px]">add image</span>
+                                        </button>
                                     </div>
-                                )}
-                                <p className="text-[#6b7280] text-[11px]">
-                                    Click <strong>Add image</strong> to add as many additional images as you need.
-                                </p>
                             </div>
                                             {m.createdId && (
                                                 <div className="flex items-center gap-2">
-                                                    {!isEditMode && (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            onClick={() => handleUpdateMachine(m.id)}
-                                                            disabled={loading === `machine-update-${m.id}` || !m.name.trim()}
-                                                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] w-fit"
-                                                        >
-                                                            {loading === `machine-update-${m.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Update machine"}
-                                                        </Button>
-                                                    )}
-                                                    {isEditMode && (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => handleDeleteMachine(m.id)}
-                                                            disabled={loading === `delete-machine-${m.id}`}
-                                                            className="h-8 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
-                                                        >
-                                                            {loading === `delete-machine-${m.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Delete"}
-                                                        </Button>
-                                                    )}
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        onClick={() => handleUpdateMachine(m.id)}
+                                                        disabled={loading === `machine-update-${m.id}` || !m.name.trim()}
+                                                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] w-fit"
+                                                    >
+                                                        {loading === `machine-update-${m.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Machines"}
+                                                    </Button>
                                                 </div>
                                             )}
+                            </div>
+                            )}
+                        </div>
 
-                            {/* Spare parts & parts nested under this machine (only when machine is saved) */}
-                            {m.createdId && (
-                                <div className="flex flex-col gap-4 border-t border-[#d1d5db] pt-4 mt-2">
+                        {/* Spare parts & parts — lifted OUT of the machine card, shown beside it (only when saved) */}
+                        {m.createdId && (
+                            <div className="flex flex-col gap-3 ml-4 pl-4 border-l-2 border-[#DFE6EC]">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-gray-900 text-sm font-medium">Spare Parts & Parts</h4>
+                                        <h4 className="text-gray-900 text-sm font-semibold">Spare Parts &amp; Parts</h4>
                                         <Button
                                             type="button"
-                                            onClick={() => addSparePart(m.id)}
-                                            className="bg-[#d1d5db] hover:bg-[#505050] text-gray-900 rounded-[8px] h-8 px-2 flex items-center gap-1.5 text-xs"
+                                            onClick={() => m.createdId && setAddSparePartForMachine(m.createdId)}
+                                            className="bg-[#d1d5db] hover:bg-[#c3ccd6] text-gray-900 rounded-[8px] h-8 px-2 flex items-center gap-1.5 text-xs cursor-pointer transition-transform hover:scale-105"
                                         >
                                             <Plus className="w-3.5 h-3.5" />
                                             Add Spare Part
                                         </Button>
                                     </div>
-                                    {m.spareParts.map((sp) => (
-                                        <div
-                                            key={sp.id}
-                                            className="bg-white border border-[#d1d5db] rounded-[8px] p-3 flex flex-col gap-3"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[#6b7280] text-xs font-medium">Spare Part</span>
-                                                <div className="flex items-center gap-1">
+                                    {m.spareParts.map((sp) => {
+                                        const isSpOpen = openSpareParts[sp.id] ?? !sp.createdId;
+                                        return (
+                                        <div key={sp.id} className="bg-white border border-[#96A5BA] rounded-[8px] overflow-hidden">
+                                            <div
+                                                role="button"
+                                                onClick={() => setOpenSpareParts((p) => ({ ...p, [sp.id]: !isSpOpen }))}
+                                                className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] cursor-pointer select-none"
+                                            >
+                                                <span className="flex items-center gap-2 min-w-0">
+                                                    <ChevronRight className={`w-3.5 h-3.5 text-gray-900 shrink-0 transition-transform ${isSpOpen ? "rotate-90" : ""}`} />
+                                                    <span className="text-gray-900 text-xs font-semibold truncate">{sp.name ? `Spare Part — ${sp.name}` : "Spare Part"}</span>
+                                                </span>
+                                                <div className="flex items-center gap-1 shrink-0">
                                                     {isEditMode && sp.createdId ? (
                                                         <Button
                                                             type="button"
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={() => handleDeleteSparePart(m.id, sp.id)}
+                                                            onClick={(e) => { e.stopPropagation(); setConfirmAction({ title: "Delete spare part?", message: `Delete spare part "${sp.name || "this spare part"}"? This will delete all its parts.`, run: () => handleDeleteSparePart(m.id, sp.id) }); }}
                                                             disabled={loading === `delete-spare-${sp.id}`}
                                                             className="h-7 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
                                                             title="Delete spare part"
@@ -2371,7 +2288,7 @@ export default function AddCategoryMachineFlow({
                                                     ) : !sp.createdId ? (
                                                         <button
                                                             type="button"
-                                                            onClick={() => removeSparePart(m.id, sp.id)}
+                                                            onClick={(e) => { e.stopPropagation(); removeSparePart(m.id, sp.id); }}
                                                             className="p-1 rounded text-[#6b7280] hover:bg-[#d1d5db] hover:text-gray-900"
                                                             title="Remove spare part"
                                                         >
@@ -2380,6 +2297,8 @@ export default function AddCategoryMachineFlow({
                                                     ) : null}
                                                 </div>
                                             </div>
+                                            {isSpOpen && (
+                                            <div className="p-3 flex flex-col gap-3">
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Spare Part Name</Label>
@@ -2400,128 +2319,109 @@ export default function AddCategoryMachineFlow({
                                                     />
                                                 </div>
                                             </div>
-                                            {/* Multi-image gallery */}
-                                            <div className="flex flex-col gap-1.5">
-                                                <Label className="text-[#6b7280] text-[12px]">Spare Part Images</Label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {/* Legacy single imageUrl */}
-                                                    {sp.imageUrl && (
-                                                        <div className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={sp.imageUrl} alt="Spare part" className="w-full h-full object-contain" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrl: null } : s) } : x))}
-                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <X className="w-4 h-4 text-white" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {/* Additional imageUrls */}
-                                                    {sp.imageUrls.map((url, idx) => {
-                                                        const fileName = url.split("/uploads/")[1]?.split("?")[0];
-                                                        return (
-                                                            <div key={idx} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d1d5db] bg-white group">
+                                            {/* Spare Part Images + Optimal-state video — side by side */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <Label className="text-[#6b7280] text-[12px]">Spare Part Images</Label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {/* Legacy single imageUrl */}
+                                                        {sp.imageUrl && (
+                                                            <div className="relative w-[110px] h-[110px] rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white">
                                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-contain" />
+                                                                <img src={sp.imageUrl} alt="Spare part" className="w-full h-full object-contain" />
                                                                 <button
                                                                     type="button"
-                                                                    onClick={async () => {
-                                                                        if (sp.createdId && fileName) {
-                                                                            try {
-                                                                                await removeEntityImage("sparePart", sp.createdId, fileName);
-                                                                            } catch { /* swallow, update UI regardless */ }
-                                                                        }
-                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: s.imageUrls.filter((_, i) => i !== idx) } : s) } : x));
-                                                                    }}
-                                                                    className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    title="Remove image"
+                                                                    onClick={() => setConfirmAction({ title: "Remove image?", message: "Remove this spare part image?", run: () => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrl: null } : s) } : x)) })}
+                                                                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[#bf1e21] text-white flex items-center justify-center cursor-pointer"
                                                                 >
-                                                                    <X className="w-4 h-4 text-white" />
+                                                                    <X className="w-3.5 h-3.5" />
                                                                 </button>
                                                             </div>
-                                                        );
-                                                    })}
-                                                    {/* Pending new files */}
-                                                    {sp.pendingImageFiles.map((f, idx) => (
-                                                        <div key={`pending-${idx}`} className="relative w-[80px] h-[80px] rounded-[6px] overflow-hidden border border-dashed border-[#d45815] bg-white group">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-full object-contain" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: s.pendingImageFiles.filter((_, i) => i !== idx) } : s) } : x))}
-                                                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <X className="w-4 h-4 text-white" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    {/* Add image button */}
-                                                    <label className="w-[80px] h-[80px] rounded-[6px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#505050] text-[#6b7280]">
-                                                        <input
-                                                            type="file"
-                                                            accept="image/jpeg,image/png,image/webp"
-                                                            className="hidden"
-                                                            onChange={async (e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (!file) return;
-                                                                e.target.value = "";
-                                                                if (sp.createdId) {
-                                                                    try {
-                                                                        const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
-                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
-                                                                    } catch { /* ignore, user can retry */ }
-                                                                } else {
-                                                                    setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: [...s.pendingImageFiles, file] } : s) } : x));
-                                                                }
-                                                            }}
-                                                        />
-                                                        <Upload className="w-4 h-4 mb-1" />
-                                                        <span className="text-[10px]">Add</span>
-                                                    </label>
+                                                        )}
+                                                        {/* Additional imageUrls */}
+                                                        {sp.imageUrls.map((url, idx) => {
+                                                            const fileName = url.split("/uploads/")[1]?.split("?")[0];
+                                                            return (
+                                                                <div key={idx} className="relative w-[110px] h-[110px] rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white">
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                    <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-contain" />
+                                                                    <button
+                                                                        type="button"
+                                                                        title="Remove image"
+                                                                        onClick={() => setConfirmAction({ title: "Remove image?", message: "Remove this spare part image?", run: async () => {
+                                                                            if (sp.createdId && fileName) {
+                                                                                try { await removeEntityImage("sparePart", sp.createdId, fileName); } catch { /* swallow, update UI regardless */ }
+                                                                            }
+                                                                            setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: s.imageUrls.filter((_, i) => i !== idx) } : s) } : x));
+                                                                        } })}
+                                                                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[#bf1e21] text-white flex items-center justify-center cursor-pointer"
+                                                                    >
+                                                                        <X className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {/* Pending new files (local, unsaved) */}
+                                                        {sp.pendingImageFiles.map((f, idx) => (
+                                                            <div key={`pending-${idx}`} className="relative w-[110px] h-[110px] rounded-[8px] overflow-hidden border border-dashed border-[#d45815] bg-white">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-full object-contain" />
+                                                                <button
+                                                                    type="button"
+                                                                    title="Remove image"
+                                                                    onClick={() => setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: s.pendingImageFiles.filter((_, i) => i !== idx) } : s) } : x))}
+                                                                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[#bf1e21] text-white flex items-center justify-center cursor-pointer"
+                                                                >
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        {/* Add image button */}
+                                                        <label className="w-[110px] h-[110px] rounded-[8px] border border-dashed border-[#d1d5db] bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#96A5BA] text-[#6b7280]">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/jpeg,image/png,image/webp"
+                                                                className="hidden"
+                                                                onChange={async (e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    e.target.value = "";
+                                                                    if (sp.createdId) {
+                                                                        try {
+                                                                            const result = await uploadEntityImageAdd("sparePart", sp.createdId, file);
+                                                                            setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, imageUrls: result.imageUrls ?? s.imageUrls } : s) } : x));
+                                                                        } catch { /* ignore, user can retry */ }
+                                                                    } else {
+                                                                        setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, spareParts: x.spareParts.map((s) => s.id === sp.id ? { ...s, pendingImageFiles: [...s.pendingImageFiles, file] } : s) } : x));
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <Upload className="w-5 h-5 mb-1 text-[#4b5563]" />
+                                                            <span className="text-[11px] text-[#6b7280]">Add <span className="text-orange font-medium">image</span></span>
+                                                        </label>
+                                                    </div>
                                                 </div>
+                                                <VideoUploadBox
+                                                    file={sp.optimalStateVideoFile}
+                                                    onFileChange={(f) => updateSparePart(m.id, sp.id, "optimalStateVideoFile", f)}
+                                                    label="Optimal State Spare Part (Video)"
+                                                    existingUrl={sp.optimalStateVideoUrl}
+                                                    onDelete={() => { if (sp.createdId) setConfirmAction({ title: "Remove video?", message: "Remove the optimal-state video for this spare part?", run: () => handleDeleteSparePartVideo(m.id, sp.id) }); }}
+                                                    isDeleting={loading === `delete-sp-video-${sp.id}`}
+                                                />
                                             </div>
-                                            <VideoUploadBox
-                                                file={sp.optimalStateVideoFile}
-                                                onFileChange={(f) => updateSparePart(m.id, sp.id, "optimalStateVideoFile", f)}
-                                                label="Optimal State Spare Part (Video)"
-                                                existingUrl={sp.optimalStateVideoUrl}
-                                                onDelete={() => sp.createdId ? handleDeleteSparePartVideo(m.id, sp.id) : undefined}
-                                                isDeleting={loading === `delete-sp-video-${sp.id}`}
-                                            />
                                             {sp.createdId && (
                                                 <div className="flex items-center gap-2">
-                                                    {!isEditMode && (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            onClick={() => handleUpdateSparePart(m.id, sp.id)}
-                                                            disabled={
-                                                                loading === `spare-update-${sp.id}` ||
-                                                                !sp.name.trim() ||
-                                                                !sp.klValue.trim()
-                                                            }
-                                                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] w-fit text-xs"
-                                                        >
-                                                            {loading === `spare-update-${sp.id}` ? (
-                                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                            ) : (
-                                                                "Update spare part"
-                                                            )}
-                                                        </Button>
-                                                    )}
-                                                    {isEditMode && (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => handleDeleteSparePart(m.id, sp.id)}
-                                                            disabled={loading === `delete-spare-${sp.id}`}
-                                                            className="h-7 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
-                                                        >
-                                                            {loading === `delete-spare-${sp.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
-                                                        </Button>
-                                                    )}
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        onClick={() => handleUpdateSparePart(m.id, sp.id)}
+                                                        disabled={loading === `spare-update-${sp.id}` || !sp.name.trim() || !sp.klValue.trim()}
+                                                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] w-fit text-xs"
+                                                    >
+                                                        {loading === `spare-update-${sp.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save Spare Part"}
+                                                    </Button>
                                                 </div>
                                             )}
                                             <div className="flex flex-col gap-1.5">
@@ -2530,158 +2430,92 @@ export default function AddCategoryMachineFlow({
                                                     <Button
                                                         type="button"
                                                         size="sm"
-                                                        variant="ghost"
                                                         onClick={() => addPart(m.id, sp.id)}
-                                                        className="text-[#d45815] hover:bg-[#d45815]/10 h-7 text-[11px] px-1.5"
+                                                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] h-7 text-[11px] px-2.5 cursor-pointer transition-transform hover:scale-105"
                                                     >
                                                         <Plus className="w-3 h-3 mr-1" /> Add Part
                                                     </Button>
                                                 </div>
-                                                {sp.parts.map((pt) => (
-                                                    <div key={pt.id} className="flex flex-col gap-2 bg-white rounded-[6px] p-2">
+                                                {sp.parts.map((pt) => {
+                                                    const partImagePreview = pt.imageFile ? URL.createObjectURL(pt.imageFile) : (pt.imageUrl ?? null);
+                                                    const partVideoPreview = pt.optimalStateVideoFile ? URL.createObjectURL(pt.optimalStateVideoFile) : (pt.optimalStateVideoUrl ?? null);
+                                                    return (
+                                                    <div key={pt.id} className="flex flex-col gap-3 bg-white border border-[#d1d5db] rounded-[8px] p-3">
                                                         <div className="flex items-center gap-2">
                                                             <Input
                                                                 value={pt.name}
                                                                 onChange={(e) => updatePart(m.id, sp.id, pt.id, "name", e.target.value)}
                                                                 placeholder="e.g. Power Saver, Foil"
-                                                                className="bg-white border-[#d1d5db] h-[32px] rounded-[4px] px-2 text-gray-900 text-[11px] flex-1"
-                                                            />
-                                                            <PartImageUpload
-                                                                file={pt.imageFile}
-                                                                onFileChange={(f) => updatePart(m.id, sp.id, pt.id, "imageFile", f)}
-                                                                existingUrl={pt.imageUrl}
-                                                                onClearExisting={() =>
-                                                                    setMachines((prev) =>
-                                                                        prev.map((x) =>
-                                                                            x.id === m.id
-                                                                                ? {
-                                                                                      ...x,
-                                                                                      spareParts: x.spareParts.map((s) =>
-                                                                                          s.id === sp.id
-                                                                                              ? {
-                                                                                                    ...s,
-                                                                                                    parts: s.parts.map((p) =>
-                                                                                                        p.id === pt.id ? { ...p, imageFile: null, imageUrl: null } : p
-                                                                                                    ),
-                                                                                                }
-                                                                                              : s
-                                                                                      ),
-                                                                                  }
-                                                                                : x
-                                                                        )
-                                                                    )
-                                                                }
+                                                                className="bg-white border-[#d1d5db] h-[34px] rounded-[6px] px-2 text-gray-900 text-[12px] flex-1"
                                                             />
                                                             {pt.createdId ? (
                                                                 <>
                                                                     {!isEditMode && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            onClick={() => handleUpdatePart(m.id, sp.id, pt.id)}
-                                                                            disabled={loading === `part-update-${pt.id}` || !pt.name.trim()}
-                                                                            className="h-8 px-2 text-[#d45815] hover:bg-[#d45815]/10 text-xs"
-                                                                        >
-                                                                            {loading === `part-update-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update"}
+                                                                        <Button type="button" size="sm" onClick={() => handleUpdatePart(m.id, sp.id, pt.id)} disabled={loading === `part-update-${pt.id}` || !pt.name.trim()} className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] h-8 text-xs">
+                                                                            {loading === `part-update-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save Internal Part"}
                                                                         </Button>
                                                                     )}
-                                                                    {isEditMode && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            onClick={() => handleDeletePart(m.id, sp.id, pt.id)}
-                                                                            disabled={loading === `delete-part-${pt.id}`}
-                                                                            className="h-8 px-2 text-[#bf1e21] hover:bg-[#bf1e21]/10 text-xs"
-                                                                            title="Delete part"
-                                                                        >
-                                                                            {loading === `delete-part-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                                                        </Button>
-                                                                    )}
+                                                                    <button type="button" onClick={() => setConfirmAction({ title: "Delete part?", message: `Delete part "${pt.name || "this part"}"?`, run: () => handleDeletePart(m.id, sp.id, pt.id) })} disabled={loading === `delete-part-${pt.id}`} className="p-1.5 rounded-md text-[#6b7280] hover:bg-[#bf1e21]/10 hover:text-[#bf1e21] shrink-0 cursor-pointer" title="Delete part">
+                                                                        {loading === `delete-part-${pt.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                                    </button>
                                                                 </>
-                                                            ) : null}
-                                                            {!pt.createdId && (
+                                                            ) : (
                                                                 <>
                                                                     {sp.createdId && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            onClick={() => handleCreatePart(m.id, sp.id, pt.id)}
-                                                                            disabled={
-                                                                                loading === `part-create-${pt.id}` ||
-                                                                                !pt.name.trim() ||
-                                                                                !pt.imageFile
-                                                                            }
-                                                                            className="h-8 px-2 text-[#d45815] hover:bg-[#d45815]/10 text-xs"
-                                                                        >
-                                                                            {loading === `part-create-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Create"}
+                                                                        <Button type="button" size="sm" onClick={() => handleCreatePart(m.id, sp.id, pt.id)} disabled={loading === `part-create-${pt.id}` || !pt.name.trim() || !pt.imageFile} className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[6px] h-8 text-xs">
+                                                                            {loading === `part-create-${pt.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save Internal Part"}
                                                                         </Button>
                                                                     )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => removePart(m.id, sp.id, pt.id)}
-                                                                        className="p-1 text-[#6b7280] hover:text-red-400 shrink-0"
-                                                                        title="Remove part"
-                                                                    >
-                                                                        <X className="w-3 h-3" />
+                                                                    <button type="button" onClick={() => removePart(m.id, sp.id, pt.id)} className="p-1.5 rounded-md text-[#6b7280] hover:text-[#bf1e21] shrink-0 cursor-pointer" title="Remove part">
+                                                                        <X className="w-4 h-4" />
                                                                     </button>
                                                                 </>
                                                             )}
                                                         </div>
-                                                        <VideoUploadBox
-                                                            file={pt.optimalStateVideoFile}
-                                                            onFileChange={(f) => updatePart(m.id, sp.id, pt.id, "optimalStateVideoFile", f)}
-                                                            label="Optimal State Part (Video)"
-                                                            existingUrl={pt.optimalStateVideoUrl}
-                                                            onDelete={() => pt.createdId ? handleDeletePartVideo(m.id, sp.id, pt.id) : undefined}
-                                                            isDeleting={loading === `delete-pt-video-${pt.id}`}
-                                                        />
+                                                        {/* Part image + optimal-state video, side by side */}
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="flex flex-col gap-1.5">
+                                                                <Label className="text-[#6b7280] text-[11px]">Part Image</Label>
+                                                                <button type="button" onClick={() => setImageModal({ title: "Part Image", currentUrl: pt.imageUrl ?? null, onSave: async (file) => { if (pt.createdId) { await uploadEntityImage("part", pt.createdId, file); setEditDataLoaded(false); onSuccess?.(); } else { updatePart(m.id, sp.id, pt.id, "imageFile", file); } } })} className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white min-h-[100px] flex items-center justify-center cursor-pointer hover:border-[#96A5BA] transition-colors relative group" title="Click to add image">
+                                                                    {partImagePreview ? (
+                                                                        <>
+                                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                            <img src={partImagePreview} alt={pt.name} className="max-h-[120px] w-full object-contain" />
+                                                                            <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[11px] font-medium">Change</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="flex flex-col items-center gap-1 text-[#6b7280] py-3"><Upload className="w-5 h-5" /><span className="text-[11px]">Upload <span className="text-orange font-medium">image</span></span></span>
+                                                                    )}
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1.5">
+                                                                <Label className="text-[#6b7280] text-[11px]">Optimal State (Video)</Label>
+                                                                <button type="button" onClick={() => setVideoModal({ title: "Optimal State Part (Video)", currentUrl: pt.optimalStateVideoUrl ?? null, onSave: async (file) => { if (pt.createdId) { await uploadEntityVideo("part", pt.createdId, file); setEditDataLoaded(false); onSuccess?.(); } else { updatePart(m.id, sp.id, pt.id, "optimalStateVideoFile", file); } } })} className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-white min-h-[100px] flex items-center justify-center cursor-pointer hover:border-[#96A5BA] transition-colors relative group" title="Click to add video">
+                                                                    {partVideoPreview ? (
+                                                                        <>
+                                                                            <video src={partVideoPreview} className="max-h-[120px] w-full object-contain" muted preload="metadata" />
+                                                                            <span className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[11px] font-medium">Change</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="flex flex-col items-center gap-1 text-[#6b7280] py-3"><Video className="w-5 h-5" /><span className="text-[11px]">Upload <span className="text-orange font-medium">video</span></span></span>
+                                                                    )}
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
-                                        </div>
-                                    ))}
-                                    {!isEditMode && (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            onClick={() => handleSaveSparePartsAndParts(m.id)}
-                                            disabled={
-                                                loading === `spare-${m.id}` ||
-                                                m.spareParts.every((s) => s.createdId || !s.name.trim() || !s.klValue.trim() || !s.imageFile)
-                                            }
-                                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] w-fit"
-                                        >
-                                            {loading === `spare-${m.id}` ? (
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            ) : (
-                                                "Save Spare Parts & Parts"
+                                            </div>
                                             )}
-                                        </Button>
-                                    )}
+                                        </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
-                    ))}
-                    {!isEditMode && (
-                    <Button
-                        type="button"
-                        onClick={handleSaveMachines}
-                        disabled={
-                            loading === "machine" ||
-                            !machines.some((m) => m.name.trim() && m.imageFile && !m.createdId)
-                        }
-                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] w-fit"
-                    >
-                        {loading === "machine" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            "Save All Machines"
-                        )}
-                    </Button>
-                    )}
+                        );
+                    })}
                 </div>
             )}
 
@@ -2689,7 +2523,7 @@ export default function AddCategoryMachineFlow({
             {categoryId && hasCategoryImage && savedMachines.length > 0 && (
                 <div className="flex flex-col gap-3 border-t border-[#607797] pt-5">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-gray-900 text-base font-medium">3. Map Machine Positions</h3>
+                        <h3 className="text-gray-900 text-base font-semibold">3. Map Machine Positions</h3>
                         {allPositionsMapped && (
                             <span className="text-[#22c55e] text-xs font-medium flex items-center gap-1">
                                 <MapPin className="w-3.5 h-3.5" /> All mapped
@@ -2731,29 +2565,6 @@ export default function AddCategoryMachineFlow({
                 </div>
             )}
 
-            {/* Edit-mode footer: single Save Changes + Done. Replaces the
-                per-row Update buttons that used to litter every machine, spare
-                part and part. */}
-            {isEditMode && (
-                <div className="sticky bottom-0 bg-[#DFE6EC] border-t border-[#96A5BA] -mx-6 px-6 py-3 flex items-center justify-end gap-3 z-10">
-                    <span className="text-[#6b7280] text-xs mr-auto">
-                        Click Save Changes to persist all edits across category, machines, spare parts and parts.
-                    </span>
-                    <Button
-                        type="button"
-                        onClick={handleSaveAllEdits}
-                        disabled={loading === "save-all"}
-                        className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[10px] min-w-[140px]"
-                    >
-                        {loading === "save-all" ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            "Save Changes"
-                        )}
-                    </Button>
-                </div>
-            )}
-
             {/* Done - close modal when user is finished */}
             {categoryId && onComplete && (
                 <div className="border-t border-[#607797] pt-5 flex justify-end gap-3">
@@ -2787,6 +2598,66 @@ export default function AddCategoryMachineFlow({
                     initialPositions={machinePositions}
                     onSave={handleSavePositions}
                     onClose={() => setShowImageMapper(false)}
+                />
+            )}
+
+            {/* Add Machine modal */}
+            {addMachineModalOpen && categoryId && (
+                <AddMachineFormModal
+                    open
+                    onClose={() => setAddMachineModalOpen(false)}
+                    categoryId={categoryId}
+                    clientId={clientID}
+                    onCreated={() => { setEditDataLoaded(false); onSuccess?.(); }}
+                />
+            )}
+
+            {/* Add Spare Part modal */}
+            {addSparePartForMachine && (
+                <AddSparePartFormModal
+                    open
+                    onClose={() => setAddSparePartForMachine(null)}
+                    machineId={addSparePartForMachine}
+                    existingKlValues={machines.flatMap((mm) => mm.spareParts.map((s) => s.klValue).filter(Boolean))}
+                    onCreated={() => { setEditDataLoaded(false); onSuccess?.(); }}
+                />
+            )}
+
+            {/* Generic delete / remove-media confirmation */}
+            {confirmAction && (
+                <DeleteConfirmModal
+                    open
+                    onOpenChange={(o) => { if (!o && !confirmLoading) setConfirmAction(null); }}
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    isLoading={confirmLoading}
+                    onConfirm={async () => {
+                        setConfirmLoading(true);
+                        try { await confirmAction.run(); } finally { setConfirmLoading(false); setConfirmAction(null); }
+                    }}
+                    onCancel={() => setConfirmAction(null)}
+                />
+            )}
+
+            {/* Image upload / replace modal (sharp compression) */}
+            {imageModal && (
+                <ImageUploadModal
+                    open
+                    onClose={() => setImageModal(null)}
+                    title={imageModal.title}
+                    currentImageUrl={imageModal.currentUrl}
+                    onSave={imageModal.onSave}
+                />
+            )}
+
+            {/* Video upload / replace modal */}
+            {videoModal && (
+                <VideoUploadModal
+                    open
+                    onClose={() => setVideoModal(null)}
+                    title={videoModal.title}
+                    currentVideoUrl={videoModal.currentUrl}
+                    onSave={videoModal.onSave}
                 />
             )}
         </div>

@@ -516,7 +516,7 @@ const VisitUpload: React.FC<VisitUploadProps> = ({ clientId }) => {
                         className="rounded-[10px] bg-[#ffffff] border border-[#607797] overflow-hidden"
                     >
                         {/* Card Header */}
-                        <div className="flex items-center justify-between bg-gradient-to-r from-[rgba(255,105,0,0.1)] to-transparent border-b border-[#607797] rounded-t-[10px] px-6 py-4">
+                        <div className="flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] rounded-t-[10px] px-6 py-4">
                             <h3 className="text-base font-semibold text-foreground">
                                 {visit.client?.name || "Unknown Client"}
                             </h3>
