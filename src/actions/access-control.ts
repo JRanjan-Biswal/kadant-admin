@@ -14,7 +14,7 @@ export interface AccessAdmin {
     role: "admin" | "superadmin";
     isActive: boolean;
     isBlocked?: boolean;
-    assignedRegions?: { _id: string; region: string }[];
+    assignedRegions?: string[];
     assignedClients?: { _id: string; name: string }[];
     lastLoginAt?: string;
     createdAt?: string;

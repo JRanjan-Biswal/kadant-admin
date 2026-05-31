@@ -38,7 +38,7 @@ export default function AssignAccessModal({
 
     useEffect(() => {
         if (admin) {
-            setSelectedRegions((admin.assignedRegions || []).map((r) => r._id));
+            setSelectedRegions(admin.assignedRegions || []);
             setSelectedClients((admin.assignedClients || []).map((c) => c._id));
         }
     }, [admin]);

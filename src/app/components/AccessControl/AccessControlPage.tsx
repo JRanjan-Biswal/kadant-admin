@@ -238,7 +238,7 @@ export default function AccessControlPage({
                                         </Td>
                                         <Td className="text-center">
                                             <ChipList
-                                                items={(a.assignedRegions || []).map((r) => r.region)}
+                                                items={a.assignedRegions || []}
                                                 emptyLabel="—"
                                             />
                                         </Td>
