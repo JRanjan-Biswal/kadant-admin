@@ -29,6 +29,7 @@ const ImageUploadBox = memo(function ImageUploadBox({
     onClearExisting?: () => void;
 }) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
     useEffect(() => {
         if (!file) {
             setPreviewUrl(null);
@@ -52,13 +53,13 @@ const ImageUploadBox = memo(function ImageUploadBox({
         return (
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[#6b7280] text-[12px]">{label}</Label>
-                <label className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#96A5BA] min-h-[120px] relative group">
-                    <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-                    />
+                <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setModalOpen(true)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setModalOpen(true); } }}
+                    className="border border-dashed border-[#d1d5db] rounded-[8px] flex items-center justify-center overflow-hidden bg-white cursor-pointer hover:border-[#96A5BA] min-h-[120px] relative group"
+                >
                     {showPreview && previewSrc ? (
                         <div className="relative w-full h-full min-h-[120px] flex flex-col items-center justify-center p-2">
                             <span className="text-[#6b7280] text-[10px] uppercase tracking-wide mb-1">Preview</span>
@@ -81,7 +82,8 @@ const ImageUploadBox = memo(function ImageUploadBox({
                             <Upload className="w-4 h-4" /> Upload <span className="text-orange font-medium">Image</span>
                         </span>
                     )}
-                </label>
+                </div>
+                <ImageUploadModal open={modalOpen} onClose={() => setModalOpen(false)} title={`Upload ${label}`} currentImageUrl={previewSrc} onSave={async (f) => { onFileChange(f); }} />
             </div>
         );
     }
@@ -89,13 +91,13 @@ const ImageUploadBox = memo(function ImageUploadBox({
     return (
         <div className="flex flex-col gap-2">
             <Label className="text-[#6b7280] text-[14px]">{label}</Label>
-            <label className="border-2 border-dashed border-[#d1d5db] rounded-[10px] flex flex-col items-center justify-center min-h-[140px] py-4 px-4 bg-white cursor-pointer hover:border-[#96A5BA] transition-colors overflow-hidden relative group">
-                <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-                />
+            <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setModalOpen(true)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setModalOpen(true); } }}
+                className="border-2 border-dashed border-[#d1d5db] rounded-[10px] flex flex-col items-center justify-center min-h-[140px] py-4 px-4 bg-white cursor-pointer hover:border-[#96A5BA] transition-colors overflow-hidden relative group"
+            >
                 {showPreview && previewSrc ? (
                     <>
                         <span className="text-[#6b7280] text-xs uppercase tracking-wide mb-1">Image preview</span>
@@ -120,7 +122,8 @@ const ImageUploadBox = memo(function ImageUploadBox({
                         <span className="text-foreground text-[14px]">Upload <span className="text-orange font-medium">image</span> (PNG, JPG, WebP, max 5MB)</span>
                     </>
                 )}
-            </label>
+            </div>
+            <ImageUploadModal open={modalOpen} onClose={() => setModalOpen(false)} title={`Upload ${label}`} currentImageUrl={previewSrc} onSave={async (f) => { onFileChange(f); }} />
         </div>
     );
 });
@@ -2197,24 +2200,21 @@ export default function AddCategoryMachineFlow({
                                                 >
                                                     ×
                                                 </button>
-                                                <label
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setImageModal({
+                                                        title: "Machine Image",
+                                                        currentUrl: gi.imageUrl ?? null,
+                                                        onSave: async (file) => { setMachineGalleryImageFile(m.id, gi.id, file); },
+                                                    })}
                                                     className={`absolute inset-0 flex items-center justify-center cursor-pointer transition-opacity ${
                                                         gi.imageUrl || gi.file
                                                             ? "bg-black/40 hover:bg-black/50 opacity-0 hover:opacity-100"
                                                             : "bg-black/40 hover:bg-black/60 opacity-100"
                                                     }`}
                                                 >
-                                                    <input
-                                                        type="file"
-                                                        accept="image/jpeg,image/png,image/webp"
-                                                        className="sr-only"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) setMachineGalleryImageFile(m.id, gi.id, file);
-                                                        }}
-                                                    />
                                                     <span className="text-white text-xs">{(gi.imageUrl || gi.file) ? "Change" : "Choose"}</span>
-                                                </label>
+                                                </button>
                                             </div>
                                         ))}
                                         <button
