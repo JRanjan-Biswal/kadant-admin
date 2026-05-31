@@ -19,6 +19,7 @@ interface MultiSelectChipsProps {
     value: string[];
     onChange: (next: string[]) => void;
     placeholder?: string;
+    disabled?: boolean;
 }
 
 export default function MultiSelectChips({
@@ -26,11 +27,13 @@ export default function MultiSelectChips({
     value,
     onChange,
     placeholder = "Select…",
+    disabled = false,
 }: MultiSelectChipsProps) {
     const [open, setOpen] = useState(false);
     const selected = options.filter((o) => value.includes(o._id));
 
     const toggle = (id: string) => {
+        if (disabled) return;
         if (value.includes(id)) {
             onChange(value.filter((v) => v !== id));
         } else {
@@ -39,12 +42,14 @@ export default function MultiSelectChips({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open && !disabled} onOpenChange={(o) => !disabled && setOpen(o)}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
+                    disabled={disabled}
                     className={cn(
-                        "w-full min-h-[42px] rounded-[10px] border border-[#96A5BA] bg-white px-3 py-2 text-sm text-left flex items-center justify-between gap-2 hover:border-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#d45815]/40 transition"
+                        "w-full min-h-[42px] rounded-[10px] border border-[#96A5BA] bg-white px-3 py-2 text-sm text-left flex items-center justify-between gap-2 hover:border-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#d45815]/40 transition",
+                        disabled && "opacity-50 cursor-not-allowed bg-[#f9fafb] hover:border-[#96A5BA]"
                     )}
                 >
                     <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">

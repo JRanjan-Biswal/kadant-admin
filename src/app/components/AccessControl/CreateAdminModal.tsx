@@ -21,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { createAdmin } from "@/actions/access-control";
 import MultiSelectChips from "./MultiSelectChips";
 
@@ -28,7 +29,7 @@ interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     regions: { _id: string; region: string }[];
-    clients: { _id: string; name: string }[];
+    clients: { _id: string; name: string; region?: string | null; regionId?: string | null }[];
 }
 
 export default function CreateAdminModal({
@@ -46,6 +47,7 @@ export default function CreateAdminModal({
     const [phone, setPhone] = useState("");
     const [designation, setDesignation] = useState("");
     const [isActive, setIsActive] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [assignedRegions, setAssignedRegions] = useState<string[]>([]);
     const [assignedClients, setAssignedClients] = useState<string[]>([]);
     const [showPw, setShowPw] = useState(false);
@@ -61,8 +63,38 @@ export default function CreateAdminModal({
         setPhone("");
         setDesignation("");
         setIsActive(true);
+        setIsAdmin(false);
         setAssignedRegions([]);
         setAssignedClients([]);
+    };
+
+    // Customers cascade off the selected region(s): only customers whose region
+    // matches a selected region are selectable.
+    const selectedRegionNames = new Set(
+        regions.filter((r) => assignedRegions.includes(r._id)).map((r) => r.region)
+    );
+    const filteredClients = clients.filter(
+        (c) =>
+            (c.regionId && assignedRegions.includes(c.regionId)) ||
+            (c.region && selectedRegionNames.has(c.region))
+    );
+
+    const handleRegionsChange = (next: string[]) => {
+        setAssignedRegions(next);
+        // Drop any selected customers that no longer belong to a selected region.
+        const allowedNames = new Set(
+            regions.filter((r) => next.includes(r._id)).map((r) => r.region)
+        );
+        const allowed = new Set(
+            clients
+                .filter(
+                    (c) =>
+                        (c.regionId && next.includes(c.regionId)) ||
+                        (c.region && allowedNames.has(c.region))
+                )
+                .map((c) => c._id)
+        );
+        setAssignedClients((prev) => prev.filter((id) => allowed.has(id)));
     };
 
     const submit = async (e: React.FormEvent) => {
@@ -76,6 +108,8 @@ export default function CreateAdminModal({
             return;
         }
         setSubmitting(true);
+        // Full-access admin → no scoping. Otherwise: if specific customers are
+        // chosen, send only those; if just region(s), send the regions (region-based).
         const res = await createAdmin({
             name,
             email,
@@ -85,15 +119,16 @@ export default function CreateAdminModal({
             phone: phone || undefined,
             designation: designation || undefined,
             isActive,
-            assignedRegions,
-            assignedClients,
+            fullAccess: isAdmin,
+            assignedRegions: isAdmin ? [] : assignedClients.length ? [] : assignedRegions,
+            assignedClients: isAdmin ? [] : assignedClients,
         });
         setSubmitting(false);
         if (!res.success) {
-            toast.error(res.error || "Failed to create admin");
+            toast.error(res.error || "Failed to create user");
             return;
         }
-        toast.success("Admin created");
+        toast.success("User created");
         reset();
         onOpenChange(false);
         router.refresh();
@@ -104,7 +139,7 @@ export default function CreateAdminModal({
             <DialogContent className="sm:max-w-2xl rounded-[16px] p-0 overflow-hidden">
                 <DialogHeader className="px-6 pt-6">
                     <DialogTitle className="text-[18px] font-semibold text-gray-900">
-                        Create New Admin
+                        Add New User
                     </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="px-6 pt-4 pb-6 space-y-4 max-h-[80vh] overflow-y-auto">
@@ -215,22 +250,44 @@ export default function CreateAdminModal({
                             />
                         </div>
                     </div>
+                    {/* Admin toggle — full access vs region/customer scoped */}
+                    <div className="flex items-center justify-between rounded-[10px] border border-[#96A5BA] px-4 py-3">
+                        <div className="space-y-0.5 pr-4">
+                            <Label className="text-sm font-medium text-gray-900">Admin</Label>
+                            <p className="text-[11px] text-[#6b7280]">
+                                Full access to everything. Turn off to scope this user to a region or customer.
+                            </p>
+                        </div>
+                        <Switch checked={isAdmin} onCheckedChange={setIsAdmin} />
+                    </div>
+
                     <div className="space-y-1.5">
-                        <Label className="text-xs text-[#6b7280]">Assign Regions</Label>
+                        <Label className="text-xs text-[#6b7280]">Region</Label>
                         <MultiSelectChips
                             options={regions.map((r) => ({ _id: r._id, label: r.region }))}
                             value={assignedRegions}
-                            onChange={setAssignedRegions}
-                            placeholder="Select regions"
+                            onChange={handleRegionsChange}
+                            placeholder="Select region(s)"
+                            disabled={isAdmin}
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-xs text-[#6b7280]">Assign Clients</Label>
+                        <Label className="text-xs text-[#6b7280]">
+                            Customer{" "}
+                            <span className="text-[#9ca3af]">
+                                (optional — leave empty to assign the whole region)
+                            </span>
+                        </Label>
                         <MultiSelectChips
-                            options={clients.map((c) => ({ _id: c._id, label: c.name }))}
+                            options={filteredClients.map((c) => ({ _id: c._id, label: c.name }))}
                             value={assignedClients}
                             onChange={setAssignedClients}
-                            placeholder="Select clients"
+                            placeholder={
+                                assignedRegions.length === 0
+                                    ? "Select a region first"
+                                    : "Select customer(s)"
+                            }
+                            disabled={isAdmin || assignedRegions.length === 0}
                         />
                     </div>
                     <p className="text-[11px] text-[#9ca3af]">
@@ -252,7 +309,7 @@ export default function CreateAdminModal({
                             className="bg-[#2D3E5C] hover:bg-[#1f2c44] text-white rounded-[10px] h-10 px-5"
                         >
                             <Save className="w-4 h-4 mr-2" />
-                            {submitting ? "Saving…" : "Save Changes"}
+                            {submitting ? "Saving…" : "Add User"}
                         </Button>
                     </div>
                 </form>

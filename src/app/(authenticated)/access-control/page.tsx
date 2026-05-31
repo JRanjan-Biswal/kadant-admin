@@ -17,6 +17,8 @@ interface RegionOption {
 interface ClientOption {
     _id: string;
     name: string;
+    region?: string | null;
+    regionId?: string | null;
 }
 
 const fetchJson = async <T,>(

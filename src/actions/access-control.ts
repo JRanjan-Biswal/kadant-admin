@@ -108,6 +108,7 @@ export interface CreateAdminPayload {
     phone?: string;
     designation?: string;
     isActive?: boolean;
+    fullAccess?: boolean;
     assignedRegions?: string[];
     assignedClients?: string[];
 }

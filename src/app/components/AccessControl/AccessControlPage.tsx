@@ -175,7 +175,7 @@ export default function AccessControlPage({
                         className="bg-[#2D3E5C] hover:bg-[#1f2c44] text-white rounded-[10px] h-10 px-4"
                     >
                         <UserPlus className="w-4 h-4 mr-2" />
-                        Create New Admin
+                        Add New User
                     </Button>
                 </header>
 
@@ -196,7 +196,7 @@ export default function AccessControlPage({
                             {admins.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-5 py-10 text-center text-[#6b7280]">
-                                        No admins yet. Click &quot;Create New Admin&quot; to add one.
+                                        No users yet. Click &quot;Add New User&quot; to add one.
                                     </td>
                                 </tr>
                             ) : (
