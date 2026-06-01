@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import ImageUploadModal from "./ImageUploadModal";
+import { uploadEntityImageDirect, uploadMachineGalleryDirect } from "@/lib/uploadImage";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -14,24 +15,16 @@ const ACCEPTED_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_VIDEO = 50 * 1024 * 1024; // 50 MB
 // Image picking/validation/compression is handled by ImageUploadModal.
 
-// ─── Upload helpers (same endpoints the inline editor uses) ─────────────────
+// ─── Upload helpers ─────────────────────────────────────────────────────────
+// Images upload straight to S3 via a presigned PUT (see lib/uploadImage), so a
+// full-size Original of any size goes through — bypassing Vercel's ~4.5 MB cap.
 
 async function uploadEntityImage(type: "machine" | "sparePart" | "part", id: string, file: File) {
-    const fd = new FormData();
-    fd.append("image", file);
-    fd.append("type", type);
-    fd.append("id", id);
-    const res = await fetch("/api/upload/entity-image", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Image upload failed");
+    await uploadEntityImageDirect(type, id, file, "replace");
 }
 
 async function uploadEntityImageAdd(type: "sparePart" | "part", id: string, file: File) {
-    const fd = new FormData();
-    fd.append("image", file);
-    fd.append("type", type);
-    fd.append("id", id);
-    const res = await fetch("/api/upload/entity-image-add", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Image upload failed");
+    await uploadEntityImageDirect(type, id, file, "add");
 }
 
 async function uploadEntityVideo(type: "sparePart" | "part", id: string, file: File) {
@@ -44,11 +37,7 @@ async function uploadEntityVideo(type: "sparePart" | "part", id: string, file: F
 }
 
 async function uploadMachineGallery(machineId: string, file: File) {
-    const fd = new FormData();
-    fd.append("image", file);
-    fd.append("machineId", machineId);
-    const res = await fetch("/api/upload/machine-gallery", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Gallery upload failed");
+    await uploadMachineGalleryDirect(machineId, file);
 }
 
 // ─── Shared UI ──────────────────────────────────────────────────────────────

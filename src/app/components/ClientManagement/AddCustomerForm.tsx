@@ -21,7 +21,8 @@ import {
 
 // Import reusable components
 import SectionHeader from "@/components/SectionHeader";
-import UploadBox from "@/components/UploadBox";
+import CompressUploadBox from "@/components/CompressUploadBox";
+import { uploadClientImageDirect } from "@/lib/uploadImage";
 import InputField from "@/components/InputField";
 import SelectField from "@/components/SelectField";
 import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
@@ -113,6 +114,21 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
 
         setIsLoading(true);
         try {
+            // Upload any staged images straight to S3 (any size — original or
+            // compressed) and collect their asset paths to store on the new client.
+            const [businessPath, flowsheetPath, stockPrepPath] = await Promise.all([
+                businessImage ? uploadClientImageDirect(businessImage) : Promise.resolve(undefined),
+                flowsheetImage ? uploadClientImageDirect(flowsheetImage) : Promise.resolve(undefined),
+                stockPrepImage ? uploadClientImageDirect(stockPrepImage) : Promise.resolve(undefined),
+            ]);
+            const onboardingPaths = (
+                await Promise.all(
+                    onboardingImages.map((img) =>
+                        img ? uploadClientImageDirect(img) : Promise.resolve(null)
+                    )
+                )
+            ).filter((p): p is string => !!p);
+
             const formData: AddClientFormData = {
                 // Login credentials
                 email: email.trim().toLowerCase(),
@@ -142,6 +158,12 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
 
                 // Linked machines (created via AddCategoryMachineFlow above)
                 machineIds: createdMachineIds,
+
+                // Onboarding images (asset paths from direct-to-S3 upload)
+                businessImage: businessPath,
+                flowsheetImage: flowsheetPath,
+                stockPrepImage: stockPrepPath,
+                onboardingImages: onboardingPaths.length ? onboardingPaths : undefined,
             };
 
             const result = await addClient(formData);
@@ -239,7 +261,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                     <SectionHeader number={2} title="Onboarding Images" />
                     <div className="p-6 flex gap-4">
                         {[0, 1, 2].map(index => (
-                            <UploadBox
+                            <CompressUploadBox
                                 key={index}
                                 label="Click to upload onboarding images"
                                 sublabel="Upload multiple images (PNG, JPG, GIF)"
@@ -410,7 +432,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                         {/* Business Image */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[#6b7280] text-sm leading-5">Business Image</label>
-                            <UploadBox
+                            <CompressUploadBox
                                 label="Click to upload business image"
                                 sublabel="Upload multiple images (PNG, JPG, GIF)"
                                 file={businessImage}
@@ -424,7 +446,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                     <SectionHeader number={4} title="Flowsheet Image" />
                     <div className="p-6">
-                        <UploadBox
+                        <CompressUploadBox
                             label="Click to upload flowsheet diagram"
                             sublabel="PNG, JPG (Max 10MB)"
                             file={flowsheetImage}
@@ -437,7 +459,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                     <SectionHeader number={5} title="Stock Preparation Image" />
                     <div className="p-6">
-                        <UploadBox
+                        <CompressUploadBox
                             label="Click to upload stock preparation diagram"
                             sublabel="PNG, JPG (Max 10MB)"
                             file={stockPrepImage}

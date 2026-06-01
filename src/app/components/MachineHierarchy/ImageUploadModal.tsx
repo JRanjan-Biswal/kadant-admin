@@ -6,19 +6,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const MAX = 40 * 1024 * 1024;       // accept up to 40 MB in the picker
+const MAX = 100 * 1024 * 1024;      // accept large originals — the Original uploads straight to S3
 const MAX_EDGE = 2600;              // longest side (px) for the downscaled *compressed* copy
-// Vercel serverless functions reject any request body over ~4.5 MB at the edge
-// (FUNCTION_PAYLOAD_TOO_LARGE / HTTP 413) before our code runs. Keep whatever we
-// POST to /api/compress-image and /api/upload/entity-image safely under that.
-const COMPRESS_INPUT_CAP = Math.floor(3.8 * 1024 * 1024);  // target size for the compress request
-const ORIGINAL_UPLOAD_CAP = Math.floor(4.3 * 1024 * 1024); // largest "Original" the upload route accepts on Vercel
-
-// The cap only exists on Vercel; local `next dev` streams large bodies fine, so
-// don't block big originals during local development.
-const uploadsAreCapped = () =>
-    typeof window !== "undefined" &&
-    !/^(localhost|127\.\d|0\.0\.0\.0|\[?::1\]?)/.test(window.location.hostname);
+// The /api/compress-image PREVIEW still runs as a Vercel function (request bodies
+// capped at ~4.5 MB), so the copy we POST there must stay small. The actual SAVE
+// no longer goes through a function — it's a direct-to-S3 presigned PUT — so the
+// Original can be any size.
+const COMPRESS_INPUT_CAP = Math.floor(3.8 * 1024 * 1024); // target size for the compress request
 
 function fmtSize(bytes?: number): string {
     if (bytes == null) return "";
@@ -35,7 +29,7 @@ async function compressViaServer(file: File, quality: number): Promise<File> {
     const res = await fetch("/api/compress-image", { method: "POST", body: fd });
     if (!res.ok) {
         if (res.status === 413) {
-            throw new Error("Image is too large to process (server limit ≈4.5 MB). Pick a smaller file.");
+            throw new Error("Couldn't build a compressed preview for this image — you can still upload the Original.");
         }
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Compression failed");
@@ -65,7 +59,17 @@ async function shrinkForCompression(file: File): Promise<File> {
         return file; // undecodable here — let the server attempt the original
     }
 
+    // PNG/WebP can carry transparency; encoding the shrunk copy as JPEG would
+    // flatten the alpha channel onto black. Keep an alpha-capable format (WebP)
+    // for those — JPEG stays for opaque sources (smaller for photos).
+    const hasAlpha = file.type === "image/png" || file.type === "image/webp";
+    const outType = hasAlpha ? "image/webp" : "image/jpeg";
     const base = file.name.replace(/\.[^.]+$/, "") || "image";
+    const toFile = (blob: Blob): File => {
+        const t = blob.type || outType;
+        const ext = t === "image/webp" ? ".webp" : t === "image/png" ? ".png" : ".jpg";
+        return new File([blob], `${base}${ext}`, { type: t });
+    };
     const encode = (scale: number, q: number): Promise<Blob | null> => {
         const w = Math.max(1, Math.round(bmp.width * scale));
         const h = Math.max(1, Math.round(bmp.height * scale));
@@ -74,24 +78,24 @@ async function shrinkForCompression(file: File): Promise<File> {
         canvas.height = h;
         const ctx = canvas.getContext("2d");
         if (!ctx) return Promise.resolve(null);
-        ctx.drawImage(bmp, 0, 0, w, h);
-        return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+        ctx.drawImage(bmp, 0, 0, w, h); // canvas starts transparent — alpha is preserved
+        return new Promise((resolve) => canvas.toBlob(resolve, outType, q));
     };
 
     try {
         const longest = Math.max(bmp.width, bmp.height);
         // Bound the long side to MAX_EDGE, then step dimensions + quality down until
-        // the encoded JPEG fits under the transport cap.
+        // the encoded copy fits under the transport cap.
         let scale = Math.min(1, MAX_EDGE / longest);
         for (const q of [0.9, 0.8, 0.72, 0.65]) {
             const blob = await encode(scale, q);
             if (blob && blob.size <= COMPRESS_INPUT_CAP) {
-                return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+                return toFile(blob);
             }
             scale *= 0.8; // shrink further next round
         }
         const last = await encode(scale, 0.6);
-        if (last) return new File([last], `${base}.jpg`, { type: "image/jpeg" });
+        if (last) return toFile(last);
         return file;
     } finally {
         bmp.close();
@@ -175,16 +179,6 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const handleSave = useCallback(async () => {
         const file = choice === "compressed" && compressedFile ? compressedFile : pickedFile;
         if (!file) return;
-        // The compressed output is always small; only a full-size "Original" can be
-        // too big. On Vercel the upload route caps at ~4.5 MB, so block it with a
-        // clear message instead of letting it 413.
-        if (uploadsAreCapped() && file.size > ORIGINAL_UPLOAD_CAP) {
-            toast.error(
-                "This image is too large to upload at full size (server limit ≈4.5 MB). " +
-                    "Choose the Compressed version, or pick a smaller file."
-            );
-            return;
-        }
         setSaving(true);
         try {
             await onSave(file);

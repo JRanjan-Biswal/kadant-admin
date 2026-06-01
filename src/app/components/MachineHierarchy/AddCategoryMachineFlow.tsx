@@ -11,6 +11,7 @@ import { AddMachineFormModal, AddSparePartFormModal } from "./AddEntityModals";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import ImageUploadModal from "./ImageUploadModal";
 import VideoUploadModal from "./VideoUploadModal";
+import { uploadEntityImageDirect } from "@/lib/uploadImage";
 
 /** Image upload with optional existing URL, compact mode, and remove (X) overlay. */
 const ImageUploadBox = memo(function ImageUploadBox({
@@ -641,31 +642,16 @@ export default function AddCategoryMachineFlow({
         return () => clearTimeout(t);
     }, [editDataLoaded, categoryIdForEdit, initialData]);
 
+    // Both helpers upload directly to S3 via a presigned PUT (see lib/uploadImage),
+    // so a full-size Original of ANY size goes through — not just sub-4.5 MB files.
     const uploadEntityImage = useCallback(async (type: "category" | "machine" | "sparePart" | "part", id: string, file: File) => {
-        const fd = new FormData();
-        fd.append("image", file);
-        fd.append("type", type);
-        fd.append("id", id);
-        const res = await fetch("/api/upload/entity-image", { method: "POST", body: fd });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || "Image upload failed");
-        }
-        const data = await res.json();
+        const data = await uploadEntityImageDirect(type, id, file, "replace");
         return data as { imageUrl?: string };
     }, []);
 
     const uploadEntityImageAdd = useCallback(async (type: "sparePart" | "part", id: string, file: File) => {
-        const fd = new FormData();
-        fd.append("image", file);
-        fd.append("type", type);
-        fd.append("id", id);
-        const res = await fetch("/api/upload/entity-image-add", { method: "POST", body: fd });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || "Image upload failed");
-        }
-        return res.json() as Promise<{ imageUrls?: string[] }>;
+        const data = await uploadEntityImageDirect(type, id, file, "add");
+        return data as { imageUrls?: string[] };
     }, []);
 
     const removeEntityImage = useCallback(async (type: "sparePart" | "part", id: string, imageName: string) => {

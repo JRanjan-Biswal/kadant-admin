@@ -53,6 +53,12 @@ export interface AddClientFormData {
 
     // IDs of already-created Machine docs to link to this client via ClientMachine rows
     machineIds?: string[];
+
+    // Onboarding images — relative asset paths from the direct-to-S3 upload
+    businessImage?: string;
+    flowsheetImage?: string;
+    stockPrepImage?: string;
+    onboardingImages?: string[];
 }
 
 export interface AddClientResult {
@@ -100,6 +106,12 @@ export async function addClient(formData: AddClientFormData): Promise<AddClientR
             // Machines
             machines: formData.machines,
             machineIds: formData.machineIds,
+
+            // Onboarding images (relative asset paths)
+            businessImage: formData.businessImage,
+            flowsheetImage: formData.flowsheetImage,
+            stockPrepImage: formData.stockPrepImage,
+            onboardingImages: formData.onboardingImages,
         };
 
         // Call the external API directly
