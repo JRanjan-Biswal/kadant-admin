@@ -6,9 +6,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const MAX = 40 * 1024 * 1024;       // accept up to 40 MB (the Original is uploaded untouched)
+const MAX = 40 * 1024 * 1024;       // accept up to 40 MB in the picker
 const MAX_EDGE = 2600;              // longest side (px) for the downscaled *compressed* copy
-const SAFE_BYTES = 4 * 1024 * 1024; // originals over this get a downscaled copy — for the compressed output only
+// Vercel serverless functions reject any request body over ~4.5 MB at the edge
+// (FUNCTION_PAYLOAD_TOO_LARGE / HTTP 413) before our code runs. Keep whatever we
+// POST to /api/compress-image and /api/upload/entity-image safely under that.
+const COMPRESS_INPUT_CAP = Math.floor(3.8 * 1024 * 1024);  // target size for the compress request
+const ORIGINAL_UPLOAD_CAP = Math.floor(4.3 * 1024 * 1024); // largest "Original" the upload route accepts on Vercel
+
+// The cap only exists on Vercel; local `next dev` streams large bodies fine, so
+// don't block big originals during local development.
+const uploadsAreCapped = () =>
+    typeof window !== "undefined" &&
+    !/^(localhost|127\.\d|0\.0\.0\.0|\[?::1\]?)/.test(window.location.hostname);
 
 function fmtSize(bytes?: number): string {
     if (bytes == null) return "";
@@ -24,6 +34,9 @@ async function compressViaServer(file: File, quality: number): Promise<File> {
     fd.append("quality", String(quality));
     const res = await fetch("/api/compress-image", { method: "POST", body: fd });
     if (!res.ok) {
+        if (res.status === 413) {
+            throw new Error("Image is too large to process (server limit ≈4.5 MB). Pick a smaller file.");
+        }
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Compression failed");
     }
@@ -33,38 +46,56 @@ async function compressViaServer(file: File, quality: number): Promise<File> {
 }
 
 /**
- * Returns a transport-safe COPY of the file to feed the compress endpoint. If
- * the original is large it's downscaled to MAX_EDGE so the request stays under
- * platform body caps (e.g. Vercel's 4.5 MB function limit) and the server's
- * pixel limit. The passed-in original is NEVER mutated — this only affects the
- * *compressed* output. Small files are returned as-is (the server still applies
- * the final quality + resize).
+ * Returns a transport-safe COPY of the file to feed the compress endpoint, always
+ * kept under the serverless body cap (Vercel rejects >4.5 MB request bodies). The
+ * passed-in original is NEVER mutated — this only affects the *compressed* output.
+ *
+ * Earlier this downscaled by *dimension* only, so a heavy 5 MB image whose longest
+ * side was already ≤ MAX_EDGE slipped through at full size and 413'd on Vercel. Now
+ * we bound by *bytes*: re-encode (shrinking dimensions and/or quality) until it fits.
+ * Small files pass through untouched (the server still applies the final quality + resize).
  */
 async function shrinkForCompression(file: File): Promise<File> {
-    if (file.size <= SAFE_BYTES) return file;
+    if (file.size <= COMPRESS_INPUT_CAP) return file;
+
     let bmp: ImageBitmap;
     try {
         bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
     } catch {
         return file; // undecodable here — let the server attempt the original
     }
-    const longest = Math.max(bmp.width, bmp.height);
-    if (longest <= MAX_EDGE) { bmp.close(); return file; }
 
-    const scale = MAX_EDGE / longest;
-    const w = Math.round(bmp.width * scale);
-    const h = Math.round(bmp.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) { bmp.close(); return file; }
-    ctx.drawImage(bmp, 0, 0, w, h);
-    bmp.close();
-
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-    if (!blob) return file;
     const base = file.name.replace(/\.[^.]+$/, "") || "image";
-    return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+    const encode = (scale: number, q: number): Promise<Blob | null> => {
+        const w = Math.max(1, Math.round(bmp.width * scale));
+        const h = Math.max(1, Math.round(bmp.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return Promise.resolve(null);
+        ctx.drawImage(bmp, 0, 0, w, h);
+        return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+    };
+
+    try {
+        const longest = Math.max(bmp.width, bmp.height);
+        // Bound the long side to MAX_EDGE, then step dimensions + quality down until
+        // the encoded JPEG fits under the transport cap.
+        let scale = Math.min(1, MAX_EDGE / longest);
+        for (const q of [0.9, 0.8, 0.72, 0.65]) {
+            const blob = await encode(scale, q);
+            if (blob && blob.size <= COMPRESS_INPUT_CAP) {
+                return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+            }
+            scale *= 0.8; // shrink further next round
+        }
+        const last = await encode(scale, 0.6);
+        if (last) return new File([last], `${base}.jpg`, { type: "image/jpeg" });
+        return file;
+    } finally {
+        bmp.close();
+    }
 }
 
 interface ImageUploadModalProps {
@@ -144,6 +175,16 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const handleSave = useCallback(async () => {
         const file = choice === "compressed" && compressedFile ? compressedFile : pickedFile;
         if (!file) return;
+        // The compressed output is always small; only a full-size "Original" can be
+        // too big. On Vercel the upload route caps at ~4.5 MB, so block it with a
+        // clear message instead of letting it 413.
+        if (uploadsAreCapped() && file.size > ORIGINAL_UPLOAD_CAP) {
+            toast.error(
+                "This image is too large to upload at full size (server limit ≈4.5 MB). " +
+                    "Choose the Compressed version, or pick a smaller file."
+            );
+            return;
+        }
         setSaving(true);
         try {
             await onSave(file);
