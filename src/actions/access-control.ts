@@ -13,6 +13,7 @@ export interface AccessAdmin {
     image?: string;
     role: "admin" | "superadmin";
     isActive: boolean;
+    fullAccess?: boolean;
     isBlocked?: boolean;
     assignedRegions?: string[];
     assignedClients?: { _id: string; name: string }[];
@@ -136,6 +137,9 @@ export interface UpdateAdminPayload {
     designation?: string;
     password?: string;
     isActive?: boolean;
+    fullAccess?: boolean;
+    assignedRegions?: string[];
+    assignedClients?: string[];
 }
 
 export async function updateAdmin(

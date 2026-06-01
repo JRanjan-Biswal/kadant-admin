@@ -32,7 +32,6 @@ import { deleteAdmin } from "@/actions/access-control";
 import UpdateSuperAdminModal from "./UpdateSuperAdminModal";
 import CreateAdminModal from "./CreateAdminModal";
 import EditAdminModal from "./EditAdminModal";
-import AssignAccessModal from "./AssignAccessModal";
 
 interface Props {
     isSuperAdmin: boolean;
@@ -73,7 +72,6 @@ export default function AccessControlPage({
     const [openSuper, setOpenSuper] = useState(false);
     const [openCreate, setOpenCreate] = useState(false);
     const [editAdmin, setEditAdmin] = useState<AccessAdmin | null>(null);
-    const [accessAdmin, setAccessAdmin] = useState<AccessAdmin | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AccessAdmin | null>(null);
     const [deleting, setDeleting] = useState(false);
 
@@ -264,14 +262,7 @@ export default function AccessControlPage({
                                         <Td className="text-right pr-5">
                                             <div className="inline-flex items-center gap-2">
                                                 <IconBtn
-                                                    title="Assign Access"
-                                                    onClick={() => setAccessAdmin(a)}
-                                                    className="text-[#2563eb] hover:bg-[#dbeafe]"
-                                                >
-                                                    <MapPin className="w-4 h-4" />
-                                                </IconBtn>
-                                                <IconBtn
-                                                    title="Edit Admin"
+                                                    title="Edit User"
                                                     onClick={() => setEditAdmin(a)}
                                                     className="text-[#2563eb] hover:bg-[#dbeafe]"
                                                 >
@@ -309,11 +300,6 @@ export default function AccessControlPage({
                 open={!!editAdmin}
                 onOpenChange={(v) => !v && setEditAdmin(null)}
                 admin={editAdmin}
-            />
-            <AssignAccessModal
-                open={!!accessAdmin}
-                onOpenChange={(v) => !v && setAccessAdmin(null)}
-                admin={accessAdmin}
                 regions={regions}
                 clients={clients}
             />
