@@ -54,7 +54,9 @@ export default async function AccessControlRoute() {
         redirect("/");
     }
     const role = currentUser.user?.role;
-    if (role !== "superadmin" && role !== "admin") {
+    const isFullAdmin =
+        role === "superadmin" || (role === "admin" && !!currentUser.user?.fullAccess);
+    if (!isFullAdmin) {
         return (
             <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
                 <div className="bg-white border border-[#96A5BA] rounded-[10px] p-10 max-w-md text-center">

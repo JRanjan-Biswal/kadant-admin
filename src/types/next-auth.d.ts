@@ -10,6 +10,7 @@ declare module "next-auth" {
         designation?: string
         isReadOnly?: boolean
         role?: UserRole
+        fullAccess?: boolean
         username?: string
     }
 
@@ -21,6 +22,7 @@ declare module "next-auth" {
             designation?: string
             isReadOnly?: boolean
             role?: UserRole
+            fullAccess?: boolean
             username?: string
         } & DefaultSession["user"]
     }
@@ -34,6 +36,7 @@ declare module "next-auth/jwt" {
         designation?: string
         isReadOnly?: boolean
         role?: UserRole
+        fullAccess?: boolean
         username?: string
     }
 }

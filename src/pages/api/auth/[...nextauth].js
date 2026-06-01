@@ -57,6 +57,7 @@ export const authOptions = {
         token.email = user.email;
         token.picture = user.image; // Note: use 'picture' for images in JWT
         token.role = user.role;
+        token.fullAccess = user.fullAccess || false;
         token.userId = user._id;
         token.username = user.username;
       }
@@ -84,6 +85,7 @@ export const authOptions = {
       session.user.email = token.email;
       session.user.image = token.picture;
       session.user.role = token.role;
+      session.user.fullAccess = token.fullAccess;
       session.user._id = token.userId;
       session.user.username = token.username;
       return session;
