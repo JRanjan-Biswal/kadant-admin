@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { X, GripVertical, Check, Loader2, RotateCcw, ChevronDown } from "lucide-react";
 import Image from "next/image";
+import { coverRect, normToPx, pxToNorm, pxDeltaToNorm, type CoverRect } from "./coverGeometry";
 
 export interface MachinePosition {
     machine: string;
@@ -40,24 +41,23 @@ const MAX_WIDTH = 40;
 const MachineMarker = memo(function MachineMarker({
     machine,
     position,
+    rect,
     isSelected,
     onSelect,
     onDrag,
     onWidthChange,
-    containerRef,
 }: {
     machine: MachineInfo;
     position: { left: number; top: number; width: number };
+    rect: CoverRect | null;
     isSelected: boolean;
     onSelect: () => void;
     onDrag: (left: number, top: number) => void;
     onWidthChange: (width: number) => void;
-    containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
     const markerRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
     const isResizing = useRef(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
 
     const handleMouseDown = useCallback(
         (e: React.MouseEvent) => {
@@ -65,20 +65,18 @@ const MachineMarker = memo(function MachineMarker({
             e.preventDefault();
             e.stopPropagation();
             onSelect();
+            if (!rect) return;
             isDragging.current = true;
-            const container = containerRef.current;
-            if (!container || !markerRef.current) return;
-            const rect = container.getBoundingClientRect();
-            dragOffset.current = {
-                x: e.clientX - (rect.left + (position.left / 100) * rect.width),
-                y: e.clientY - (rect.top + (position.top / 100) * rect.height),
-            };
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startLeft = position.left;
+            const startTop = position.top;
 
             const handleMove = (ev: MouseEvent) => {
-                if (!isDragging.current || !container) return;
-                const r = container.getBoundingClientRect();
-                let newLeft = ((ev.clientX - dragOffset.current.x - r.left) / r.width) * 100;
-                let newTop = ((ev.clientY - dragOffset.current.y - r.top) / r.height) * 100;
+                if (!isDragging.current) return;
+                const { dLeft, dTop } = pxDeltaToNorm(rect, ev.clientX - startX, ev.clientY - startY);
+                let newLeft = startLeft + dLeft;
+                let newTop = startTop + dTop;
                 newLeft = Math.max(0, Math.min(100 - position.width, newLeft));
                 newTop = Math.max(0, Math.min(95, newTop));
                 onDrag(Math.round(newLeft * 10) / 10, Math.round(newTop * 10) / 10);
@@ -91,7 +89,7 @@ const MachineMarker = memo(function MachineMarker({
             window.addEventListener("mousemove", handleMove);
             window.addEventListener("mouseup", handleUp);
         },
-        [containerRef, onDrag, onSelect, position.left, position.top, position.width]
+        [rect, onDrag, onSelect, position.left, position.top, position.width]
     );
 
     const handleResizeMouseDown = useCallback(
@@ -99,16 +97,15 @@ const MachineMarker = memo(function MachineMarker({
             e.preventDefault();
             e.stopPropagation();
             onSelect();
+            if (!rect) return;
             isResizing.current = true;
             const startX = e.clientX;
             const startWidth = position.width;
-            const container = containerRef.current;
 
             const handleMove = (ev: MouseEvent) => {
-                if (!isResizing.current || !container) return;
-                const r = container.getBoundingClientRect();
-                const deltaPercent = ((ev.clientX - startX) / r.width) * 100;
-                let newWidth = startWidth + deltaPercent;
+                if (!isResizing.current || !rect) return;
+                const { dLeft } = pxDeltaToNorm(rect, ev.clientX - startX, 0);  // dLeft == (dxPx/rw)*100
+                let newWidth = startWidth + dLeft;
                 newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
                 onWidthChange(Math.round(newWidth * 10) / 10);
             };
@@ -120,8 +117,12 @@ const MachineMarker = memo(function MachineMarker({
             window.addEventListener("mousemove", handleMove);
             window.addEventListener("mouseup", handleUp);
         },
-        [containerRef, onSelect, onWidthChange, position.width]
+        [rect, onSelect, onWidthChange, position.width]
     );
+
+    const { xPx, yPx, wPx } = rect
+        ? normToPx(rect, position.left, position.top, position.width)
+        : { xPx: 0, yPx: 0, wPx: 0 };
 
     return (
         <div
@@ -129,9 +130,9 @@ const MachineMarker = memo(function MachineMarker({
             data-machine-marker
             style={{
                 position: "absolute",
-                left: `${position.left}%`,
-                top: `${position.top}%`,
-                width: `${position.width}%`,
+                left: `${xPx}px`,
+                top: `${yPx}px`,
+                width: `${wPx}px`,
                 zIndex: isSelected ? 30 : 20,
             }}
             onMouseDown={handleMouseDown}
@@ -181,6 +182,25 @@ function MachineImageMapperContent({
     onClose,
 }: MachineImageMapperProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [natural, setNatural] = useState<{ iw: number; ih: number } | null>(null);
+    const [containerSize, setContainerSize] = useState<{ cw: number; ch: number } | null>(null);
+
+    // Track container px (cw,ch) via ResizeObserver — recomputes on window resize/orientation.
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const update = () => setContainerSize({ cw: el.clientWidth, ch: el.clientHeight });
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    const rect: CoverRect | null =
+        natural && containerSize
+            ? coverRect(containerSize.cw, containerSize.ch, natural.iw, natural.ih)
+            : null;
+
     const [positions, setPositions] = useState<Map<string, { left: number; top: number; width: number }>>(
         () => {
             const map = new Map<string, { left: number; top: number; width: number }>();
@@ -216,10 +236,12 @@ function MachineImageMapperContent({
             if (!selectedMachine) return;
             const container = containerRef.current;
             if (!container) return;
-            const rect = container.getBoundingClientRect();
-            const left = ((e.clientX - rect.left) / rect.width) * 100;
-            const top = ((e.clientY - rect.top) / rect.height) * 100;
-            const width = DEFAULT_WIDTH;
+            const r = container.getBoundingClientRect();
+            if (!rect) return;                       // natural dims not loaded yet — ignore click
+            const xPx = e.clientX - r.left;
+            const yPx = e.clientY - r.top;
+            const width = DEFAULT_WIDTH;             // still % of IMAGE width (unchanged 15)
+            const { left, top } = pxToNorm(rect, xPx, yPx);
             const clampedLeft = Math.max(0, Math.min(100 - width, left - width / 2));
             const clampedTop = Math.max(0, Math.min(95, top));
 
@@ -237,7 +259,7 @@ function MachineImageMapperContent({
             const nextUnplaced = unplacedMachines[currentIdx + 1];
             setSelectedMachine(nextUnplaced?.id ?? null);
         },
-        [selectedMachine, unplacedMachines]
+        [selectedMachine, unplacedMachines, rect]
     );
 
     const handleDrag = useCallback((machineId: string, left: number, top: number) => {
@@ -436,13 +458,18 @@ function MachineImageMapperContent({
                         userSelect: "none",
                     }}
                 >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <Image
                         width={1500}
                         height={1500}
                         src={categoryImageUrl}
                         alt="Category"
                         draggable={false}
+                        onLoad={(e) => {
+                            const img = e.currentTarget;
+                            if (img.naturalWidth && img.naturalHeight) {
+                                setNatural({ iw: img.naturalWidth, ih: img.naturalHeight });
+                            }
+                        }}
                         style={{
                             width: "100%",
                             height: "100%",
@@ -453,7 +480,7 @@ function MachineImageMapperContent({
                         }}
                     />
 
-                    {machines.map((m) => {
+                    {rect && machines.map((m) => {
                         const pos = positions.get(m.id);
                         if (!pos) return null;
                         return (
@@ -461,11 +488,11 @@ function MachineImageMapperContent({
                                 key={m.id}
                                 machine={m}
                                 position={pos}
+                                rect={rect}
                                 isSelected={selectedMachine === m.id}
                                 onSelect={() => setSelectedMachine(m.id)}
                                 onDrag={(left, top) => handleDrag(m.id, left, top)}
                                 onWidthChange={(w) => handleWidthChange(m.id, w)}
-                                containerRef={containerRef}
                             />
                         );
                     })}
