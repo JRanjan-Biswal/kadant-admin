@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, Fragment } from "react";
+import { useState, useMemo, useCallback, useEffect, Fragment } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
@@ -11,11 +11,14 @@ import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntity
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
-import EditMachineModal from "@/app/components/Modals/EditMachineModal";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 
 const getStatusColor = (status?: string) => {
@@ -96,6 +99,76 @@ interface MachineSpareParts {
     [machineId: string]: SparePartWithStatus[];
 }
 
+interface SortableCategoryCardProps {
+    category: Category;
+    isOpen: boolean;
+    onToggle: () => void;
+    onDeleteClick: () => void;
+    clientId: string;
+    onSuccess: () => void;
+}
+
+function SortableCategoryCard({ category, isOpen, onToggle, onDeleteClick, clientId, onSuccess }: SortableCategoryCardProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category._id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        position: isDragging ? ("relative" as const) : undefined,
+        zIndex: isDragging ? 1 : undefined,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
+            <div className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-[#9ca3af] hover:text-[#374151] shrink-0"
+                        title="Drag to reorder"
+                    >
+                        <GripVertical className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="flex items-center gap-3 text-base font-semibold text-foreground flex-1 text-left cursor-pointer"
+                    >
+                        <span className="transition-transform duration-200" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+                            <HiOutlineChevronRight className="w-5 h-5 text-gray-900" />
+                        </span>
+                        {category.name}
+                        <span className="bg-[#e5e7eb] rounded px-2 py-0.5 text-[#1f2937] text-sm font-semibold">
+                            {category.machines?.length || 0}
+                        </span>
+                    </button>
+                </div>
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDeleteClick(); }}
+                    className="ml-3 h-8 w-8 p-0 flex items-center justify-center rounded text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 transition-colors shrink-0 cursor-pointer"
+                    title="Delete category"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+            {isOpen && (
+                <div className="p-6">
+                    <AddCategoryMachineFlow
+                        compact
+                        categoryIdForEdit={category._id}
+                        clientID={clientId}
+                        onSuccess={onSuccess}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function ClientOverviewContent({
     clientDetails,
     allClients,
@@ -113,7 +186,6 @@ export default function ClientOverviewContent({
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
     const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
-    const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -123,6 +195,7 @@ export default function ClientOverviewContent({
     // Which category is expanded for inline editing in the Upload Data tab.
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
     const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+    const [addMachineForCategoryId, setAddMachineForCategoryId] = useState<string | null>(null);
     // Categories created this session, merged into the Upload Data list so a
     // brand-new (machine-less) category shows up immediately after saving.
     const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
@@ -133,6 +206,33 @@ export default function ClientOverviewContent({
         ],
         [createdCategories, categories]
     );
+
+    const [orderedCategories, setOrderedCategories] = useState<Category[]>(uploadCategories);
+    useEffect(() => {
+        setOrderedCategories(uploadCategories);
+    }, [uploadCategories]);
+
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        setOrderedCategories((prev) => {
+            const oldIndex = prev.findIndex((c) => c._id === active.id);
+            const newIndex = prev.findIndex((c) => c._id === over.id);
+            const reordered = arrayMove(prev, oldIndex, newIndex);
+            fetch("/api/machines/machine-categories/reorder", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ categoryIds: reordered.map((c) => c._id) }),
+            }).then((res) => {
+                if (!res.ok) toast.error("Failed to save category order.");
+            }).catch(() => {
+                toast.error("Failed to save category order.");
+            });
+            return reordered;
+        });
+    }, []);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -648,7 +748,6 @@ export default function ClientOverviewContent({
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-16">Sr.No.</th>
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Machine Name</th>
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Current Status</th>
-                                                                <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Last Service on</th>
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Installation Date</th>
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-24">Edit Detail</th>
                                                                 <th className="text-left py-3 px-4 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Delete</th>
@@ -688,10 +787,9 @@ export default function ClientOverviewContent({
                                                                                     </Badge>
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
                                                                             <td className="py-3 px-4 text-[#374151] text-sm font-medium">{machine.installationDate ? format(new Date(machine.installationDate), "dd MMM yyyy") : "—"}</td>
                                                                             <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                                                                                <Button size="sm" variant="ghost" onClick={() => setEditingMachine(machine)} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
+                                                                                <Button size="sm" variant="ghost" onClick={() => { setActiveTab("upload"); setEditingCategoryId(category._id); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
                                                                                     <Pencil className="w-4 h-4" />
                                                                                 </Button>
                                                                             </td>
@@ -703,7 +801,7 @@ export default function ClientOverviewContent({
                                                                         </tr>
                                                                         {isMachineOpen && (
                                                                             <tr className="bg-[#ffffff]">
-                                                                                <td colSpan={7} className="p-0 border-b border-[#607797]">
+                                                                                <td colSpan={6} className="p-0 border-b border-[#607797]">
                                                                                     <div className="px-4 pb-4">
                                                                                         {spareParts.length > 0 ? (
                                                                                             <table className="w-full border-collapse rounded-none overflow-hidden border border-[#607797]">
@@ -713,8 +811,6 @@ export default function ClientOverviewContent({
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Spare Part Name</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Health</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Current Status</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Last Service On</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Installation Date</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-24">Edit Detail</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Parts</th>
                                                                                                         <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Delete</th>
@@ -736,8 +832,6 @@ export default function ClientOverviewContent({
                                                                                                                     {sparePart.isActive !== false ? "Active" : "Inactive"}
                                                                                                                 </Badge>
                                                                                                             </td>
-                                                                                                            <td className="py-2 px-3 text-[#374151] text-sm font-medium">{sparePart.lastServiceDate ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy") : "—"}</td>
-                                                                                                            <td className="py-2 px-3 text-[#374151] text-sm font-medium">{sparePart.sparePartInstallationDate ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy") : "—"}</td>
                                                                                                             <td className="py-2 px-3">
                                                                                                                 <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart({ ...sparePart, machine: machine._id }); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
                                                                                                                     <Pencil className="w-4 h-4" />
@@ -838,47 +932,22 @@ export default function ClientOverviewContent({
                         </div>
 
                         {/* One card per category – expand to edit the full hierarchy inline */}
-                        {uploadCategories.length > 0 ? (
-                            uploadCategories.map((category) => {
-                                const isOpen = editingCategoryId === category._id;
-                                return (
-                                    <div key={category._id} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
-                                        <div className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors">
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
-                                                className="flex items-center gap-3 text-base font-semibold text-foreground flex-1 text-left cursor-pointer"
-                                            >
-                                                <span className="transition-transform duration-200" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
-                                                    <HiOutlineChevronRight className="w-5 h-5 text-gray-900" />
-                                                </span>
-                                                {category.name}
-                                                <span className="bg-[#e5e7eb] rounded px-2 py-0.5 text-[#1f2937] text-sm font-semibold">
-                                                    {category.machines?.length || 0}
-                                                </span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
-                                                className="ml-3 h-8 w-8 p-0 flex items-center justify-center rounded text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 transition-colors shrink-0 cursor-pointer"
-                                                title="Delete category"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        {isOpen && (
-                                            <div className="p-6">
-                                                <AddCategoryMachineFlow
-                                                    compact
-                                                    categoryIdForEdit={category._id}
-                                                    clientID={currentClientId}
-                                                    onSuccess={() => router.refresh()}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
+                        {orderedCategories.length > 0 ? (
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={orderedCategories.map((c) => c._id)} strategy={verticalListSortingStrategy}>
+                                    {orderedCategories.map((category) => (
+                                        <SortableCategoryCard
+                                            key={category._id}
+                                            category={category}
+                                            isOpen={editingCategoryId === category._id}
+                                            onToggle={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
+                                            onDeleteClick={() => setDeleteConfirm({ type: "category", id: category._id, name: category.name })}
+                                            clientId={currentClientId}
+                                            onSuccess={() => router.refresh()}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                         ) : (
                             <div className="rounded-[10px] bg-white border border-[#96A5BA] px-6 py-8 text-center">
                                 <p className="text-sm text-muted-foreground">
@@ -958,18 +1027,6 @@ export default function ClientOverviewContent({
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Edit Machine Modal */}
-            {editingMachine && (
-                <EditMachineModal
-                    open={!!editingMachine}
-                    onOpenChange={(open) => !open && setEditingMachine(null)}
-                    machineId={editingMachine._id}
-                    initialName={editingMachine.name}
-                    initialIsActive={editingMachine.isActive}
-                    onSuccess={() => { setEditingMachine(null); router.refresh(); }}
-                />
             )}
 
             {/* Edit Spare Part Modal */}
