@@ -15,7 +15,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import { useParams, usePathname } from "next/navigation";
 import { User } from "next-auth";
@@ -136,7 +135,6 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           </Link>
         </div>
       )}
-      <SidebarRail />
     </Sidebar>
   );
 }
