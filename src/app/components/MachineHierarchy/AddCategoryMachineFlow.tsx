@@ -236,6 +236,8 @@ const VideoUploadBox = memo(function VideoUploadBox({
 export interface AddCategoryMachineFlowProps {
     onSuccess?: () => void;
     onComplete?: () => void;
+    /** Called right after a brand-new category is created, so the parent can list it immediately. */
+    onCategoryCreated?: (cat: { _id: string; name: string }) => void;
     /** When true, show as compact section (e.g. inside Add Customer form); when false, show as full modal content */
     compact?: boolean;
     /** Pre-loaded full category hierarchy. When set, form is in edit mode. */
@@ -418,6 +420,7 @@ const defaultMachineRow = (): MachineRow => ({
 export default function AddCategoryMachineFlow({
     onSuccess,
     onComplete,
+    onCategoryCreated,
     compact = false,
     initialData,
     categoryIdForEdit,
@@ -755,6 +758,9 @@ export default function AddCategoryMachineFlow({
             const uploaded = await uploadEntityImage("category", data._id, categoryImage);
             if (uploaded?.imageUrl) setCategoryImageUrl(uploaded.imageUrl);
             toast.success("Category saved.");
+            // Surface the new category to the parent so it appears in the list
+            // immediately, even before it has any machines.
+            onCategoryCreated?.({ _id: data._id, name });
             onSuccess?.();
             // Save & close: the user asked for "Add Category" to persist the
             // category and dismiss the form (rather than continue inline).
@@ -764,7 +770,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [categoryName, categoryImage, uploadEntityImage, onSuccess, onComplete]);
+    }, [categoryName, categoryImage, uploadEntityImage, onSuccess, onComplete, onCategoryCreated]);
 
     const handleSaveCategoryEdit = useCallback(async () => {
         if (!categoryId) return;

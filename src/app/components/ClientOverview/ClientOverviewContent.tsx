@@ -118,6 +118,16 @@ export default function ClientOverviewContent({
     // Which category is expanded for inline editing in the Upload Data tab.
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
     const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+    // Categories created this session, merged into the Upload Data list so a
+    // brand-new (machine-less) category shows up immediately after saving.
+    const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
+    const uploadCategories = useMemo(
+        () => [
+            ...createdCategories.filter((cc) => !categories.some((c) => c._id === cc._id)),
+            ...categories,
+        ],
+        [createdCategories, categories]
+    );
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -787,6 +797,13 @@ export default function ClientOverviewContent({
                                         compact
                                         clientID={currentClientId}
                                         onMachinesCreated={handleMachinesCreated}
+                                        onCategoryCreated={(c) =>
+                                            setCreatedCategories((prev) =>
+                                                prev.some((x) => x._id === c._id)
+                                                    ? prev
+                                                    : [{ _id: c._id, name: c.name, slug: "", machines: [] }, ...prev]
+                                            )
+                                        }
                                         onSuccess={() => router.refresh()}
                                         onComplete={() => setAddCategoryOpen(false)}
                                     />
@@ -795,8 +812,8 @@ export default function ClientOverviewContent({
                         </div>
 
                         {/* One card per category – expand to edit the full hierarchy inline */}
-                        {categories.length > 0 ? (
-                            categories.map((category) => {
+                        {uploadCategories.length > 0 ? (
+                            uploadCategories.map((category) => {
                                 const isOpen = editingCategoryId === category._id;
                                 return (
                                     <div key={category._id} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
