@@ -191,6 +191,14 @@ function MachineImageMapperContent({
         if (!el) return;
         const update = () => setContainerSize({ cw: el.clientWidth, ch: el.clientHeight });
         update();
+        // Cached-image guard: <Image>'s onLoad does NOT fire for an already-cached
+        // image (the category image is usually pre-cached from the editor preview),
+        // which would leave `natural` null and hide every box. Capture the natural
+        // size here if the img is already complete on mount.
+        const img = el.querySelector("img");
+        if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            setNatural({ iw: img.naturalWidth, ih: img.naturalHeight });
+        }
         const ro = new ResizeObserver(update);
         ro.observe(el);
         return () => ro.disconnect();
