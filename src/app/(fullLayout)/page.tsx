@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import FullScreenSlider from "@/components/FullScreenSlider";
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LuEyeClosed, LuEye } from "react-icons/lu";
@@ -51,38 +52,28 @@ export default function Home() {
 
   return (
     <div className="relative h-[100svh] min-h-screen w-full overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute top-0 left-0 w-full h-full z-[-1] ">
-        <Image
-          alt="login-bg"
-          src="/login-bg-new.png"
-          width={1000}
-          height={1000}
-          className="object-cover object-center h-[100svh] w-full "
-          priority
-        />
-      </div>
+      {/* Background Slider */}
+      <FullScreenSlider />
 
-      {/* Logo */}
-      <div className="text-gray-900 md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
+      {/* Left Panel */}
+      <div className="md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
         <Image
           alt="logo"
           className=""
-          src="/kadant-logo.svg"
+          src="/kadant-logo-black.svg"
           width={185}
           height={30}
           priority
         />
         <div className="flex flex-col gap-[10px] justify-end">
-          <div className="font-lato font-black !text-white leading-[120%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
+          <div className="font-lato font-black text-[#1d1d1d] leading-[100%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
             <p className="mb-0">From machine health alerts,</p>
             <p>to client service schedules</p>
           </div>
-          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full !text-white">
+          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full text-[#1d1d1d]">
             Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
           </p>
         </div>
-
       </div>
 
       {/* Form Container with Gradient Background */}
@@ -91,10 +82,10 @@ export default function Home() {
           <div className="w-[443px] flex flex-col gap-[36px]">
             {/* Header */}
             <div className="flex flex-col gap-[10px]">
-              <h2 className="text-[48px] font-bold font-montserrat bg-gradient-to-b from-[#eef3ff] to-[#fbfcff] bg-clip-text text-transparent leading-[normal] text-nowrap" style={{ textShadow: '2px 1px 1px rgba(0,0,0,0.25)' }}>
+              <h2 className="text-[32px] font-bold font-montserrat text-[#1d1d1d] leading-[normal] text-nowrap">
                 Admin Portal
               </h2>
-              <p className="text-[18px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full !text-white" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
+              <p className="text-[14px] font-medium font-montserrat text-[#607797] leading-[1.35]">
                 Log in to view assigned cases
               </p>
             </div>
@@ -105,7 +96,7 @@ export default function Home() {
                 {/* Admin ID Field */}
                 <div className="relative">
                   <Input
-                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-[#dfe6ec] rounded-[6px] text-[18px] font-medium font-montserrat text-gray-900 placeholder:text-gray-900 leading-[27px] focus:outline-none transition-all"
+                    className="login-input w-full"
                     type="text"
                     id="email"
                     placeholder="Admin ID"
@@ -116,7 +107,8 @@ export default function Home() {
                 {/* Password Field */}
                 <div className="relative">
                   <Input
-                    className="w-full pl-[20px] pr-[14px] h-12 py-[15px] bg-gradient-to-r from-[#8d3210] via-[#ba3606] via-[65.865%] to-[#8d3210] border-[1.5px] border-white rounded-[6px] text-[18px] font-medium font-montserrat text-gray-900 placeholder:text-gray-900 leading-[27px] focus:outline-none transition-all pr-[50px]"
+                    className="login-input w-full"
+                    style={{ paddingRight: '50px' }}
                     type={showPassword ? "text" : "password"}
                     id="password"
                     placeholder="Password"
@@ -129,9 +121,9 @@ export default function Home() {
                     className="absolute right-[14px] top-1/2 -translate-y-1/2 cursor-pointer w-6 h-6"
                   >
                     {showPassword ? (
-                      <LuEye className="w-5 h-5 text-gray-900" />
+                      <LuEye className="w-5 h-5 text-[#2d3e5c]" />
                     ) : (
-                      <LuEyeClosed className="w-5 h-5 text-gray-900" />
+                      <LuEyeClosed className="w-5 h-5 text-[#2d3e5c]" />
                     )}
                   </button>
                 </div>
@@ -139,7 +131,7 @@ export default function Home() {
                 {/* Forgot Password Link */}
                 <Link
                   href="/forgot-password"
-                  className="text-base font-semibold font-montserrat text-gray-900 leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left !text-white"
+                  className="text-base font-semibold font-montserrat text-[#1d1d1d] leading-[24px] text-nowrap cursor-pointer hover:opacity-80 transition-opacity text-left"
                 >
                   Forgot Password?
                 </Link>
@@ -162,10 +154,10 @@ export default function Home() {
 
               {/* Login to Client Link - Bottom */}
               <div className="flex items-center justify-start gap-[5px] p-[10px]">
-                <BiUser color="#fff" size={24} />
+                <BiUser color="#1d1d1d" size={24} />
                 <Link
                   href="https://machine-health.vercel.app/"
-                  className="!text-white text-base leading-[24px] font-montserrat font-semibold hover:underline"
+                  className="text-[#1d1d1d] text-base leading-[24px] font-montserrat font-semibold hover:underline"
                 >
                   Login to Client
                 </Link>

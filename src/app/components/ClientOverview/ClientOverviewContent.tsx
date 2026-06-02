@@ -12,6 +12,7 @@ import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntity
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
+import EditMachineModal from "@/app/components/Modals/EditMachineModal";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,7 @@ export default function ClientOverviewContent({
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
     const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
+    const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -678,8 +680,12 @@ export default function ClientOverviewContent({
                                                                                 </div>
                                                                             </td>
                                                                             <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
-                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
-                                                                            <td className="py-3 px-4 text-[#374151] font-medium">—</td>
+                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">{machine.installationDate ? format(new Date(machine.installationDate), "dd MMM yyyy") : "—"}</td>
+                                                                            <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                                                                <Button size="sm" variant="ghost" onClick={() => setEditingMachine(machine)} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
+                                                                                    <Pencil className="w-4 h-4" />
+                                                                                </Button>
+                                                                            </td>
                                                                             <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                                                                                 <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "machine", id: machine._id, name: machine.name || "N/A" })} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete machine">
                                                                                     <Trash2 className="w-4 h-4" />
@@ -928,6 +934,18 @@ export default function ClientOverviewContent({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Machine Modal */}
+            {editingMachine && (
+                <EditMachineModal
+                    open={!!editingMachine}
+                    onOpenChange={(open) => !open && setEditingMachine(null)}
+                    machineId={editingMachine._id}
+                    initialName={editingMachine.name}
+                    initialIsActive={editingMachine.isActive}
+                    onSuccess={() => { setEditingMachine(null); router.refresh(); }}
+                />
             )}
 
             {/* Edit Spare Part Modal */}

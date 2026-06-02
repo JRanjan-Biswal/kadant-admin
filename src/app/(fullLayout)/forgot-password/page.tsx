@@ -66,17 +66,17 @@ export default function ForgotPassword() {
         <Image
           alt="logo"
           className=""
-          src="/kadant-logo.svg"
+          src="/kadant-logo-black.svg"
           width={185}
           height={30}
           priority
         />
         <div className="flex flex-col gap-[10px] justify-end">
-          <div className="font-lato font-black leading-[120%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
+          <div className="font-lato font-black text-[#1d1d1d] leading-[120%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
             <p className="mb-0">From machine health alerts,</p>
             <p>to client service schedules</p>
           </div>
-          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full">
+          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full text-[#1d1d1d]">
             Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
           </p>
         </div>
@@ -89,10 +89,10 @@ export default function ForgotPassword() {
           <div className="w-[443px] flex flex-col gap-[36px]">
             {/* Header */}
             <div className="flex flex-col gap-[10px]">
-              <h2 className="text-[40px] font-bold font-montserrat bg-gradient-to-b from-[#eef3ff] to-[#fbfcff] bg-clip-text text-transparent leading-[normal] text-nowrap" style={{ textShadow: '2px 1px 1px rgba(0,0,0,0.25)' }}>
+              <h2 className="text-[32px] font-bold font-montserrat text-[#1d1d1d] leading-[normal] text-nowrap">
                 Forgot Password?
               </h2>
-              <p className="text-[14px] font-semibold font-montserrat text-gray-900 leading-[1.35] min-w-full" style={{ textShadow: '1px 1px 0.5px rgba(0,0,0,0.25)' }}>
+              <p className="text-[14px] font-medium font-montserrat text-[#607797] leading-[1.35]">
                 Reset password link sent to your Email Id.
               </p>
             </div>
@@ -128,7 +128,7 @@ export default function ForgotPassword() {
 
                 {/* Login to Client Link - Bottom */}
                 <div className="flex items-center justify-start gap-[5px] p-[10px]">
-                  <BiUser color="#fff" size={24} />
+                  <BiUser color="#1d1d1d" size={24} />
                   <Link
                     href="/"
                     className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
@@ -152,7 +152,7 @@ export default function ForgotPassword() {
                 </Button>
                 {/* Login to Client Link - Bottom */}
                 <div className="flex items-center justify-center gap-[5px] p-[10px]">
-                  <BiUser color="#fff" size={24} />
+                  <BiUser color="#1d1d1d" size={24} />
                   <Link
                     href="/"
                     className="text-[#1f2937] text-[16px] leading-[24px] font-montserrat font-semibold hover:underline"
