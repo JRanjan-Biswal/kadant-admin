@@ -754,17 +754,23 @@ export default function AddCategoryMachineFlow({
                 throw new Error(err.error || "Failed to add category");
             }
             const data = await res.json();
-            setCategoryId(data._id);
             const uploaded = await uploadEntityImage("category", data._id, categoryImage);
-            if (uploaded?.imageUrl) setCategoryImageUrl(uploaded.imageUrl);
             toast.success("Category saved.");
             // Surface the new category to the parent so it appears in the list
             // immediately, even before it has any machines.
             onCategoryCreated?.({ _id: data._id, name });
             onSuccess?.();
-            // Save & close: the user asked for "Add Category" to persist the
-            // category and dismiss the form (rather than continue inline).
-            onComplete?.();
+            if (onComplete) {
+                // Save & close (e.g. Upload Data tab): dismiss the form right away.
+                // We deliberately never set categoryId here, so the inline
+                // "2. Machines" step is never rendered — no machine-form flash.
+                onComplete();
+            } else {
+                // No close handler (e.g. onboarding form): keep the form open and
+                // continue inline so machines can be added to the new category.
+                setCategoryId(data._id);
+                if (uploaded?.imageUrl) setCategoryImageUrl(uploaded.imageUrl);
+            }
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Failed to add category");
         } finally {
