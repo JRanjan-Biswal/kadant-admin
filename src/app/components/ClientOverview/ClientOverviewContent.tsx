@@ -6,7 +6,6 @@ import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import AddMachineModal from "@/app/components/Modals/AddMachineModal";
 import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
@@ -532,14 +531,13 @@ export default function ClientOverviewContent({
                                     </span>
                                 </div>
                             </div>
-                            <AddMachineModal clientID={currentClientId} onSuccess={() => router.refresh()}>
-                                <Button
-                                    className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
-                                >
-                                    <FaPlus className="w-4 h-4" />
-                                    Add Category
-                                </Button>
-                            </AddMachineModal>
+                            <Button
+                                onClick={() => { setActiveTab("upload"); setAddCategoryOpen(true); }}
+                                className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
+                            >
+                                <FaPlus className="w-4 h-4" />
+                                Add Category
+                            </Button>
                         </div>
                         {/* Search Input */}
                         <div className="relative w-[256px]">
