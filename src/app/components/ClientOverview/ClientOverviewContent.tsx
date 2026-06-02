@@ -8,13 +8,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AddMachineModal from "@/app/components/Modals/AddMachineModal";
 import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
+import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntityModals";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const getStatusColor = (status?: string) => {
@@ -78,6 +79,7 @@ interface ClientOverviewContentProps {
     allClients: Client[];
     currentClientId: string;
     categories: Category[];
+    allCategories?: Category[];
 }
 
 interface SparePartWithStatus extends SparePart {
@@ -99,6 +101,7 @@ export default function ClientOverviewContent({
     allClients,
     currentClientId,
     categories,
+    allCategories,
 }: ClientOverviewContentProps) {
     void allClients; // Reserved for region/customer filtering UI
     const router = useRouter();
@@ -119,6 +122,7 @@ export default function ClientOverviewContent({
     // Which category is expanded for inline editing in the Upload Data tab.
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
     const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+    const [addMachineForCategoryId, setAddMachineForCategoryId] = useState<string | null>(null);
 
     // Filter categories by search query
     const filteredCategories = useMemo(() => {
@@ -612,6 +616,20 @@ export default function ClientOverviewContent({
                                             style={{ gridTemplateRows: isCategoryOpen ? "1fr" : "0fr" }}
                                         >
                                             <div className="min-h-0 overflow-hidden">
+                                                {(category.machines?.length ?? 0) === 0 ? (
+                                                    <div className="bg-[#f9fafb] border-b border-[#607797] px-6 py-8 flex flex-col items-center gap-3">
+                                                        <Package className="w-8 h-8 text-[#9ca3af]" />
+                                                        <p className="text-sm text-[#6b7280]">No machines added yet</p>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={(e) => { e.stopPropagation(); setAddMachineForCategoryId(category._id); }}
+                                                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] flex items-center gap-1.5"
+                                                        >
+                                                            <Plus className="w-4 h-4" /> Add Machine
+                                                        </Button>
+                                                    </div>
+                                                ) : (
                                                 <div className="bg-[#f9fafb] border-b border-[#607797] overflow-x-auto">
                                                     <table className="w-full border-collapse">
                                                         <thead className="bg-[#ffffff]">
@@ -737,6 +755,7 @@ export default function ClientOverviewContent({
                                                         </tbody>
                                                     </table>
                                                 </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -797,8 +816,8 @@ export default function ClientOverviewContent({
                         </div>
 
                         {/* One card per category – expand to edit the full hierarchy inline */}
-                        {categories.length > 0 ? (
-                            categories.map((category) => {
+                        {(allCategories ?? categories).length > 0 ? (
+                            (allCategories ?? categories).map((category) => {
                                 const isOpen = editingCategoryId === category._id;
                                 return (
                                     <div key={category._id} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
@@ -841,6 +860,17 @@ export default function ClientOverviewContent({
                 )}
             </div>
 
+
+            {/* Add Machine modal (triggered from Overview tab empty-state) */}
+            {addMachineForCategoryId && (
+                <AddMachineFormModal
+                    open
+                    onClose={() => setAddMachineForCategoryId(null)}
+                    categoryId={addMachineForCategoryId}
+                    clientId={currentClientId}
+                    onCreated={() => { setAddMachineForCategoryId(null); router.refresh(); }}
+                />
+            )}
 
             {/* Delete confirmation modal */}
             {deleteConfirm && (

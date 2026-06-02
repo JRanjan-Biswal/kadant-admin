@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, memo, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video, ChevronRight } from "lucide-react";
+import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video, ChevronRight, Package } from "lucide-react";
 import { toast } from "sonner";
 import MachineImageMapper, { type MachinePosition } from "./MachineImageMapper";
 import { AddMachineFormModal, AddSparePartFormModal } from "./AddEntityModals";
@@ -2076,7 +2076,14 @@ export default function AddCategoryMachineFlow({
                             Add Machine
                         </Button>
                     </div>
-                    {machines.map((m) => {
+                    {machines.filter(m => m.createdId || m.name.trim()).length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-8 text-center border border-dashed border-[#d1d5db] rounded-[10px] bg-[#f9fafb]">
+                            <Package className="w-7 h-7 text-[#9ca3af]" />
+                            <p className="text-sm text-[#6b7280]">No machines added yet</p>
+                            <p className="text-xs text-[#9ca3af]">Use &ldquo;+ Add Machine&rdquo; above to add one</p>
+                        </div>
+                    ) : (
+                    machines.map((m) => {
                         const isMachineOpen = openMachines[m.id] ?? !m.createdId;
                         return (
                         <div key={m.id} className="flex flex-col gap-3">
@@ -2516,7 +2523,8 @@ export default function AddCategoryMachineFlow({
                             )}
                         </div>
                         );
-                    })}
+                    })
+                    )}
                 </div>
             )}
 

@@ -155,12 +155,21 @@ export default async function ClientOverview({ params }: PageProps) {
                 }),
         }));
 
+    const clientCategoryMap = new Map(
+        categoriesWithMachineHealth.map((c: { _id: string }) => [c._id?.toString(), c])
+    );
+
+    const categoriesForOverview = (categories || []).map((cat: { _id: string }) =>
+        clientCategoryMap.get(cat._id?.toString()) ?? { ...cat, machines: [] }
+    );
+
     return (
-        <ClientOverviewContent 
+        <ClientOverviewContent
             clientDetails={clientDetails}
             allClients={allClients}
             currentClientId={clientID}
-            categories={categoriesWithMachineHealth}
+            categories={categoriesForOverview}
+            allCategories={categories}
         />
     );
 }
