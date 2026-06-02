@@ -313,6 +313,8 @@ export default function ClientOverviewContent({
                     const err = await res.json().catch(() => ({}));
                     throw new Error(err.error || "Failed to delete category");
                 }
+                // Also drop it from the session-created list so it doesn't linger.
+                setCreatedCategories((prev) => prev.filter((c) => c._id !== deleteConfirm.id));
                 toast.success("Category deleted.");
             } else if (deleteConfirm.type === "machine") {
                 const res = await fetch(`/api/machines/${deleteConfirm.id}`, { method: "DELETE" });
@@ -817,12 +819,12 @@ export default function ClientOverviewContent({
                                 const isOpen = editingCategoryId === category._id;
                                 return (
                                     <div key={category._id} className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
-                                            className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors"
-                                        >
-                                            <span className="flex items-center gap-3 text-base font-semibold text-foreground">
+                                        <div className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
+                                                className="flex items-center gap-3 text-base font-semibold text-foreground flex-1 text-left cursor-pointer"
+                                            >
                                                 <span className="transition-transform duration-200" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
                                                     <HiOutlineChevronRight className="w-5 h-5 text-gray-900" />
                                                 </span>
@@ -830,8 +832,16 @@ export default function ClientOverviewContent({
                                                 <span className="bg-[#e5e7eb] rounded px-2 py-0.5 text-[#1f2937] text-sm font-semibold">
                                                     {category.machines?.length || 0}
                                                 </span>
-                                            </span>
-                                        </button>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "category", id: category._id, name: category.name }); }}
+                                                className="ml-3 h-8 w-8 p-0 flex items-center justify-center rounded text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10 transition-colors shrink-0 cursor-pointer"
+                                                title="Delete category"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                         {isOpen && (
                                             <div className="p-6">
                                                 <AddCategoryMachineFlow
