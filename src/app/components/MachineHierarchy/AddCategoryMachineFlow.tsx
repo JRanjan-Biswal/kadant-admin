@@ -754,14 +754,17 @@ export default function AddCategoryMachineFlow({
             setCategoryId(data._id);
             const uploaded = await uploadEntityImage("category", data._id, categoryImage);
             if (uploaded?.imageUrl) setCategoryImageUrl(uploaded.imageUrl);
-            toast.success("Category added. Now add the machine.");
+            toast.success("Category saved.");
             onSuccess?.();
+            // Save & close: the user asked for "Add Category" to persist the
+            // category and dismiss the form (rather than continue inline).
+            onComplete?.();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Failed to add category");
         } finally {
             setLoading(null);
         }
-    }, [categoryName, categoryImage, uploadEntityImage, onSuccess]);
+    }, [categoryName, categoryImage, uploadEntityImage, onSuccess, onComplete]);
 
     const handleSaveCategoryEdit = useCallback(async () => {
         if (!categoryId) return;
