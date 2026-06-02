@@ -318,6 +318,7 @@ function MachineImageMapperContent({
     return (
         /* All critical layout uses inline styles — no Tailwind z-index that could be purged */
         <div
+            ref={(el) => { if (el && !dropdownContainer) setDropdownContainer(el); }}
             style={{
                 position: "fixed",
                 top: 0,
@@ -358,6 +359,7 @@ function MachineImageMapperContent({
                         <DropdownMenuContent
                             align="start"
                             className="max-h-[min(60vh,400px)] w-[280px] overflow-y-auto border-[#607797] bg-[#141414] p-1"
+                            container={dropdownContainer}
                         >
                             {machines.map((m) => {
                                 const isPlaced = positions.has(m.id);

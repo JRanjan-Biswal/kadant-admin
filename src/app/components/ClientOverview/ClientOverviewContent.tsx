@@ -7,13 +7,15 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
+import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntityModals";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
+import EditMachineModal from "@/app/components/Modals/EditMachineModal";
 import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const getStatusColor = (status?: string) => {
@@ -77,6 +79,7 @@ interface ClientOverviewContentProps {
     allClients: Client[];
     currentClientId: string;
     categories: Category[];
+    allCategories?: Category[];
 }
 
 interface SparePartWithStatus extends SparePart {
@@ -98,6 +101,7 @@ export default function ClientOverviewContent({
     allClients,
     currentClientId,
     categories,
+    allCategories,
 }: ClientOverviewContentProps) {
     void allClients; // Reserved for region/customer filtering UI
     const router = useRouter();
@@ -109,6 +113,7 @@ export default function ClientOverviewContent({
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
     const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
+    const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -622,6 +627,20 @@ export default function ClientOverviewContent({
                                             style={{ gridTemplateRows: isCategoryOpen ? "1fr" : "0fr" }}
                                         >
                                             <div className="min-h-0 overflow-hidden">
+                                                {(category.machines?.length ?? 0) === 0 ? (
+                                                    <div className="bg-[#f9fafb] border-b border-[#607797] px-6 py-8 flex flex-col items-center gap-3">
+                                                        <Package className="w-8 h-8 text-[#9ca3af]" />
+                                                        <p className="text-sm text-[#6b7280]">No machines added yet</p>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={(e) => { e.stopPropagation(); setAddMachineForCategoryId(category._id); }}
+                                                            className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] flex items-center gap-1.5"
+                                                        >
+                                                            <Plus className="w-4 h-4" /> Add Machine
+                                                        </Button>
+                                                    </div>
+                                                ) : (
                                                 <div className="bg-[#f9fafb] border-b border-[#607797] overflow-x-auto">
                                                     <table className="w-full border-collapse">
                                                         <thead className="bg-[#ffffff]">
@@ -670,8 +689,12 @@ export default function ClientOverviewContent({
                                                                                 </div>
                                                                             </td>
                                                                             <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
-                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">—</td>
-                                                                            <td className="py-3 px-4 text-[#374151] font-medium">—</td>
+                                                                            <td className="py-3 px-4 text-[#374151] text-sm font-medium">{machine.installationDate ? format(new Date(machine.installationDate), "dd MMM yyyy") : "—"}</td>
+                                                                            <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                                                                <Button size="sm" variant="ghost" onClick={() => setEditingMachine(machine)} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
+                                                                                    <Pencil className="w-4 h-4" />
+                                                                                </Button>
+                                                                            </td>
                                                                             <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                                                                                 <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "machine", id: machine._id, name: machine.name || "N/A" })} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete machine">
                                                                                     <Trash2 className="w-4 h-4" />
@@ -747,6 +770,7 @@ export default function ClientOverviewContent({
                                                         </tbody>
                                                     </table>
                                                 </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -867,6 +891,17 @@ export default function ClientOverviewContent({
             </div>
 
 
+            {/* Add Machine modal (triggered from Overview tab empty-state) */}
+            {addMachineForCategoryId && (
+                <AddMachineFormModal
+                    open
+                    onClose={() => setAddMachineForCategoryId(null)}
+                    categoryId={addMachineForCategoryId}
+                    clientId={currentClientId}
+                    onCreated={() => { setAddMachineForCategoryId(null); router.refresh(); }}
+                />
+            )}
+
             {/* Delete confirmation modal */}
             {deleteConfirm && (
                 <DeleteConfirmModal
@@ -923,6 +958,18 @@ export default function ClientOverviewContent({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Machine Modal */}
+            {editingMachine && (
+                <EditMachineModal
+                    open={!!editingMachine}
+                    onOpenChange={(open) => !open && setEditingMachine(null)}
+                    machineId={editingMachine._id}
+                    initialName={editingMachine.name}
+                    initialIsActive={editingMachine.isActive}
+                    onSuccess={() => { setEditingMachine(null); router.refresh(); }}
+                />
             )}
 
             {/* Edit Spare Part Modal */}

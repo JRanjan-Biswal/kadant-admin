@@ -186,14 +186,14 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Glassmorphic Login Container */
+/* Login Container */
 .glassmorphic-login-container {
   position: relative;
-  background: linear-gradient(210.51deg, rgb(99, 35, 0) 32.149%, rgba(48, 19, 4, 0.5) 65.418%, rgba(43, 15, 0, 0) 98.688%);
+  background: linear-gradient(210.51deg, rgba(255, 255, 255, 0.92) 32.149%, rgba(243, 250, 255, 0.55) 65.418%, rgba(243, 250, 255, 0) 98.688%);
   backdrop-filter: blur(26.9px);
   -webkit-backdrop-filter: blur(26.9px);
   border-radius: 42px;
-  border: 1px solid rgba(255, 238, 228, 0.47);
+  border: 1px solid rgba(199, 210, 255, 0.47);
   box-shadow: 0px 4px 13px 0px rgba(0, 0, 0, 0.25);
   width: 555.189px;
   height: 576.162px;
@@ -236,6 +236,27 @@
     max-width: 90%;
   }
 }
+
+/* Login page input — unlayered CSS wins over shadcn/Tailwind utility classes */
+.login-input {
+  background-color: #ffffff;
+  border: 1px solid #607797;
+  border-radius: 6px;
+  height: 51px;
+  padding: 0 20px;
+  color: #2d3e5c;
+  font-size: 18px;
+  line-height: 27px;
+  font-weight: 500;
+  box-shadow: none;
+}
+.login-input::placeholder {
+  color: #9CA3AF;
+}
+.login-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 /* Hide native calendar picker indicator on date inputs that use a custom overlay icon */
 input.hide-native-date-icon::-webkit-calendar-picker-indicator {
   display: none;
@@ -245,4 +266,41 @@ input.hide-native-date-icon::-webkit-calendar-picker-indicator {
 input.hide-native-date-icon::-webkit-inner-spin-button,
 input.hide-native-date-icon::-webkit-outer-spin-button {
   display: none;
+}
+
+/* Full Screen Swiper Pagination */
+.fullscreen-swiper .swiper-pagination {
+  bottom: 15px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+
+.fullscreen-swiper .swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+  background: rgba(0, 30, 102, 0.35);
+  opacity: 1;
+  border-radius: 50%;
+  transition: all 0.4s ease;
+  cursor: pointer;
+  border: 2px solid rgba(0, 30, 102, 0.2);
+}
+
+.fullscreen-swiper .swiper-pagination-bullet:hover {
+  background: rgba(0, 30, 102, 0.6);
+  transform: scale(1.2);
+}
+
+.fullscreen-swiper .swiper-pagination-bullet-active {
+  width: 32px;
+  height: 10px;
+  background: #001E66;
+  border-radius: 5px;
+  border: 2px solid rgba(0, 30, 102, 0.4);
 }

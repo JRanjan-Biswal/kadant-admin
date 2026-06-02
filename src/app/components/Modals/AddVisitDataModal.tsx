@@ -166,16 +166,18 @@ function WideUploadBox({
     onTrigger,
     uploading,
     label = "Upload image/video",
+    disabled,
 }: {
     onTrigger: () => void;
     uploading?: boolean;
     label?: string;
+    disabled?: boolean;
 }) {
     return (
         <button
             type="button"
             onClick={onTrigger}
-            disabled={uploading}
+            disabled={uploading || disabled}
             className="w-full h-[80px] rounded-[10px] border border-dashed border-[#9ca3af] bg-[#f9fafb] flex flex-col items-center justify-center gap-1 text-[#6b7280] hover:border-[#2D3E5C] hover:text-[#2D3E5C] transition-colors disabled:opacity-50"
         >
             {uploading ? (
@@ -215,6 +217,7 @@ interface NewMachineIssue {
     currentVisitMediaUrls: string[];
     sparePartMedia: SparePartMediaEntry[];
     subPartPhotos: { [partId: string]: string[] };
+    subPartLastVisitPhotos: { [partId: string]: string[] };
 }
 
 const EMPTY_ISSUE: NewMachineIssue = {
@@ -231,6 +234,7 @@ const EMPTY_ISSUE: NewMachineIssue = {
     currentVisitMediaUrls: [],
     sparePartMedia: [],
     subPartPhotos: {},
+    subPartLastVisitPhotos: {},
 };
 
 interface AddVisitDataModalProps {
@@ -247,6 +251,7 @@ export default function AddVisitDataModal({
     const [isOpen, setIsOpen] = useState(false);
     const [users, setUsers] = useState<Admin[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [addingIssue, setAddingIssue] = useState(false);
     const [scheduledToday, setScheduledToday] = useState<
         { date: string; id: string }[]
     >([]);
@@ -279,10 +284,24 @@ export default function AddVisitDataModal({
         null
     );
     const [subParts, setSubParts] = useState<{ _id: string; name: string; optimalStateVideoUrl?: string | null }[]>([]);
-    const [selectedSubPartId, setSelectedSubPartId] = useState<string>("");
+    const [selectedSubPartIds, setSelectedSubPartIds] = useState<string[]>([]);
     const [uploadingSubPart, setUploadingSubPart] = useState<string | null>(null);
     const subPartInputRef = useRef<HTMLInputElement>(null);
     const subPartTargetRef = useRef<string | null>(null);
+    const [uploadingSubPartLastVisit, setUploadingSubPartLastVisit] = useState<string | null>(null);
+    const subPartLastVisitInputRef = useRef<HTMLInputElement>(null);
+    const subPartLastVisitTargetRef = useRef<string | null>(null);
+    const [uploadingSubPartOptimal, setUploadingSubPartOptimal] = useState<string | null>(null);
+    const subPartOptimalInputRef = useRef<HTMLInputElement>(null);
+    const subPartOptimalTargetRef = useRef<string | null>(null);
+    // Parallel arrays tracking per-confirmed-issue data
+    const [machineIssueOptimalUrls, setMachineIssueOptimalUrls] = useState<(string | null)[]>([]);
+    const [machineIssueSubParts, setMachineIssueSubParts] = useState<{ _id: string; name: string; optimalStateVideoUrl?: string | null }[][]>([]);
+    const [uploadingOptimalNew, setUploadingOptimalNew] = useState(false);
+    const [uploadingOptimalExisting, setUploadingOptimalExisting] = useState<number | null>(null);
+    const sparePartOptimalNewInputRef = useRef<HTMLInputElement>(null);
+    const existingIssueOptimalInputRef = useRef<HTMLInputElement>(null);
+    const existingOptimalTargetIdxRef = useRef<number | null>(null);
     const [uploadTarget, setUploadTarget] = useState<{
         index: number;
         type: "optimal" | "current";
@@ -626,63 +645,227 @@ export default function AddVisitDataModal({
         }));
     };
 
+    const handleSubPartLastVisitUpload = (partId: string) => {
+        subPartLastVisitTargetRef.current = partId;
+        subPartLastVisitInputRef.current?.click();
+    };
+
+    const handleSubPartLastVisitInputChange = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const partId = subPartLastVisitTargetRef.current;
+            subPartLastVisitTargetRef.current = null;
+            if (!file || !partId) return;
+            setUploadingSubPartLastVisit(partId);
+            try {
+                const url = await uploadFile(file);
+                setNewIssue((p) => ({
+                    ...p,
+                    subPartLastVisitPhotos: {
+                        ...p.subPartLastVisitPhotos,
+                        [partId]: [...(p.subPartLastVisitPhotos[partId] || []), url],
+                    },
+                }));
+                toast.success("File uploaded");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingSubPartLastVisit(null);
+            }
+        },
+        [uploadFile]
+    );
+
+    const removeSubPartLastVisitPhoto = (partId: string, index: number) => {
+        setNewIssue((p) => ({
+            ...p,
+            subPartLastVisitPhotos: {
+                ...p.subPartLastVisitPhotos,
+                [partId]: (p.subPartLastVisitPhotos[partId] || []).filter((_, i) => i !== index),
+            },
+        }));
+    };
+
+    const handleSubPartOptimalInputChange = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const partId = subPartOptimalTargetRef.current;
+            subPartOptimalTargetRef.current = null;
+            if (!file || !partId) return;
+            setUploadingSubPartOptimal(partId);
+            try {
+                const formData = new FormData();
+                formData.append("video", file);
+                formData.append("type", "part");
+                formData.append("id", partId);
+                const res = await fetch("/api/upload/entity-video", { method: "POST", body: formData });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Upload failed");
+                }
+                const data = await res.json();
+                if (data?.optimalStateVideoUrl) {
+                    setSubParts((prev) =>
+                        prev.map((pt) =>
+                            pt._id === partId ? { ...pt, optimalStateVideoUrl: data.optimalStateVideoUrl } : pt
+                        )
+                    );
+                    toast.success("Optimal state video uploaded");
+                }
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingSubPartOptimal(null);
+            }
+        },
+        []
+    );
+
+    const handleNewIssueOptimalSelect = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file || !newIssue.sparePartId) return;
+            setUploadingOptimalNew(true);
+            try {
+                const formData = new FormData();
+                formData.append("video", file);
+                formData.append("type", "sparePart");
+                formData.append("id", newIssue.sparePartId);
+                const res = await fetch("/api/upload/entity-video", { method: "POST", body: formData });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Upload failed");
+                }
+                const data = await res.json();
+                if (data?.optimalStateVideoUrl) {
+                    setSpareParts((prev) =>
+                        prev.map((sp) =>
+                            sp._id === newIssue.sparePartId
+                                ? { ...sp, optimalStateVideoUrl: data.optimalStateVideoUrl }
+                                : sp
+                        )
+                    );
+                    toast.success("Optimal state video uploaded");
+                }
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingOptimalNew(false);
+            }
+        },
+        [newIssue.sparePartId]
+    );
+
+    const handleExistingIssueOptimalSelect = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            const index = existingOptimalTargetIdxRef.current;
+            existingOptimalTargetIdxRef.current = null;
+            if (!file || index === null) return;
+            const issue = machineIssues[index];
+            if (!issue?.sparePartId) return;
+            setUploadingOptimalExisting(index);
+            try {
+                const formData = new FormData();
+                formData.append("video", file);
+                formData.append("type", "sparePart");
+                formData.append("id", issue.sparePartId);
+                const res = await fetch("/api/upload/entity-video", { method: "POST", body: formData });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || "Upload failed");
+                }
+                const data = await res.json();
+                if (data?.optimalStateVideoUrl) {
+                    setMachineIssueOptimalUrls((prev) =>
+                        prev.map((u, i) => (i === index ? data.optimalStateVideoUrl : u))
+                    );
+                    toast.success("Optimal state video uploaded");
+                }
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Upload failed");
+            } finally {
+                setUploadingOptimalExisting(null);
+            }
+        },
+        [machineIssues]
+    );
+
     const handleAddMachineIssue = async () => {
+        if (addingIssue) return;
         if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status) {
             toast.error("Select machine, spare part, and status");
             return;
         }
 
-        const subPartEntries = Object.entries(newIssue.subPartPhotos)
-            .filter(([, urls]) => urls.length > 0)
-            .map(([partId, imageUrls]) => ({
-                partId,
-                sparePartId: newIssue.sparePartId,
-                machineId: newIssue.machineId,
-                clientId: clientID,
-                imageUrls,
-            }));
+        setAddingIssue(true);
+        try {
+            const subPartEntries = Object.entries(newIssue.subPartPhotos)
+                .filter(([, urls]) => urls.length > 0)
+                .map(([partId, imageUrls]) => ({
+                    partId,
+                    sparePartId: newIssue.sparePartId,
+                    machineId: newIssue.machineId,
+                    clientId: clientID,
+                    imageUrls,
+                }));
 
-        if (subPartEntries.length > 0) {
-            try {
-                await fetch(
-                    `/api/clients/${clientID}/client-machines/spare-parts/spare-parts-uploaded-images/${newIssue.machineId}`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(subPartEntries),
-                    }
-                );
-            } catch {
-                toast.error("Failed to upload some part inspection photos");
+            if (subPartEntries.length > 0) {
+                try {
+                    await fetch(
+                        `/api/clients/${clientID}/client-machines/spare-parts/spare-parts-uploaded-images/${newIssue.machineId}`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(subPartEntries),
+                        }
+                    );
+                } catch {
+                    toast.error("Failed to upload some part inspection photos");
+                }
             }
-        }
 
-        setMachineIssues((prev) => [
-            ...prev,
-            {
-                machineId: newIssue.machineId,
-                machineName: newIssue.machineName,
-                sparePartId: newIssue.sparePartId,
-                sparePartName: newIssue.sparePartName,
-                categoryName: newIssue.categoryName,
-                status: newIssue.status,
-                conditionAlert: newIssue.conditionAlert,
-                actionNeeded: newIssue.actionNeeded,
-                optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
-                currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
-                sparePartMedia: newIssue.sparePartMedia,
-            },
-        ]);
-        setNewIssue({ ...EMPTY_ISSUE });
-        setFilteredMachines([]);
-        setSpareParts([]);
-        setSubParts([]);
-        setSelectedSubPartId("");
-        setShowAddIssue(false);
+            const currentOptimalUrl = spareParts.find((sp) => sp._id === newIssue.sparePartId)?.optimalStateVideoUrl ?? null;
+            const confirmedSubParts = subParts.filter((pt) => selectedSubPartIds.includes(pt._id));
+            setMachineIssues((prev) => [
+                ...prev,
+                {
+                    machineId: newIssue.machineId,
+                    machineName: newIssue.machineName,
+                    sparePartId: newIssue.sparePartId,
+                    sparePartName: newIssue.sparePartName,
+                    categoryName: newIssue.categoryName,
+                    status: newIssue.status,
+                    conditionAlert: newIssue.conditionAlert,
+                    actionNeeded: newIssue.actionNeeded,
+                    optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
+                    currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
+                    sparePartMedia: newIssue.sparePartMedia,
+                    subPartLastVisitPhotos: newIssue.subPartLastVisitPhotos,
+                    subPartCurrentVisitPhotos: newIssue.subPartPhotos,
+                },
+            ]);
+            setMachineIssueOptimalUrls((prev) => [...prev, currentOptimalUrl]);
+            setMachineIssueSubParts((prev) => [...prev, confirmedSubParts]);
+            setNewIssue({ ...EMPTY_ISSUE });
+            setFilteredMachines([]);
+            setSpareParts([]);
+            setSubParts([]);
+            setSelectedSubPartIds([]);
+            setShowAddIssue(false);
+        } finally {
+            setAddingIssue(false);
+        }
     };
 
     const removeMachineIssue = (index: number) => {
         setMachineIssues((prev) => prev.filter((_, i) => i !== index));
+        setMachineIssueOptimalUrls((prev) => prev.filter((_, i) => i !== index));
+        setMachineIssueSubParts((prev) => prev.filter((_, i) => i !== index));
     };
 
     const updateIssueMedia = (
@@ -827,6 +1010,19 @@ export default function AddVisitDataModal({
     };
 
     const onSubmit = async (data: VisitFormData) => {
+        if (showAddIssue) {
+            const hasData =
+                newIssue.machineId ||
+                newIssue.sparePartId ||
+                newIssue.conditionAlert ||
+                (newIssue.currentVisitMediaUrls?.length ?? 0) > 0;
+            if (hasData) {
+                toast.error(
+                    'You have an unsaved machine issue. Click "Add Issue" to save it, or "Cancel" to discard it before submitting.'
+                );
+                return;
+            }
+        }
         setSubmitting(true);
         try {
             // If user picked an existing scheduled-today chip, complete that
@@ -864,6 +1060,7 @@ export default function AddVisitDataModal({
                             visitType: data.visitType,
                             assignedEngineer: data.assignedEngineer,
                             clientRepresentative: data.clientRepresentative,
+                            machineIssues,
                         }),
                     }
                 );
@@ -872,35 +1069,14 @@ export default function AddVisitDataModal({
                     const err = await createRes.json().catch(() => ({}));
                     throw new Error(err.error || "Failed to create visit");
                 }
-
-                const created = await createRes.json();
-
-                if (machineIssues.length > 0 && created._id) {
-                    const putRes = await fetch(
-                        `/api/clients/${clientID}/site-visits/${created._id}`,
-                        {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                visitType: data.visitType,
-                                assignedEngineer: data.assignedEngineer,
-                                clientRepresentative: data.clientRepresentative,
-                                machineIssues,
-                            }),
-                        }
-                    );
-                    if (!putRes.ok) {
-                        toast.warning(
-                            "Visit created but machine issues could not be saved. Edit the visit to add them."
-                        );
-                    }
-                }
             }
 
             toast.success("Visit added successfully");
             setIsOpen(false);
             reset();
             setMachineIssues([]);
+            setMachineIssueOptimalUrls([]);
+            setMachineIssueSubParts([]);
             setNewIssue({ ...EMPTY_ISSUE });
             setShowAddIssue(false);
             setSelectedChipVisitId(null);
@@ -913,13 +1089,28 @@ export default function AddVisitDataModal({
     };
 
     const handleClose = () => {
+        if (showAddIssue) {
+            const hasData =
+                newIssue.machineId ||
+                newIssue.sparePartId ||
+                newIssue.conditionAlert ||
+                (newIssue.currentVisitMediaUrls?.length ?? 0) > 0;
+            if (hasData) {
+                const confirmed = window.confirm(
+                    "You have an unsaved machine issue. If you close now, that data will be lost. Close anyway?"
+                );
+                if (!confirmed) return;
+            }
+        }
         setIsOpen(false);
         reset();
         setMachineIssues([]);
+        setMachineIssueOptimalUrls([]);
+        setMachineIssueSubParts([]);
         setNewIssue({ ...EMPTY_ISSUE });
         setSpareParts([]);
         setSubParts([]);
-        setSelectedSubPartId("");
+        setSelectedSubPartIds([]);
         setShowAddIssue(false);
         setScheduledToday([]);
         setUseCustomDate(false);
@@ -991,6 +1182,20 @@ export default function AddVisitDataModal({
                         accept="image/*,video/*"
                         className="hidden"
                         onChange={handleNewSparePartMediaSelect}
+                    />
+                    <input
+                        ref={sparePartOptimalNewInputRef}
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={handleNewIssueOptimalSelect}
+                    />
+                    <input
+                        ref={existingIssueOptimalInputRef}
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={handleExistingIssueOptimalSelect}
                     />
 
                     <div className="px-6 pt-6 pb-6 flex flex-col gap-6">
@@ -1287,52 +1492,97 @@ export default function AddVisitDataModal({
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div className="flex flex-col gap-1.5">
                                             <p className="text-[#6b7280] text-xs">Last Visit</p>
-                                            {(issue.optimalStateMediaUrls ?? []).length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-1">
-                                                    {(issue.optimalStateMediaUrls ?? []).map((url, ui) => (
-                                                        <MediaPreview
-                                                            key={ui}
-                                                            url={url}
-                                                            onRemove={() => updateIssueMedia(index, "optimal", url, false)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <WideUploadBox
-                                                label="Add image/video"
-                                                onTrigger={() => {
-                                                    setUploadTarget({ index, type: "optimal" });
-                                                    existingMediaInputRef.current?.click();
-                                                }}
-                                                uploading={uploadingExisting?.index === index && uploadingExisting?.type === "optimal"}
-                                            />
+                                            <div className="flex flex-wrap gap-2">
+                                                {(issue.optimalStateMediaUrls ?? []).length > 0
+                                                    ? (issue.optimalStateMediaUrls ?? []).map((url, ui) => (
+                                                        <div key={ui} className="rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] w-[80px] h-[60px]">
+                                                            {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : /* eslint-disable-next-line @next/next/no-img-element */ <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                        </div>
+                                                    ))
+                                                    : <span className="text-[#9ca3af] text-xs italic">None</span>}
+                                            </div>
                                         </div>
                                         <div className="flex flex-col gap-1.5">
                                             <p className="text-[#6b7280] text-xs">Current Visit</p>
-                                            {(issue.currentVisitMediaUrls ?? []).length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mb-1">
-                                                    {(issue.currentVisitMediaUrls ?? []).map((url, ui) => (
-                                                        <MediaPreview
-                                                            key={ui}
-                                                            url={url}
-                                                            onRemove={() => updateIssueMedia(index, "current", url, false)}
-                                                        />
-                                                    ))}
+                                            <div className="flex flex-wrap gap-2">
+                                                {(issue.currentVisitMediaUrls ?? []).length > 0
+                                                    ? (issue.currentVisitMediaUrls ?? []).map((url, ui) => (
+                                                        <div key={ui} className="rounded-[8px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] w-[80px] h-[60px]">
+                                                            {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : /* eslint-disable-next-line @next/next/no-img-element */ <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                        </div>
+                                                    ))
+                                                    : <span className="text-[#9ca3af] text-xs italic">None</span>}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5">
+                                            <p className="text-[#6b7280] text-xs">Optimal State</p>
+                                            {machineIssueOptimalUrls[index] ? (
+                                                <div className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-[#e5e7eb] w-[80px] h-[60px]">
+                                                    {isVideoUrl(machineIssueOptimalUrls[index]!) ? (
+                                                        <video src={machineIssueOptimalUrls[index]!} className="w-full h-full object-cover" muted />
+                                                    ) : (
+                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                        <img src={machineIssueOptimalUrls[index]!} alt="" className="w-full h-full object-cover" />
+                                                    )}
                                                 </div>
-                                            )}
-                                            <WideUploadBox
-                                                label="Add image/video"
-                                                onTrigger={() => {
-                                                    setUploadTarget({ index, type: "current" });
-                                                    existingMediaInputRef.current?.click();
-                                                }}
-                                                uploading={uploadingExisting?.index === index && uploadingExisting?.type === "current"}
-                                            />
+                                            ) : <span className="text-[#9ca3af] text-xs italic">None</span>}
                                         </div>
                                     </div>
+
+                                    {/* Sub-parts row */}
+                                    {(machineIssueSubParts[index] || []).length > 0 && (
+                                        <div className="flex flex-col gap-2">
+                                            <p className="text-[#6b7280] text-xs font-medium">Sub-Parts</p>
+                                            {(machineIssueSubParts[index] || []).map((part) => {
+                                                const lastVisit = (issue.subPartLastVisitPhotos || {})[part._id] ?? [];
+                                                const currentVisit = (issue.subPartCurrentVisitPhotos || {})[part._id] ?? [];
+                                                const hasMedia = lastVisit.length > 0 || currentVisit.length > 0 || !!part.optimalStateVideoUrl;
+                                                if (!hasMedia) return null;
+                                                return (
+                                                    <div key={part._id} className="border border-[#e5e7eb] rounded-[8px] p-3 flex flex-col gap-2">
+                                                        <p className="text-[#1f2937] text-xs font-medium">{part.name}</p>
+                                                        <div className="grid grid-cols-3 gap-3">
+                                                            <div className="flex flex-col gap-1">
+                                                                <p className="text-[#6b7280] text-[10px]">Last Visit</p>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {lastVisit.map((url, ui) => (
+                                                                        <div key={ui} className="rounded-[6px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] w-[60px] h-[45px]">
+                                                                            {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                                        </div>
+                                                                    ))}
+                                                                    {lastVisit.length === 0 && <span className="text-[#9ca3af] text-[10px] italic">None</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <p className="text-[#6b7280] text-[10px]">Current Visit State</p>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {currentVisit.map((url, ui) => (
+                                                                        <div key={ui} className="rounded-[6px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] w-[60px] h-[45px]">
+                                                                            {isVideoUrl(url) ? <video src={url} className="w-full h-full object-cover" muted /> : <img src={url} alt="" className="w-full h-full object-cover" />}
+                                                                        </div>
+                                                                    ))}
+                                                                    {currentVisit.length === 0 && <span className="text-[#9ca3af] text-[10px] italic">None</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <p className="text-[#6b7280] text-[10px]">Optimal State</p>
+                                                                {part.optimalStateVideoUrl ? (
+                                                                    <div className="rounded-[6px] overflow-hidden bg-[#e5e7eb] border border-[#d1d5db] w-[60px] h-[45px]">
+                                                                        <video src={part.optimalStateVideoUrl} className="w-full h-full object-cover" muted />
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-[#9ca3af] text-[10px] italic">None</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
                                     {/* Spare parts row */}
                                     {(issue.sparePartMedia || []).length > 0 && (
@@ -1499,7 +1749,7 @@ export default function AddVisitDataModal({
                                                     subPartPhotos: {},
                                                 }));
                                                 setSubParts([]);
-                                                setSelectedSubPartId("");
+                                                setSelectedSubPartIds([]);
                                                 fetch(`/api/machines/spare-parts/${value}/parts`, { cache: "no-store" })
                                                     .then((r) => (r.ok ? r.json() : []))
                                                     .then((data) =>
@@ -1572,9 +1822,9 @@ export default function AddVisitDataModal({
                                         </Select>
                                     </div>
 
-                                    {/* Last Visit / Current Visit — Figma order: before Condition Alert */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex flex-col gap-2">
+                                    {/* Last Visit / Current Visit / Optimal State — before Condition Alert */}
+                                    <div className="grid grid-cols-3 gap-4 items-end">
+                                        <div className="flex flex-col gap-2 h-full">
                                             <Label className="text-[#6b7280] text-sm">
                                                 Last Visit
                                             </Label>
@@ -1605,12 +1855,14 @@ export default function AddVisitDataModal({
                                                     )}
                                                 </div>
                                             )}
-                                            <WideUploadBox
-                                                onTrigger={() => optimalInputRef.current?.click()}
-                                                uploading={uploadingMedia === "optimal"}
-                                            />
+                                            <div className="mt-auto">
+                                                <WideUploadBox
+                                                    onTrigger={() => optimalInputRef.current?.click()}
+                                                    uploading={uploadingMedia === "optimal"}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col gap-2 h-full">
                                             <Label className="text-[#6b7280] text-sm">
                                                 Current Visit
                                             </Label>
@@ -1641,10 +1893,38 @@ export default function AddVisitDataModal({
                                                     )}
                                                 </div>
                                             )}
-                                            <WideUploadBox
-                                                onTrigger={() => currentInputRef.current?.click()}
-                                                uploading={uploadingMedia === "current"}
-                                            />
+                                            <div className="mt-auto">
+                                                <WideUploadBox
+                                                    onTrigger={() => currentInputRef.current?.click()}
+                                                    uploading={uploadingMedia === "current"}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 h-full">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Optimal State
+                                            </Label>
+                                            {(() => {
+                                                const url = spareParts.find((sp) => sp._id === newIssue.sparePartId)?.optimalStateVideoUrl ?? null;
+                                                return url ? (
+                                                    <div className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-[#e5e7eb] w-[80px] h-[60px]">
+                                                        {isVideoUrl(url) ? (
+                                                            <video src={url} className="w-full h-full object-cover" muted />
+                                                        ) : (
+                                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                                            <img src={url} alt="" className="w-full h-full object-cover" />
+                                                        )}
+                                                    </div>
+                                                ) : null;
+                                            })()}
+                                            <div className="mt-auto">
+                                                <WideUploadBox
+                                                    label={spareParts.find((sp) => sp._id === newIssue.sparePartId)?.optimalStateVideoUrl ? "Replace video" : "Upload video"}
+                                                    onTrigger={() => sparePartOptimalNewInputRef.current?.click()}
+                                                    uploading={uploadingOptimalNew}
+                                                    disabled={!newIssue.sparePartId}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1696,88 +1976,142 @@ export default function AddVisitDataModal({
                                         </div>
                                     </div>
 
-                                    {/* Hidden file input for sub-part current state photos */}
+                                    {/* Hidden file inputs for sub-part photos */}
                                     <input
                                         ref={subPartInputRef}
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/*,video/*"
                                         className="hidden"
                                         onChange={handleSubPartInputChange}
                                     />
+                                    <input
+                                        ref={subPartLastVisitInputRef}
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        className="hidden"
+                                        onChange={handleSubPartLastVisitInputChange}
+                                    />
+                                    <input
+                                        ref={subPartOptimalInputRef}
+                                        type="file"
+                                        accept="video/mp4,video/webm,video/quicktime"
+                                        className="hidden"
+                                        onChange={handleSubPartOptimalInputChange}
+                                    />
 
-                                    {/* Sub-part dropdown + Optimal State / Current Visit State */}
+                                    {/* Sub-parts multi-select + per-part media */}
                                     {subParts.length > 0 && (
                                         <div className="flex flex-col gap-3">
                                             <div className="flex flex-col gap-2">
-                                                <Label className="text-[#6b7280] text-sm">Sub-Part</Label>
-                                                <Select value={selectedSubPartId} onValueChange={setSelectedSubPartId}>
-                                                    <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[46px] rounded-[10px] text-[#1f2937] text-sm focus:ring-0">
-                                                        <SelectValue placeholder="Select sub-part" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-white border-[#d1d5db]">
-                                                        {subParts.map((pt) => (
-                                                            <SelectItem
+                                                <Label className="text-[#6b7280] text-sm">Sub-Parts</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {subParts.map((pt) => {
+                                                        const isSelected = selectedSubPartIds.includes(pt._id);
+                                                        return (
+                                                            <button
                                                                 key={pt._id}
-                                                                value={pt._id}
-                                                                className="text-[#1f2937] hover:bg-[#f3f4f6]"
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelectedSubPartIds((prev) =>
+                                                                        isSelected
+                                                                            ? prev.filter((id) => id !== pt._id)
+                                                                            : [...prev, pt._id]
+                                                                    )
+                                                                }
+                                                                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                                                                    isSelected
+                                                                        ? "bg-[#2D3E5C] border-[#2D3E5C] text-white"
+                                                                        : "bg-white border-[#d1d5db] text-[#6b7280] hover:border-[#2D3E5C]"
+                                                                }`}
                                                             >
                                                                 {pt.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
 
-                                            {selectedSubPartId && (() => {
-                                                const selectedPart = subParts.find((pt) => pt._id === selectedSubPartId);
-                                                const photos = newIssue.subPartPhotos[selectedSubPartId] ?? [];
-                                                const isUploading = uploadingSubPart === selectedSubPartId;
+                                            {selectedSubPartIds.map((partId) => {
+                                                const selectedPart = subParts.find((pt) => pt._id === partId);
+                                                if (!selectedPart) return null;
+                                                const lastVisitPhotos = newIssue.subPartLastVisitPhotos[partId] ?? [];
+                                                const currentPhotos = newIssue.subPartPhotos[partId] ?? [];
+                                                const isUploadingCurrent = uploadingSubPart === partId;
+                                                const isUploadingLastVisit = uploadingSubPartLastVisit === partId;
                                                 return (
-                                                    <div className="flex flex-col gap-2">
+                                                    <div key={partId} className="flex flex-col gap-2">
                                                         <Label className="text-[#6b7280] text-sm font-medium">
-                                                            {selectedPart?.name} — Media
+                                                            {selectedPart.name} — Media
                                                         </Label>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="flex flex-col gap-2">
-                                                                <Label className="text-[#6b7280] text-xs font-medium">Optimal State</Label>
-                                                                {selectedPart?.optimalStateVideoUrl ? (
-                                                                    <div className="rounded-[10px] overflow-hidden border border-[#d1d5db] bg-[#e5e7eb] h-[80px]">
-                                                                        <video
-                                                                            src={selectedPart.optimalStateVideoUrl}
-                                                                            className="w-full h-full object-cover"
-                                                                            muted
-                                                                            controls
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="w-full h-[80px] rounded-[10px] border border-dashed border-[#d1d5db] bg-[#f9fafb] flex items-center justify-center">
-                                                                        <span className="text-[#9ca3af] text-xs italic">No optimal state recorded</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex flex-col gap-2">
-                                                                <Label className="text-[#6b7280] text-xs font-medium">Current Visit State</Label>
-                                                                {photos.length > 0 && (
+                                                        <div className="grid grid-cols-3 gap-4 items-end">
+                                                            <div className="flex flex-col gap-2 h-full">
+                                                                <Label className="text-[#6b7280] text-xs font-medium">Last Visit</Label>
+                                                                {lastVisitPhotos.length > 0 && (
                                                                     <div className="flex flex-wrap gap-2 mb-1">
-                                                                        {photos.map((url, ui) => (
+                                                                        {lastVisitPhotos.map((url, ui) => (
                                                                             <MediaPreview
                                                                                 key={ui}
                                                                                 url={url}
-                                                                                onRemove={() => removeSubPartPhoto(selectedSubPartId, ui)}
+                                                                                onRemove={() => removeSubPartLastVisitPhoto(partId, ui)}
                                                                             />
                                                                         ))}
                                                                     </div>
                                                                 )}
-                                                                <WideUploadBox
-                                                                    label="Upload image/video"
-                                                                    onTrigger={() => handleSubPartUpload(selectedSubPartId)}
-                                                                    uploading={isUploading}
-                                                                />
+                                                                <div className="mt-auto">
+                                                                    <WideUploadBox
+                                                                        label="Upload image/video"
+                                                                        onTrigger={() => handleSubPartLastVisitUpload(partId)}
+                                                                        uploading={isUploadingLastVisit}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col gap-2 h-full">
+                                                                <Label className="text-[#6b7280] text-xs font-medium">Current Visit State</Label>
+                                                                {currentPhotos.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-2 mb-1">
+                                                                        {currentPhotos.map((url, ui) => (
+                                                                            <MediaPreview
+                                                                                key={ui}
+                                                                                url={url}
+                                                                                onRemove={() => removeSubPartPhoto(partId, ui)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <div className="mt-auto">
+                                                                    <WideUploadBox
+                                                                        label="Upload image/video"
+                                                                        onTrigger={() => handleSubPartUpload(partId)}
+                                                                        uploading={isUploadingCurrent}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col gap-2 h-full">
+                                                                <Label className="text-[#6b7280] text-xs font-medium">Optimal State</Label>
+                                                                {selectedPart.optimalStateVideoUrl && (
+                                                                    <div className="rounded-[8px] overflow-hidden border border-[#d1d5db] bg-[#e5e7eb] w-[80px] h-[60px]">
+                                                                        <video
+                                                                            src={selectedPart.optimalStateVideoUrl}
+                                                                            className="w-full h-full object-cover"
+                                                                            muted
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                <div className="mt-auto">
+                                                                    <WideUploadBox
+                                                                        label={selectedPart.optimalStateVideoUrl ? "Replace video" : "Upload video"}
+                                                                        onTrigger={() => {
+                                                                            subPartOptimalTargetRef.current = partId;
+                                                                            subPartOptimalInputRef.current?.click();
+                                                                        }}
+                                                                        uploading={uploadingSubPartOptimal === partId}
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 );
-                                            })()}
+                                            })}
                                         </div>
                                     )}
 
@@ -1791,7 +2125,7 @@ export default function AddVisitDataModal({
                                                 setFilteredMachines([]);
                                                 setSpareParts([]);
                                                 setSubParts([]);
-                                                setSelectedSubPartId("");
+                                                setSelectedSubPartIds([]);
                                             }}
                                             className="bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280] hover:bg-[#e5e7eb] rounded-[10px] h-9 px-5"
                                         >
@@ -1800,9 +2134,10 @@ export default function AddVisitDataModal({
                                         <Button
                                             type="button"
                                             onClick={handleAddMachineIssue}
-                                            className="bg-[#2D3E5C] hover:bg-[#1f2a44] text-white rounded-[10px] h-9 px-5 font-bold"
+                                            disabled={addingIssue}
+                                            className="bg-[#2D3E5C] hover:bg-[#1f2a44] text-white rounded-[10px] h-9 px-5 font-bold disabled:opacity-50"
                                         >
-                                            Add Issue
+                                            {addingIssue ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Issue"}
                                         </Button>
                                     </div>
                                 </div>

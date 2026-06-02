@@ -32,6 +32,8 @@ export interface MachineIssue {
     optimalStateMediaUrls?: string[];
     currentVisitMediaUrls?: string[];
     sparePartMedia?: SparePartMediaEntry[];
+    subPartLastVisitPhotos?: { [partId: string]: string[] };
+    subPartCurrentVisitPhotos?: { [partId: string]: string[] };
 }
 
 export interface SiteVisit {
