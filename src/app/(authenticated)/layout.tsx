@@ -55,7 +55,7 @@ export default async function RootLayout({
                                     <Switch className="cursor-pointer data-[state=checked]:bg-orange" id="on-visit" disabled tabIndex={-1} />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Notifications />
+                                    {/* <Notifications /> */}
                                 </div>
                             </header>
                             <main className="bg-white min-h-[calc(100vh-4rem)]">
