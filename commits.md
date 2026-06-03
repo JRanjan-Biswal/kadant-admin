@@ -1,5 +1,53 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — second push to origin/master (1 commit)
+
+### ce956a1 — fix(upload-data): add spare part service dates
+
+- **Full SHA:** `ce956a1f4d99b91dd48181d6d6f314c3c313a36f`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-03T23:17:32Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** fix
+- **Subject:** fix(upload-data): add spare part service dates
+
+#### Task — context
+Follow-up to the Client Overview spare-part edit routing fix on the production client page
+`https://kadant-admin.vercel.app/69fa3cd3894ab16ae9bbb582/client-overview`.
+Verbatim instruction: "also in `upload data` tab there is `spare parts` for spare parts add installation data and last service date as well"
+Prior Upload Data spare-part editors only exposed the catalog fields (name/KL), image/video media, and child parts. The backend already had client-specific spare-part detail fields, but the admin UI did not load or save them from the hierarchy editor.
+
+#### Task — what changed
+- Web / `src/app/components/MachineHierarchy/AddCategoryMachineFlow.tsx`: added `lastServiceDate` and `sparePartInstallationDate` to spare-part editor state, baseline tracking, unsaved-change detection, and the expanded spare-part form. Existing spare parts now hydrate those dates from `/api/clients/:clientID/machines/:machineID/spare-parts`, and save date changes through the existing client spare-part PUT route.
+- Web / `src/app/components/MachineHierarchy/AddCategoryMachineFlow.tsx`: when editing all data, date-only spare-part changes are persisted as client-specific spare-part metadata; when adding or updating a single spare part, the same date fields are sent after the spare part exists.
+- Web / `src/app/components/MachineHierarchy/AddEntityModals.tsx`: added Installation Date and Last Service Date inputs to the Add Spare Part modal and save them for the current client/machine/spare-part when provided.
+- Deploy: published from a clean detached worktree at `ce956a1` to avoid bundling the unrelated local `AddCustomerForm.tsx` edit. Vercel production deployment `https://kadant-admin-982o8l9ny-jranjanbiswals-projects.vercel.app` was aliased to `https://kadant-admin.vercel.app`.
+
+#### Task — design notes
+The date fields are client-specific operational metadata, so the UI uses the existing client spare-part API instead of extending the global spare-part catalog payload. The hierarchy editor hydrates dates per saved machine because the category full endpoint returns catalog hierarchy data, while the client spare-part route returns per-client details. Per-machine hydration failures are logged and leave the catalog editor usable rather than blocking all Upload Data editing.
+
+#### Files
+`git show --stat --format="" ce956a1`
+
+```text
+.../MachineHierarchy/AddCategoryMachineFlow.tsx    | 173 ++++++++++++++++++---
+.../MachineHierarchy/AddEntityModals.tsx           |  31 +++-
+2 files changed, 180 insertions(+), 24 deletions(-)
+```
+
+#### Tests
+- `npx tsc --noEmit` — passed.
+- `npm run build` — passed locally (Next workspace-root warning only).
+- Local browser smoke: logged into `http://localhost:4000`, opened Upload Data on the reported client, expanded `Pulping & HDC` and `Vokes rotor 86,4" - KBC - X4CrNi13.4`, and verified Installation Date and Last Service Date fields rendered; the installation date hydrated as `2026-05-27`.
+- Production browser smoke after deploy: opened `https://kadant-admin.vercel.app/69fa3cd3894ab16ae9bbb582/client-overview`, switched to Upload Data, expanded `Pulping & HDC` and the same `Vokes rotor...` spare part, and verified both date labels were present with date input values `[2026-05-27, ""]`.
+
+#### Operator follow-up
+None.
+
+#### Related
+Previous fix: `10a6a6f` (Overview spare-part edit opens Upload Data with the target spare part focused).
+
 ## 2026-06-04 — push to origin/master (1 commit)
 
 ### 10a6a6f — fix(client-overview): open upload editor for spare part edits
