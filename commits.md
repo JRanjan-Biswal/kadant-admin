@@ -1,5 +1,52 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — fourth push to origin/master (1 commit)
+
+### 57b8af6 — Merge remote-tracking branch 'origin/bhavesh-dev'
+
+- **Full SHA:** `57b8af63b70f759c079851a6ef2d2bfc1272c757`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-03T23:32:29Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** merge
+- **Subject:** Merge remote-tracking branch 'origin/bhavesh-dev'
+
+#### Task — context
+User requested merging the `bhavesh-dev` branch into the mainline and deploying both frontend apps. Verbatim instruction: "take pull from bhavesh-dev and merge it to main and then deploy both frontend on vercel"
+The `kadant-admin` frontend uses `master` as its mainline branch. The repo was clean, `origin/master` was up to date, and `origin/bhavesh-dev` had advanced before the merge.
+
+#### Task — what changed
+- Git / branch management: fetched `origin`, fast-forward checked `master` against `origin/master`, and merged `origin/bhavesh-dev` into `master` with the default `ort` strategy.
+- Web / `src/app/[clientID]/client-overview/page.tsx`: merged client overview changes from `bhavesh-dev`.
+- API / `src/app/api/machines/machine-category/route.ts`: merged machine-category route changes from `bhavesh-dev`.
+- Web / `src/app/components/MachineHierarchy/AddCategoryMachineFlow.tsx`: merged hierarchy editor change from `bhavesh-dev`.
+- Web / `src/app/components/MachineHierarchy/MachineImageMapper.tsx`: merged image mapper styling/behavior change from `bhavesh-dev`.
+- Merged commits from `origin/bhavesh-dev`: `9a74c53 fix(admin): fix machine name text color to white in Map Machine Positions`; `94c23c0 feat(client-overview): isolate category data per client`.
+
+#### Task — design notes
+The merge was clean, so no conflict resolution or manual code edits were needed. The mainline branch is named `master`, not `main`, so the requested mainline merge and push were performed on `master`.
+
+#### Files
+`git show --stat --format="" 57b8af6`
+
+```text
+.../[clientID]/client-overview/page.tsx                | 18 +++++-------------
+src/app/api/machines/machine-category/route.ts         |  4 ++--
+.../MachineHierarchy/AddCategoryMachineFlow.tsx        |  2 +-
+.../components/MachineHierarchy/MachineImageMapper.tsx |  2 +-
+4 files changed, 9 insertions(+), 17 deletions(-)
+```
+
+#### Tests
+- `npm run build` in `kadant-admin` — passed locally after the merge (Next workspace-root warning only).
+
+#### Operator follow-up
+Deploy the merged frontend to Vercel production as requested in the same user task.
+
+#### Related
+Merged branch tip: `94c23c0`. Sibling frontend merge: `machine-health` `bb6b28e`.
+
 ## 2026-06-04 — third push to origin/master (1 commit)
 
 ### 46ecb17 — chore(client-management): update add customer form
