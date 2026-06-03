@@ -6,12 +6,11 @@ import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import AddCategoryMachineFlow from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
+import AddCategoryMachineFlow, { type AddCategoryMachineFlowFocusTarget } from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntityModals";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
-import EditSparePartModal from "@/app/components/Modals/EditSparePartModal";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus, GripVertical } from "lucide-react";
@@ -106,9 +105,10 @@ interface SortableCategoryCardProps {
     onDeleteClick: () => void;
     clientId: string;
     onSuccess: () => void;
+    focusTarget?: AddCategoryMachineFlowFocusTarget | null;
 }
 
-function SortableCategoryCard({ category, isOpen, onToggle, onDeleteClick, clientId, onSuccess }: SortableCategoryCardProps) {
+function SortableCategoryCard({ category, isOpen, onToggle, onDeleteClick, clientId, onSuccess, focusTarget }: SortableCategoryCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category._id });
 
     const style = {
@@ -162,6 +162,7 @@ function SortableCategoryCard({ category, isOpen, onToggle, onDeleteClick, clien
                         categoryIdForEdit={category._id}
                         clientID={clientId}
                         onSuccess={onSuccess}
+                        focusTarget={focusTarget}
                     />
                 </div>
             )}
@@ -185,7 +186,6 @@ export default function ClientOverviewContent({
     const [expandedMachine, setExpandedMachine] = useState<string | null>(null);
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
-    const [editingSparePart, setEditingSparePart] = useState<SparePartWithStatus | null>(null);
     type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -194,6 +194,8 @@ export default function ClientOverviewContent({
     const [loadingParts, setLoadingParts] = useState(false);
     // Which category is expanded for inline editing in the Upload Data tab.
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    type UploadFocusTarget = AddCategoryMachineFlowFocusTarget & { categoryId: string };
+    const [uploadFocusTarget, setUploadFocusTarget] = useState<UploadFocusTarget | null>(null);
     const [addCategoryOpen, setAddCategoryOpen] = useState(false);
     const [addMachineForCategoryId, setAddMachineForCategoryId] = useState<string | null>(null);
     // Categories created this session, merged into the Upload Data list so a
@@ -232,6 +234,18 @@ export default function ClientOverviewContent({
             });
             return reordered;
         });
+    }, []);
+
+    const openUploadEditor = useCallback((categoryId: string, machineId?: string, sparePartId?: string) => {
+        setActiveTab("upload");
+        setAddCategoryOpen(false);
+        setEditingCategoryId(categoryId);
+        setUploadFocusTarget((prev) => ({
+            categoryId,
+            machineId,
+            sparePartId,
+            requestId: (prev?.requestId ?? 0) + 1,
+        }));
     }, []);
 
     // Filter categories by search query
@@ -331,82 +345,6 @@ export default function ClientOverviewContent({
         }
         fetchSpareParts(machineId);
     }, [fetchSpareParts, expandedMachine]);
-
-
-    const handleSaveSparePart = useCallback(async (updates: {
-        customName?: string;
-        lastServiceDate?: string;
-        sparePartInstallationDate?: string;
-        isActive?: boolean;
-    }) => {
-        if (!editingSparePart) return;
-
-        const machineId = typeof editingSparePart.machine === 'object'
-            ? editingSparePart.machine._id
-            : editingSparePart.machine || '';
-
-        if (!machineId) {
-            console.error('Missing machineId for spare part', editingSparePart);
-            toast.error('Could not save: missing machine context. Close + reopen the modal.');
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/clients/${currentClientId}/machines/${machineId}/spare-parts`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    sparePartID: editingSparePart._id,
-                    ...updates,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update spare part');
-            }
-
-            // Refresh spare parts for this machine
-            const sparePartsResponse = await fetch(`/api/products/${currentClientId}/spare-parts/${machineId}`);
-            if (sparePartsResponse.ok) {
-                const responseData = await sparePartsResponse.json();
-                // API returns { spareParts, categories } - extract spareParts array
-                const data = responseData.spareParts || responseData;
-                const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string; isActive?: boolean } }) => {
-                    const clientSparePart = part.clientMachineSparePart;
-                    const totalRunningHours = clientSparePart?.totalRunningHours?.value ?? 0;
-                    const lifetimeValue = part.lifeTime?.value ?? clientSparePart?.lifetimeOfRotor?.value ?? 0;
-                    const healthPercentage = lifetimeValue > 0
-                        ? Math.max(0, Math.min(100, ((lifetimeValue - totalRunningHours) / lifetimeValue) * 100))
-                        : 100;
-                    const status = getSparePartStatusFromHours(totalRunningHours, lifetimeValue);
-
-                    return {
-                        ...part,
-                        status,
-                        healthPercentage: Math.round(healthPercentage),
-                        lastServiceDate: clientSparePart?.lastServiceDate || null,
-                        sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
-                        customName: clientSparePart?.customName || part.name,
-                        clientSparePartId: clientSparePart?._id || undefined,
-                        isActive: clientSparePart?.isActive !== undefined ? clientSparePart.isActive : true,
-                    };
-                });
-
-                setMachineSpareParts((prev) => ({
-                    ...prev,
-                    [machineId]: transformedSpareParts,
-                }));
-            }
-
-            toast.success('Spare part updated successfully');
-            setEditingSparePart(null);
-        } catch (error) {
-            console.error('Error updating spare part:', error);
-            toast.error('Failed to update spare part');
-        }
-    }, [editingSparePart, currentClientId]);
 
     const handleDeleteConfirm = useCallback(async () => {
         if (!deleteConfirm) return;
@@ -649,7 +587,7 @@ export default function ClientOverviewContent({
                                 </div>
                             </div>
                             <Button
-                                onClick={() => { setActiveTab("upload"); setAddCategoryOpen(true); }}
+                                onClick={() => { setUploadFocusTarget(null); setActiveTab("upload"); setEditingCategoryId(null); setAddCategoryOpen(true); }}
                                 className="bg-[#d45815] hover:bg-[#d45815]/90 text-white rounded-[8px] px-2 py-1 h-auto flex items-center gap-1 text-sm"
                             >
                                 <FaPlus className="w-4 h-4" />
@@ -702,7 +640,7 @@ export default function ClientOverviewContent({
                                                     type="button"
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={(e) => { e.stopPropagation(); setActiveTab("upload"); setEditingCategoryId(category._id); }}
+                                                    onClick={(e) => { e.stopPropagation(); setUploadFocusTarget(null); setActiveTab("upload"); setEditingCategoryId(category._id); }}
                                                     className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10"
                                                     title="Edit category"
                                                 >
@@ -789,7 +727,7 @@ export default function ClientOverviewContent({
                                                                             </td>
                                                                             <td className="py-3 px-4 text-[#374151] text-sm font-medium">{machine.installationDate ? format(new Date(machine.installationDate), "dd MMM yyyy") : "—"}</td>
                                                                             <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                                                                                <Button size="sm" variant="ghost" onClick={() => { setActiveTab("upload"); setEditingCategoryId(category._id); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
+                                                                                <Button size="sm" variant="ghost" onClick={() => openUploadEditor(category._id, machine._id)} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit machine">
                                                                                     <Pencil className="w-4 h-4" />
                                                                                 </Button>
                                                                             </td>
@@ -833,7 +771,7 @@ export default function ClientOverviewContent({
                                                                                                                 </Badge>
                                                                                                             </td>
                                                                                                             <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingSparePart({ ...sparePart, machine: machine._id }); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
+                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openUploadEditor(category._id, machine._id, sparePart._id); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
                                                                                                                     <Pencil className="w-4 h-4" />
                                                                                                                 </Button>
                                                                                                             </td>
@@ -901,7 +839,7 @@ export default function ClientOverviewContent({
                         <div className="rounded-[10px] bg-white border border-[#96A5BA] overflow-hidden">
                             <button
                                 type="button"
-                                onClick={() => setAddCategoryOpen((v) => !v)}
+                                onClick={() => { setUploadFocusTarget(null); setEditingCategoryId(null); setAddCategoryOpen((v) => !v); }}
                                 className="w-full flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 hover:from-[#cbd6e1] transition-colors"
                             >
                                 <span className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -940,10 +878,11 @@ export default function ClientOverviewContent({
                                             key={category._id}
                                             category={category}
                                             isOpen={editingCategoryId === category._id}
-                                            onToggle={() => setEditingCategoryId((prev) => (prev === category._id ? null : category._id))}
+                                            onToggle={() => { setUploadFocusTarget(null); setEditingCategoryId((prev) => (prev === category._id ? null : category._id)); }}
                                             onDeleteClick={() => setDeleteConfirm({ type: "category", id: category._id, name: category.name })}
                                             clientId={currentClientId}
                                             onSuccess={() => router.refresh()}
+                                            focusTarget={uploadFocusTarget?.categoryId === category._id ? uploadFocusTarget : null}
                                         />
                                     ))}
                                 </SortableContext>
@@ -1027,29 +966,6 @@ export default function ClientOverviewContent({
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Edit Spare Part Modal */}
-            {editingSparePart && (
-                <EditSparePartModal
-                    open={!!editingSparePart}
-                    onOpenChange={(open) => !open && setEditingSparePart(null)}
-                    sparePart={{
-                        _id: editingSparePart._id,
-                        name: editingSparePart.customName || editingSparePart.name,
-                        originalName: editingSparePart.name,
-                        status: editingSparePart.status || "healthy",
-                        healthPercentage: editingSparePart.healthPercentage || 100,
-                        lifetimeOfRotor: editingSparePart.lifeTime || { value: 0, unit: "Hrs" },
-                        totalRunningHours: editingSparePart.clientMachineSparePart?.totalRunningHours || { value: 0, unit: "Hrs" },
-                        lastServiceDate: editingSparePart.lastServiceDate || null,
-                        sparePartInstallationDate: editingSparePart.sparePartInstallationDate || null,
-                        machineInstallationDate: null,
-                        clientSparePartId: editingSparePart.clientSparePartId || null,
-                        isActive: editingSparePart.isActive !== false,
-                    }}
-                    onSave={handleSaveSparePart}
-                />
             )}
         </div>
     );

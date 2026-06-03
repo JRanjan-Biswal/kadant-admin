@@ -254,6 +254,14 @@ export interface AddCategoryMachineFlowProps {
     onMachinesCreated?: (machineIds: string[]) => void;
     /** When set, machines are filtered to only those linked to this client. */
     clientID?: string;
+    /** Open this machine/spare-part after edit data loads. */
+    focusTarget?: AddCategoryMachineFlowFocusTarget | null;
+}
+
+export interface AddCategoryMachineFlowFocusTarget {
+    machineId?: string;
+    sparePartId?: string;
+    requestId: number;
 }
 
 interface MachineGalleryImage {
@@ -429,6 +437,7 @@ export default function AddCategoryMachineFlow({
     saveRef,
     onMachinesCreated,
     clientID,
+    focusTarget,
 }: AddCategoryMachineFlowProps) {
     const [categoryName, setCategoryName] = useState("");
     const [categoryImage, setCategoryImage] = useState<File | null>(null);
@@ -467,6 +476,8 @@ export default function AddCategoryMachineFlow({
     const [loading, setLoading] = useState<string | null>(null);
     const [editDataLoaded, setEditDataLoaded] = useState(false);
     const machinesSectionRef = useRef<HTMLDivElement>(null);
+    const focusTargetRef = useRef<HTMLDivElement>(null);
+    const appliedFocusKeyRef = useRef<string | null>(null);
     const isEditMode = editDataLoaded && (!!categoryIdForEdit || !!initialData);
 
     // Snapshot of the persisted row state when the modal first loads edit data.
@@ -644,6 +655,40 @@ export default function AddCategoryMachineFlow({
         }, 100);
         return () => clearTimeout(t);
     }, [editDataLoaded, categoryIdForEdit, initialData]);
+
+    useEffect(() => {
+        if (!editDataLoaded || !focusTarget) return;
+
+        const focusKey = [
+            focusTarget.requestId,
+            focusTarget.machineId ?? "",
+            focusTarget.sparePartId ?? "",
+        ].join(":");
+        if (appliedFocusKeyRef.current === focusKey) return;
+
+        const targetMachine = focusTarget.machineId
+            ? machines.find((m) => m.createdId === focusTarget.machineId || m.id === focusTarget.machineId)
+            : focusTarget.sparePartId
+                ? machines.find((m) => m.spareParts.some((sp) => sp.createdId === focusTarget.sparePartId || sp.id === focusTarget.sparePartId))
+                : null;
+        if (!targetMachine) return;
+
+        const targetSparePart = focusTarget.sparePartId
+            ? targetMachine.spareParts.find((sp) => sp.createdId === focusTarget.sparePartId || sp.id === focusTarget.sparePartId)
+            : null;
+        if (focusTarget.sparePartId && !targetSparePart) return;
+
+        setOpenMachines((prev) => ({ ...prev, [targetMachine.id]: true }));
+        if (targetSparePart) {
+            setOpenSpareParts((prev) => ({ ...prev, [targetSparePart.id]: true }));
+        }
+
+        appliedFocusKeyRef.current = focusKey;
+        const t = window.setTimeout(() => {
+            focusTargetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
+        return () => window.clearTimeout(t);
+    }, [editDataLoaded, focusTarget, machines]);
 
     // Both helpers upload directly to S3 via a presigned PUT (see lib/uploadImage),
     // so a full-size Original of ANY size goes through — not just sub-4.5 MB files.
@@ -2086,9 +2131,13 @@ export default function AddCategoryMachineFlow({
                     ) : (
                     machines.map((m) => {
                         const isMachineOpen = openMachines[m.id] ?? !m.createdId;
+                        const isFocusedMachine = !!focusTarget?.machineId && (m.createdId === focusTarget.machineId || m.id === focusTarget.machineId);
                         return (
                         <div key={m.id} className="flex flex-col gap-3">
-                        <div className="bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
+                        <div
+                            ref={isFocusedMachine && !focusTarget?.sparePartId ? focusTargetRef : undefined}
+                            className={`bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden ${isFocusedMachine && !focusTarget?.sparePartId ? "ring-2 ring-[#d45815]/40" : ""}`}
+                        >
                             <div
                                 role="button"
                                 onClick={() => setOpenMachines((p) => ({ ...p, [m.id]: !isMachineOpen }))}
@@ -2273,8 +2322,13 @@ export default function AddCategoryMachineFlow({
                                     </div>
                                     {m.spareParts.map((sp) => {
                                         const isSpOpen = openSpareParts[sp.id] ?? !sp.createdId;
+                                        const isFocusedSparePart = !!focusTarget?.sparePartId && (sp.createdId === focusTarget.sparePartId || sp.id === focusTarget.sparePartId);
                                         return (
-                                        <div key={sp.id} className="bg-white border border-[#96A5BA] rounded-[8px] overflow-hidden">
+                                        <div
+                                            key={sp.id}
+                                            ref={isFocusedSparePart ? focusTargetRef : undefined}
+                                            className={`bg-white border border-[#96A5BA] rounded-[8px] overflow-hidden ${isFocusedSparePart ? "ring-2 ring-[#d45815]/40" : ""}`}
+                                        >
                                             <div
                                                 role="button"
                                                 onClick={() => setOpenSpareParts((p) => ({ ...p, [sp.id]: !isSpOpen }))}
