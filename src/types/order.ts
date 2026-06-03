@@ -11,4 +11,5 @@ export interface Order {
     date?: string;
     doneBy?: string;
     status?: string;
+    createdAt?: string;
 }

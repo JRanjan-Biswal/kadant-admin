@@ -290,7 +290,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                         ) : (
                             filteredOrders.map((order) => {
                                 const isSR = isServiceRequest(order.orderNumber);
-                                const upcoming = isUpcoming(order.date);
+                                const upcoming = isUpcoming(order.date || order.installedDate || order.createdAt);
                                 const typeColor = TYPE_COLORS[order.type] ?? {
                                     bg: "bg-gray-500/20",
                                     text: "text-gray-700",
@@ -321,7 +321,7 @@ export default function OrderHistoryClient({ clientID }: OrderHistoryClientProps
                                         <TableCell>
                                             <div className="flex items-center gap-2 text-[#374151]">
                                                 <Calendar className="w-3.5 h-3.5 shrink-0" />
-                                                <span>{formatDate(order.date || order.installedDate)}</span>
+                                                <span>{formatDate(order.date || order.installedDate || order.createdAt)}</span>
                                                 {upcoming && (
                                                     <span className="text-[10px] font-semibold text-orange-700 bg-orange-500/15 px-1.5 py-0.5 rounded">
                                                         Upcoming
