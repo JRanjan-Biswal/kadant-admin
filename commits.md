@@ -1,5 +1,46 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — third push to origin/master (1 commit)
+
+### 46ecb17 — chore(client-management): update add customer form
+
+- **Full SHA:** `46ecb1758839c9a0c2f721bd40a7fa035d95d4be`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-03T23:19:56Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** chore
+- **Subject:** chore(client-management): update add customer form
+
+#### Task — context
+The working tree had one remaining local change in the admin repo after the Upload Data spare-part fixes were shipped and logged. Verbatim instruction: "do git add . and then commit and push to main/master branch"
+The workspace root is not a git repository, so the command was run in the active `kadant-admin` repository on the current `master` branch.
+
+#### Task — what changed
+- Web / `src/app/components/ClientManagement/AddCustomerForm.tsx`: changed the first account field label from `Username` to `Email`.
+- Web / `src/app/components/ClientManagement/AddCustomerForm.tsx`: commented out the Onboarding Images section and the Add Machine Details section in the add-customer flow.
+- Web / `src/app/components/ClientManagement/AddCustomerForm.tsx`: renumbered the remaining Business Details, Flowsheet Image, and Stock Preparation Image sections to keep the visible sequence continuous.
+
+#### Task — design notes
+This commit intentionally preserved the exact local form edits that were already present and used `git add .` as requested. No unrelated Upload Data files were dirty at the time; those changes had already been committed and pushed in earlier commits. No deploy was performed for this git-only request.
+
+#### Files
+`git show --stat --format="" 46ecb17`
+
+```text
+src/app/components/ClientManagement/AddCustomerForm.tsx | 16 ++++++++--------
+1 file changed, 8 insertions(+), 8 deletions(-)
+```
+
+#### Tests
+Not run. The user specifically requested staging, committing, and pushing the current local changes.
+
+#### Operator follow-up
+None.
+
+#### Related
+Previous source commit in the same session: `ce956a1` (Upload Data spare-part date fields).
+
 ## 2026-06-04 — second push to origin/master (1 commit)
 
 ### ce956a1 — fix(upload-data): add spare part service dates
