@@ -289,6 +289,8 @@ interface SparePartRow {
     id: string;
     name: string;
     klValue: string;
+    lastServiceDate: string;
+    sparePartInstallationDate: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -297,6 +299,12 @@ interface SparePartRow {
     optimalStateVideoFile: File | null;
     optimalStateVideoUrl?: string | null;
     parts: PartRow[];
+}
+
+interface ClientSparePartDetails {
+    _id: string;
+    lastServiceDate?: string | null;
+    sparePartInstallationDate?: string | null;
 }
 
 interface PartRow {
@@ -328,12 +336,20 @@ export interface CategoryFullPayload {
             name: string;
             klValue?: string;
             lifeTime?: { value?: number; unit?: string };
+            lastServiceDate?: string | null;
+            sparePartInstallationDate?: string | null;
             imageUrl?: string | null;
             optimalStateVideoUrl?: string | null;
             parts?: Array<{ _id: string; name: string; imageUrl?: string | null; optimalStateVideoUrl?: string | null }>;
         }>;
     }>;
 }
+
+const toDateInputValue = (value?: string | Date | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+};
 
 function mapCategoryFullToState(payload: CategoryFullPayload): {
     categoryName: string;
@@ -363,6 +379,8 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             id: sp._id,
             name: sp.name ?? "",
             klValue: sp.klValue ?? "",
+            lastServiceDate: toDateInputValue(sp.lastServiceDate),
+            sparePartInstallationDate: toDateInputValue(sp.sparePartInstallationDate),
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
@@ -403,7 +421,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 galleryImages: [],
                 deletedGalleryImageNames: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -421,7 +439,7 @@ const defaultMachineRow = (): MachineRow => ({
     galleryImages: [],
     deletedGalleryImageNames: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -469,7 +487,7 @@ export default function AddCategoryMachineFlow({
             galleryImages: [],
             deletedGalleryImageNames: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -485,7 +503,7 @@ export default function AddCategoryMachineFlow({
     // are unchanged and whose user hasn't picked a new image/video, so a
     // single image upload doesn't fan out into N spare-part PUTs.
     type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
-    type BaselineSparePart = { name: string; klValue: string };
+    type BaselineSparePart = { name: string; klValue: string; lastServiceDate: string; sparePartInstallationDate: string };
     type BaselinePart = { name: string };
     const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
     const sparePartBaselineRef = useRef<Map<string, BaselineSparePart>>(new Map());
@@ -511,6 +529,8 @@ export default function AddCategoryMachineFlow({
                     sparePartBaselineRef.current.set(sp.createdId, {
                         name: sp.name || "",
                         klValue: sp.klValue || "",
+                        lastServiceDate: sp.lastServiceDate || "",
+                        sparePartInstallationDate: sp.sparePartInstallationDate || "",
                     });
                 }
                 for (const pt of sp.parts) {
@@ -543,7 +563,12 @@ export default function AddCategoryMachineFlow({
         if (sp.optimalStateVideoFile) return true;
         const b = sparePartBaselineRef.current.get(sp.createdId);
         if (!b) return true;
-        return (sp.name || "") !== b.name || (sp.klValue || "") !== b.klValue;
+        return (
+            (sp.name || "") !== b.name ||
+            (sp.klValue || "") !== b.klValue ||
+            (sp.lastServiceDate || "") !== b.lastServiceDate ||
+            (sp.sparePartInstallationDate || "") !== b.sparePartInstallationDate
+        );
     }, []);
 
     const isPartDirty = useCallback((pt: PartRow): boolean => {
@@ -606,18 +631,56 @@ export default function AddCategoryMachineFlow({
         onComplete?.();
     }, [closeBlocked, onComplete]);
 
+    const hydrateClientSparePartDates = useCallback(async (rows: MachineRow[]) => {
+        if (!clientID) return rows;
+
+        return Promise.all(
+            rows.map(async (machine) => {
+                if (!machine.createdId) return machine;
+                try {
+                    const res = await fetch(`/api/clients/${encodeURIComponent(clientID)}/machines/${encodeURIComponent(machine.createdId)}/spare-parts`);
+                    if (!res.ok) throw new Error("Failed to load client spare-part dates");
+                    const details = (await res.json()) as ClientSparePartDetails[];
+                    const detailsById = new Map(details.map((detail) => [String(detail._id), detail]));
+
+                    return {
+                        ...machine,
+                        spareParts: machine.spareParts.map((sp) => {
+                            const detail = sp.createdId ? detailsById.get(sp.createdId) : null;
+                            if (!detail) return sp;
+                            return {
+                                ...sp,
+                                lastServiceDate: toDateInputValue(detail.lastServiceDate),
+                                sparePartInstallationDate: toDateInputValue(detail.sparePartInstallationDate),
+                            };
+                        }),
+                    };
+                } catch (error) {
+                    console.warn("Failed to hydrate client spare-part dates", { machineId: machine.createdId, error });
+                    return machine;
+                }
+            })
+        );
+    }, [clientID]);
+
     useEffect(() => {
         if (editDataLoaded) return;
         if (initialData) {
-            const mapped = mapCategoryFullToState(initialData);
-            setCategoryName(mapped.categoryName);
-            setCategoryImageUrl(mapped.categoryImageUrl);
-            setCategoryId(mapped.categoryId);
-            setMachines(mapped.machines);
-            setMachinePositions(mapped.machinePositions);
-            captureBaseline(mapped.machines, mapped.categoryName, mapped.categoryImageUrl);
-            setEditDataLoaded(true);
-            return;
+            let cancelled = false;
+            const loadInitial = async () => {
+                const mapped = mapCategoryFullToState(initialData);
+                const machinesWithDates = await hydrateClientSparePartDates(mapped.machines);
+                if (cancelled) return;
+                setCategoryName(mapped.categoryName);
+                setCategoryImageUrl(mapped.categoryImageUrl);
+                setCategoryId(mapped.categoryId);
+                setMachines(machinesWithDates);
+                setMachinePositions(mapped.machinePositions);
+                captureBaseline(machinesWithDates, mapped.categoryName, mapped.categoryImageUrl);
+                setEditDataLoaded(true);
+            };
+            loadInitial();
+            return () => { cancelled = true; };
         }
         if (!categoryIdForEdit?.trim()) return;
         let cancelled = false;
@@ -627,15 +690,17 @@ export default function AddCategoryMachineFlow({
                 if (!res.ok) throw new Error("Failed to load category");
                 return res.json();
             })
-            .then((payload: CategoryFullPayload) => {
+            .then(async (payload: CategoryFullPayload) => {
                 if (cancelled) return;
                 const mapped = mapCategoryFullToState(payload);
+                const machinesWithDates = await hydrateClientSparePartDates(mapped.machines);
+                if (cancelled) return;
                 setCategoryName(mapped.categoryName);
                 setCategoryImageUrl(mapped.categoryImageUrl);
                 setCategoryId(mapped.categoryId);
-                setMachines(mapped.machines);
+                setMachines(machinesWithDates);
                 setMachinePositions(mapped.machinePositions);
-                captureBaseline(mapped.machines, mapped.categoryName, mapped.categoryImageUrl);
+                captureBaseline(machinesWithDates, mapped.categoryName, mapped.categoryImageUrl);
                 setEditDataLoaded(true);
             })
             .catch(() => {
@@ -645,7 +710,7 @@ export default function AddCategoryMachineFlow({
                 if (!cancelled) setLoading(null);
             });
         return () => { cancelled = true; };
-    }, [initialData, categoryIdForEdit, editDataLoaded, captureBaseline]);
+    }, [initialData, categoryIdForEdit, editDataLoaded, captureBaseline, hydrateClientSparePartDates, clientID]);
 
     // When edit data has just loaded, scroll machines section into view so pre-populated content is visible
     useEffect(() => {
@@ -728,6 +793,24 @@ export default function AddCategoryMachineFlow({
         const data = await res.json();
         return data as { optimalStateVideoUrl?: string };
     }, []);
+
+    const saveClientSparePartDates = useCallback(async (machineId: string, sparePartId: string, sp: SparePartRow) => {
+        if (!clientID) return;
+
+        const res = await fetch(`/api/clients/${encodeURIComponent(clientID)}/machines/${encodeURIComponent(machineId)}/spare-parts`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                sparePartID: sparePartId,
+                lastServiceDate: sp.lastServiceDate ? new Date(sp.lastServiceDate).toISOString() : null,
+                sparePartInstallationDate: sp.sparePartInstallationDate ? new Date(sp.sparePartInstallationDate).toISOString() : null,
+            }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to update spare-part dates");
+        }
+    }, [clientID]);
 
     const deleteEntityVideo = useCallback(async (type: "sparePart" | "part", id: string) => {
         const res = await fetch("/api/upload/entity-video", {
@@ -1289,6 +1372,9 @@ export default function AddCategoryMachineFlow({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to update spare part");
             }
+            if (machine?.createdId) {
+                await saveClientSparePartDates(machine.createdId, sp.createdId, sp);
+            }
             if (sp.imageFile) {
                 await uploadEntityImage("sparePart", sp.createdId, sp.imageFile);
             }
@@ -1325,7 +1411,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, saveClientSparePartDates, onSuccess]);
 
     const handleUpdatePart = useCallback(async (machineRowId: string, sparePartId: string, partId: string) => {
         const machine = machines.find((m) => m.id === machineRowId);
@@ -1488,6 +1574,9 @@ export default function AddCategoryMachineFlow({
                     throw new Error(err.error || "Failed to add spare part");
                 }
                 const spData = await res.json();
+                if (clientID && (sp.lastServiceDate || sp.sparePartInstallationDate)) {
+                    await saveClientSparePartDates(machine.createdId, spData._id, sp);
+                }
                 await uploadEntityImage("sparePart", spData._id, sp.imageFile!);
                 for (const f of sp.pendingImageFiles) {
                     await uploadEntityImageAdd("sparePart", spData._id, f);
@@ -1528,6 +1617,8 @@ export default function AddCategoryMachineFlow({
                                       id: `sp_${Date.now()}`,
                                       name: "",
                                       klValue: "",
+                                      lastServiceDate: "",
+                                      sparePartInstallationDate: "",
                                       imageFile: null,
                                       imageUrls: [],
                                       pendingImageFiles: [],
@@ -1546,7 +1637,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, onSuccess]);
+    }, [machines, isDuplicateKlValue, uploadEntityImage, uploadEntityVideo, saveClientSparePartDates, clientID, onSuccess]);
 
     const handleDeleteSparePartVideo = useCallback(async (machineRowId: string, sparePartId: string) => {
         const sp = machines.find((m) => m.id === machineRowId)?.spareParts.find((s) => s.id === sparePartId);
@@ -1736,6 +1827,25 @@ export default function AddCategoryMachineFlow({
                     }
                 } catch (e) {
                     errors.push(`Text fields: ${e instanceof Error ? e.message : "failed"}`);
+                }
+            }
+
+            if (clientID) {
+                for (const m of machines) {
+                    if (!m.createdId) continue;
+                    for (const sp of m.spareParts) {
+                        if (!sp.createdId) continue;
+                        const baseline = sparePartBaselineRef.current.get(sp.createdId);
+                        const datesDirty = !baseline ||
+                            (sp.lastServiceDate || "") !== baseline.lastServiceDate ||
+                            (sp.sparePartInstallationDate || "") !== baseline.sparePartInstallationDate;
+                        if (!datesDirty) continue;
+                        try {
+                            await saveClientSparePartDates(m.createdId, sp.createdId, sp);
+                        } catch (e) {
+                            errors.push(`Spare part ${sp.name || sp.id} dates: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
                 }
             }
 
@@ -1948,6 +2058,8 @@ export default function AddCategoryMachineFlow({
         uploadEntityVideo,
         uploadMachineGalleryImage,
         deleteMachineGalleryImage,
+        saveClientSparePartDates,
+        clientID,
     ]);
 
     useEffect(() => {
@@ -2365,7 +2477,7 @@ export default function AddCategoryMachineFlow({
                                             </div>
                                             {isSpOpen && (
                                             <div className="p-3 flex flex-col gap-3">
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                                                 <div className="flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Spare Part Name</Label>
                                                     <Input
@@ -2382,6 +2494,24 @@ export default function AddCategoryMachineFlow({
                                                         onChange={(e) => updateSparePart(m.id, sp.id, "klValue", e.target.value)}
                                                         placeholder="Unique ID"
                                                         className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <Label className="text-[#6b7280] text-[11px]">Installation Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={sp.sparePartInstallationDate}
+                                                        onChange={(e) => updateSparePart(m.id, sp.id, "sparePartInstallationDate", e.target.value)}
+                                                        className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px]"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <Label className="text-[#6b7280] text-[11px]">Last Service Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={sp.lastServiceDate}
+                                                        onChange={(e) => updateSparePart(m.id, sp.id, "lastServiceDate", e.target.value)}
+                                                        className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px]"
                                                     />
                                                 </div>
                                             </div>
@@ -2682,6 +2812,7 @@ export default function AddCategoryMachineFlow({
                     open
                     onClose={() => setAddSparePartForMachine(null)}
                     machineId={addSparePartForMachine}
+                    clientId={clientID}
                     existingKlValues={machines.flatMap((mm) => mm.spareParts.map((s) => s.klValue).filter(Boolean))}
                     onCreated={() => { setEditDataLoaded(false); onSuccess?.(); }}
                 />
