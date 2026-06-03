@@ -184,6 +184,7 @@ function MachineImageMapperContent({
     const containerRef = useRef<HTMLDivElement>(null);
     const [natural, setNatural] = useState<{ iw: number; ih: number } | null>(null);
     const [containerSize, setContainerSize] = useState<{ cw: number; ch: number } | null>(null);
+    const [dropdownContainer, setDropdownContainer] = useState<HTMLElement | null>(null);
 
     // Track container px (cw,ch) via ResizeObserver — recomputes on window resize/orientation.
     useEffect(() => {
