@@ -747,7 +747,7 @@ export default function AddCategoryMachineFlow({
             const res = await fetch("/api/machines/machine-category", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, clientId: clientID || null }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));

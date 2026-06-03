@@ -34,14 +34,14 @@ const fetchClientDetails = async (clientID: string, accessToken: string) => {
     }
 }
 
-const fetchCategories = async (accessToken: string) => {
+const fetchCategories = async (accessToken: string, clientID: string) => {
     try {
         if (!process.env.NEXT_PUBLIC_API_URL) {
             console.error('NEXT_PUBLIC_API_URL is not configured');
             return [];
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/machine-category-with-products`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/machine-category-with-products?clientId=${encodeURIComponent(clientID)}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export default async function ClientOverview({ params }: PageProps) {
     const [clientDetails, allClients, categories] = await Promise.all([
         fetchClientDetails(clientID, currentUser.accessToken),
         fetchAllClients(currentUser.accessToken),
-        fetchCategories(currentUser.accessToken)
+        fetchCategories(currentUser.accessToken, clientID)
     ]);
 
     if (!clientDetails) {
@@ -155,21 +155,13 @@ export default async function ClientOverview({ params }: PageProps) {
                 }),
         }));
 
-    const clientCategoryMap = new Map(
-        categoriesWithMachineHealth.map((c: { _id: string }) => [c._id?.toString(), c])
-    );
-
-    const categoriesForOverview = (categories || []).map((cat: { _id: string }) =>
-        clientCategoryMap.get(cat._id?.toString()) ?? { ...cat, machines: [] }
-    );
-
     return (
         <ClientOverviewContent
             clientDetails={clientDetails}
             allClients={allClients}
             currentClientId={clientID}
-            categories={categoriesForOverview}
-            allCategories={categories}
+            categories={categoriesWithMachineHealth}
+            allCategories={categoriesWithMachineHealth}
         />
     );
 }

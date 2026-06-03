@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name } = body;
+        const { name, clientId } = body;
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/machine-category`, {
             method: "POST",
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${currentUser.accessToken}`,
             },
-            body: JSON.stringify({ name }),
+            body: JSON.stringify({ name, clientId: clientId || null }),
         });
 
         if (!response.ok) {
