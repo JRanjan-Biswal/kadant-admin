@@ -1,5 +1,53 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — push to origin/master (1 commit)
+
+### 10a6a6f — fix(client-overview): open upload editor for spare part edits
+
+- **Full SHA:** `10a6a6fac20bbcc1754a681bcb27861b8be5b93f`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-03T23:02:36Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** fix
+- **Subject:** fix(client-overview): open upload editor for spare part edits
+
+#### Task — context
+User reported the production Client Overview page:
+`https://kadant-admin.vercel.app/69fa3cd3894ab16ae9bbb582/client-overview`.
+Verbatim instruction: "on page link : https://kadant-admin.vercel.app/69fa3cd3894ab16ae9bbb582/client-overview issue there is spart parts listed in `overview` tab, there is edit button on click it should take to `upload data` page with proper spare parts open !"
+Prior behavior opened the old `EditSparePartModal` from the Overview tab, so admins were not taken to the full Upload Data hierarchy editor where the spare-part media, parts, and catalog fields are managed.
+
+#### Task — what changed
+- Web / `src/app/components/ClientOverview/ClientOverviewContent.tsx`: replaced the Overview spare-part edit modal path with `openUploadEditor(categoryId, machineId, sparePartId)`, which switches to the Upload Data tab, expands the correct category card, and passes a focus target into the hierarchy editor. Machine edit buttons now also focus the relevant machine in Upload Data. Manual category/add flows clear stale focus targets.
+- Web / `src/app/components/MachineHierarchy/AddCategoryMachineFlow.tsx`: added `focusTarget` support with machine/spare-part IDs plus a request counter; after edit data loads, the editor opens the matching machine and spare-part accordions, scrolls the target into view, and applies a subtle ring to the focused card.
+- Web cleanup: removed the now-unused Overview spare-part modal import/state/save handler/render from `ClientOverviewContent`.
+- Deploy: published the fix to Vercel production via `vercel --prod --yes`; deployment `https://kadant-admin-o7kb5hutr-jranjanbiswals-projects.vercel.app` was aliased to `https://kadant-admin.vercel.app`.
+
+#### Task — design notes
+The handoff passes category, machine, and spare-part IDs from the Overview row instead of making the Upload Data editor infer context. This avoids collisions when spare-part names repeat and preserves the existing `AddCategoryMachineFlow` data loading path. A request counter allows repeated clicks on the same spare part to refocus the editor even if the target IDs are unchanged.
+
+#### Files
+`git show --stat --format="" 10a6a6f`
+
+```text
+.../ClientOverview/ClientOverviewContent.tsx       | 134 ++++-----------------
+.../MachineHierarchy/AddCategoryMachineFlow.tsx    |  58 ++++++++-
+2 files changed, 81 insertions(+), 111 deletions(-)
+```
+
+#### Tests
+- `npx tsc --noEmit` — passed.
+- `npm run build` — passed locally (Next workspace-root warning only).
+- Local browser smoke: logged into `http://localhost:4000`, opened the reported client overview, expanded `Hydrapulper 11DR - 1902573.01`, clicked the first spare-part edit button, and verified Upload Data selected with `Pulping & HDC` / `Hydrapulper 11DR - 1902573.01` / `Vokes rotor 86,4" - KBC - X4CrNi13.4` open and editable.
+- Production browser smoke after deploy: repeated the same non-destructive click path on `https://kadant-admin.vercel.app/69fa3cd3894ab16ae9bbb582/client-overview`; verified `machineClicked=true`, `spareEditClicked=true`, Upload Data selected, and the `Vokes rotor...` spare-part card focused/open with its fields visible.
+
+#### Operator follow-up
+None.
+
+#### Related
+None.
+
 ## 2026-06-02 — push to origin/master (1 commit)
 
 ### 0bafe73 — fix(image-mapper): capture image natural dims for cached images (boxes were hidden)
