@@ -225,7 +225,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                     <div className="p-6 flex gap-3">
                         <div className="flex-1">
                             <InputField
-                                label="Username"
+                                label="Email"
                                 placeholder="Enter email"
                                 value={email}
                                 onChange={setEmail}
@@ -257,7 +257,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                 </div>
 
                 {/* Section 2: Onboarding Images */}
-                <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
+                {/* <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                     <SectionHeader number={2} title="Onboarding Images" />
                     <div className="p-6 flex gap-4">
                         {[0, 1, 2].map(index => (
@@ -275,11 +275,11 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                             />
                         ))}
                     </div>
-                </div>
+                </div> */}
 
                 {/* Section 3: Business Details */}
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
-                    <SectionHeader number={3} title="Business Details" />
+                    <SectionHeader number={2} title="Business Details" />
                     <div className="p-6 flex flex-col gap-6">
                         {/* Row 1 */}
                         <div className="flex gap-3">
@@ -444,7 +444,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
 
                 {/* Section 4: Flowsheet Image */}
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
-                    <SectionHeader number={4} title="Flowsheet Image" />
+                    <SectionHeader number={3} title="Flowsheet Image" />
                     <div className="p-6">
                         <CompressUploadBox
                             label="Click to upload flowsheet diagram"
@@ -457,7 +457,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
 
                 {/* Section 5: Stock Preparation Image */}
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
-                    <SectionHeader number={5} title="Stock Preparation Image" />
+                    <SectionHeader number={4} title="Stock Preparation Image" />
                     <div className="p-6">
                         <CompressUploadBox
                             label="Click to upload stock preparation diagram"
@@ -469,7 +469,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                 </div>
 
                 {/* Section 6: Add Machine Details (Category → Machine → Spare Parts → Parts) */}
-                <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
+                {/* <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                     <SectionHeader number={6} title="Add Machine Details" />
                     <div className="p-6">
                         <AddCategoryMachineFlow
@@ -478,7 +478,7 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                             onMachinesCreated={handleMachinesCreated}
                         />
                     </div>
-                </div>
+                </div> */}
 
                 {/* Bottom Submit Button */}
                 <div className="mx-6 flex justify-end">
