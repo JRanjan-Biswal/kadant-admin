@@ -150,7 +150,7 @@ const MachineMarker = memo(function MachineMarker({
             >
                 <div className="absolute inset-0 bg-black/40 hover:bg-black/20 transition-colors" />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
-                    <span className="text-gray-900 text-[11px] font-medium truncate block leading-tight">
+                    <span className="text-white text-[11px] font-medium truncate block leading-tight">
                         {machine.name}
                     </span>
                 </div>
