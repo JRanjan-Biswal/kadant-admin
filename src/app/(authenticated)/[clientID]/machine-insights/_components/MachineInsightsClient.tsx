@@ -435,7 +435,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
             >
                 {editingSection === "metrix" ? (
                     <div className="flex flex-col gap-3">
-                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                        <div className="bg-amber-50 border border-amber-400 text-amber-800 text-xs rounded-md px-3 py-2">
                             Tip: missing values default to 0/1. Replace placeholders with real numbers — leaving them at 0 will skew downstream Fiber and Power loss calculations.
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -492,7 +492,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
             >
                 {editingSection === "fiberLoss" ? (
                     <div className="flex flex-col gap-4">
-                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                        <div className="bg-amber-50 border border-amber-400 text-amber-800 text-xs rounded-md px-3 py-2">
                             Tip: each range needs an actual percentage. Leaving any at 0 means that hour-window contributes nothing to Total Fiber Loss.
                         </div>
                         <div>
@@ -578,7 +578,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
             >
                 {editingSection === "powerLoss" ? (
                     <div className="flex flex-col gap-3">
-                        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-md px-3 py-2">
+                        <div className="bg-amber-50 border border-amber-400 text-amber-800 text-xs rounded-md px-3 py-2">
                             Tip: Healthy / Wornout values + Power Cost + Installed Motor Power must all be filled. Defaulting any to 0 forces Total Power Loss to 0.
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
