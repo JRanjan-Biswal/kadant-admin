@@ -270,19 +270,19 @@ export default function ImageUploadModal({
                     {currentImageUrl && !pickedFile && (
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[#6b7280] text-[12px]">Current image</span>
-                            <button
-                                type="button"
-                                onClick={() => setViewerImage({ src: currentImageUrl, label: "Current image" })}
-                                className="group relative rounded-[8px] border border-[#d1d5db] bg-white h-[260px] flex items-center justify-center overflow-hidden cursor-zoom-in"
-                                aria-label="View current image"
-                            >
+                            <div className="group relative rounded-[8px] border border-[#d1d5db] bg-white h-[260px] flex items-center justify-center overflow-hidden">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={currentImageUrl} alt="current" className="max-h-full max-w-full object-contain" />
-                                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewerImage({ src: currentImageUrl, label: "Current image" })}
+                                    className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm hover:bg-white transition-colors"
+                                    aria-label="View current image"
+                                >
                                     <Eye className="h-3.5 w-3.5" />
                                     View
-                                </span>
-                            </button>
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -323,29 +323,53 @@ export default function ImageUploadModal({
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Original */}
-                                <div className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!originalFitsLimit ? "opacity-60" : ""} ${choice === "original" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => pickedUrl && setViewerImage({ src: pickedUrl, label: "Original image" })}
-                                        disabled={!pickedUrl}
-                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb] cursor-zoom-in disabled:cursor-default"
-                                        aria-label="View original image"
+                                <div
+                                    role="button"
+                                    tabIndex={originalFitsLimit ? 0 : -1}
+                                    onClick={() => {
+                                        if (originalFitsLimit) setChoice("original");
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (!originalFitsLimit) return;
+                                        if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            setChoice("original");
+                                        }
+                                    }}
+                                    aria-pressed={choice === "original"}
+                                    aria-disabled={!originalFitsLimit}
+                                    className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!originalFitsLimit ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${choice === "original" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}
+                                >
+                                    <div
+                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb]"
+                                        aria-label="Select original image"
                                     >
                                         {pickedUrl && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={pickedUrl} alt="original" className="max-h-full max-w-full object-contain" />
                                         )}
                                         {pickedUrl && (
-                                            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setViewerImage({ src: pickedUrl, label: "Original image" });
+                                                }}
+                                                className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm hover:bg-white transition-colors"
+                                                aria-label="View original image"
+                                            >
                                                 <Eye className="h-3.5 w-3.5" />
                                                 View
-                                            </span>
+                                            </button>
                                         )}
-                                    </button>
+                                    </div>
                                     <div className="px-3 py-2 flex items-center justify-between gap-3 border-t border-[#d1d5db]">
                                         <button
                                             type="button"
-                                            onClick={() => setChoice("original")}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setChoice("original");
+                                            }}
                                             disabled={!originalFitsLimit}
                                             className="text-gray-900 text-[12px] font-medium flex items-center gap-1 disabled:cursor-not-allowed disabled:text-[#6b7280]"
                                             aria-pressed={choice === "original"}
@@ -359,13 +383,26 @@ export default function ImageUploadModal({
                                 </div>
 
                                 {/* Compressed */}
-                                <div className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!compressedFile || !compressedFitsLimit ? "opacity-60" : ""} ${choice === "compressed" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => compressedUrl && setViewerImage({ src: compressedUrl, label: "Compressed image" })}
-                                        disabled={!compressedUrl}
-                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb] cursor-zoom-in disabled:cursor-default"
-                                        aria-label="View compressed image"
+                                <div
+                                    role="button"
+                                    tabIndex={compressedFile && compressedFitsLimit ? 0 : -1}
+                                    onClick={() => {
+                                        if (compressedFile && compressedFitsLimit) setChoice("compressed");
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (!compressedFile || !compressedFitsLimit) return;
+                                        if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            setChoice("compressed");
+                                        }
+                                    }}
+                                    aria-pressed={choice === "compressed"}
+                                    aria-disabled={!compressedFile || !compressedFitsLimit}
+                                    className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!compressedFile || !compressedFitsLimit ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${choice === "compressed" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}
+                                >
+                                    <div
+                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb]"
+                                        aria-label="Select compressed image"
                                     >
                                         {compressing && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-white/60">
@@ -377,16 +414,27 @@ export default function ImageUploadModal({
                                             <img src={compressedUrl} alt="compressed" className="max-h-full max-w-full object-contain" />
                                         )}
                                         {compressedUrl && (
-                                            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setViewerImage({ src: compressedUrl, label: "Compressed image" });
+                                                }}
+                                                className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm hover:bg-white transition-colors"
+                                                aria-label="View compressed image"
+                                            >
                                                 <Eye className="h-3.5 w-3.5" />
                                                 View
-                                            </span>
+                                            </button>
                                         )}
-                                    </button>
+                                    </div>
                                     <div className="px-3 py-2 flex items-center justify-between gap-3 border-t border-[#d1d5db]">
                                         <button
                                             type="button"
-                                            onClick={() => setChoice("compressed")}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setChoice("compressed");
+                                            }}
                                             disabled={!compressedFile || !compressedFitsLimit}
                                             className="text-gray-900 text-[12px] font-medium flex items-center gap-1 disabled:cursor-not-allowed disabled:text-[#6b7280]"
                                             aria-pressed={choice === "compressed"}
