@@ -1,5 +1,50 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — fifth push to origin/master (1 commit)
+
+### 47d3a91 — fix(image-upload): separate selection from preview view
+
+- **Full SHA:** `47d3a917ed8f42a619183d3d206f715faadb265b`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-04T07:17:35Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** fix
+- **Subject:** fix(image-upload): separate selection from preview view
+
+#### Task — context
+User reported a regression after the large image viewer was added to the shared upload modal. Verbatim instruction: "only when i click on view button the iimage big view should open, the issue is i am not able to select the images"
+The previous implementation made the entire original/compressed image preview area open the large viewer, which meant a normal click on the preview no longer selected the image version to save.
+
+#### Task — what changed
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: changed Current Image preview from an all-over view button into a passive image area with a dedicated `View` button.
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: changed Original and Compressed cards so the card/preview area selects that upload choice again.
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: moved the large-preview action onto the small `View` button only, with click propagation stopped so it does not also change selection.
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: kept keyboard selection support on the Original/Compressed cards through `Enter` / `Space`.
+
+#### Task — design notes
+The interaction now separates two user intents: click the card to choose the image that will be saved, click `View` to inspect it larger. This keeps the new large preview feature without breaking the older save-selection workflow.
+
+#### Files
+`git show --stat --format="" 47d3a91`
+
+```text
+.../MachineHierarchy/ImageUploadModal.tsx          | 110 +++++++++++++++------
+1 file changed, 79 insertions(+), 31 deletions(-)
+```
+
+#### Tests
+- `npx tsc --noEmit` — passed.
+- `git diff --check` — passed.
+- `npm run lint` — passed with existing unrelated warnings.
+- Local browser verification on `http://localhost:4000/69fa3cd3894ab16ae9bbb582/client-overview`: opened Facility Image upload modal, clicked the current image area away from the `View` button and confirmed no large preview opened; clicked `View current image` and confirmed the large preview opened.
+
+#### Operator follow-up
+Deploy `kadant-admin` to Vercel production after the ledger commit is pushed.
+
+#### Related
+Previous shared image modal deployment: `b18e71e`.
+
 ## 2026-06-04 — push to origin/master (1 commit)
 
 ### b18e71e — fix(client-overview): improve client images and spare part data
