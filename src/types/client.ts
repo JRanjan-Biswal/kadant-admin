@@ -9,6 +9,7 @@ export interface Client {
     region?: string;
     /** ObjectId ref to Regions collection (new data). Resolved to string via helper. */
     regions?: string;
+    phone?: string;
     customer?: string;
     location: {
         address: string;
