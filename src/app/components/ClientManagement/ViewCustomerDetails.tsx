@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
-import { 
+import {
     ArrowLeft,
     Building2,
     MapPin,
@@ -17,7 +17,8 @@ import {
 import ChangeIdModal from "./modals/ChangeIdModal";
 import ChangePasswordModal from "./modals/ChangePasswordModal";
 import ChangeRegionModal from "./modals/ChangeRegionModal";
-import ChangeCustomerModal from "./modals/ChangeCustomerModal";
+import ChangeOwnerModal from "./modals/ChangeOwnerModal";
+import ChangePhoneModal from "./modals/ChangePhoneModal";
 import ConfirmationDialog from "./modals/ConfirmationDialog";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import {
@@ -25,7 +26,8 @@ import {
     updateClientPassword,
     updateClientVisibility,
     updateClientRegion,
-    updateClientCustomer,
+    updateClientOwnership,
+    updateClientPhone,
 } from "@/actions/update-client-credentials";
 
 interface ViewCustomerDetailsProps {
@@ -34,14 +36,14 @@ interface ViewCustomerDetailsProps {
 }
 
 // Info Card Component
-const InfoCard = ({ 
-    icon: Icon, 
-    label, 
+const InfoCard = ({
+    icon: Icon,
+    label,
     value,
     iconColor = "text-[#6b7280]"
-}: { 
-    icon: React.ElementType; 
-    label: string; 
+}: {
+    icon: React.ElementType;
+    label: string;
     value: string;
     iconColor?: string;
 }) => (
@@ -54,7 +56,7 @@ const InfoCard = ({
     </div>
 );
 
-// Section Header Component (without number) — light blue-gray strip with bold navy
+// Section Header Component
 const SectionTitle = ({ title, action }: { title: string; action?: React.ReactNode }) => (
     <div className="bg-[#DFE6EC] border-b border-[#96A5BA] px-6 py-4 flex items-center justify-between">
         <h3 className="text-[#2D3E5C] text-lg font-bold leading-7">{title}</h3>
@@ -71,14 +73,14 @@ const ContactRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 // Account Management Row
-const AccountRow = ({ 
-    label, 
-    value, 
+const AccountRow = ({
+    label,
+    value,
     onEdit,
     isEditing = false
-}: { 
-    label: string; 
-    value: string; 
+}: {
+    label: string;
+    value: string;
     onEdit: () => void;
     isEditing?: boolean;
 }) => (
@@ -99,12 +101,12 @@ const AccountRow = ({
 );
 
 // Activate/Deactivate Toggle
-const VisibilityToggle = ({ 
-    isActive, 
+const VisibilityToggle = ({
+    isActive,
     onToggle,
     isLoading = false
-}: { 
-    isActive: boolean; 
+}: {
+    isActive: boolean;
     onToggle: () => void;
     isLoading?: boolean;
 }) => (
@@ -137,32 +139,35 @@ const VisibilityToggle = ({
 export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDetailsProps) {
     const [isActive, setIsActive] = useState(client.isActive);
     const [currentUsername, setCurrentUsername] = useState(
-        typeof client.clientOwnership === 'object' 
-            ? client.clientOwnership.email 
+        typeof client.clientOwnership === 'object'
+            ? client.clientOwnership.email
             : "N/A"
     );
     const [currentRegion, setCurrentRegion] = useState(client.region || "");
-    const [currentCustomer, setCurrentCustomer] = useState(client.customer || "");
+    const [currentOwnerName, setCurrentOwnerName] = useState(
+        typeof client.clientOwnership === 'object'
+            ? client.clientOwnership.name || "N/A"
+            : "N/A"
+    );
+    const [currentOwnerEmail, setCurrentOwnerEmail] = useState(
+        typeof client.clientOwnership === 'object'
+            ? client.clientOwnership.email || "N/A"
+            : "N/A"
+    );
+    const [currentPhone, setCurrentPhone] = useState(client.phone || "");
 
     // Modal states
     const [showChangeIdModal, setShowChangeIdModal] = useState(false);
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const [showChangeRegionModal, setShowChangeRegionModal] = useState(false);
-    const [showChangeCustomerModal, setShowChangeCustomerModal] = useState(false);
+    const [showChangeOwnerModal, setShowChangeOwnerModal] = useState(false);
+    const [showChangePhoneModal, setShowChangePhoneModal] = useState(false);
     const [showEditBusinessModal, setShowEditBusinessModal] = useState(false);
     const [showVisibilityConfirmation, setShowVisibilityConfirmation] = useState(false);
     const [pendingVisibilityChange, setPendingVisibilityChange] = useState<boolean | null>(null);
-    
+
     // Loading states
     const [isToggling, setIsToggling] = useState(false);
-
-    const handleEditId = () => {
-        setShowChangeIdModal(true);
-    };
-
-    const handleEditPassword = () => {
-        setShowChangePasswordModal(true);
-    };
 
     const handleSaveId = async (newId: string) => {
         const result = await updateClientEmail(client._id, newId);
@@ -196,13 +201,25 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
         }
     };
 
-    const handleSaveCustomer = async (customer: string) => {
-        const result = await updateClientCustomer(client._id, customer);
+    const handleSaveOwner = async (userID: string, userName: string, userEmail: string) => {
+        const result = await updateClientOwnership(client._id, userID);
         if (result.success) {
-            setCurrentCustomer(customer);
-            toast.success(result.message || "Customer updated successfully");
+            setCurrentOwnerName(userName);
+            setCurrentOwnerEmail(userEmail);
+            toast.success(result.message || "Owner updated successfully");
         } else {
-            toast.error(result.error || "Failed to update customer");
+            toast.error(result.error || "Failed to update owner");
+            throw new Error(result.error);
+        }
+    };
+
+    const handleSavePhone = async (phone: string) => {
+        const result = await updateClientPhone(client._id, phone);
+        if (result.success) {
+            setCurrentPhone(phone);
+            toast.success(result.message || "Phone updated successfully");
+        } else {
+            toast.error(result.error || "Failed to update phone");
             throw new Error(result.error);
         }
     };
@@ -214,7 +231,6 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
 
     const handleConfirmVisibility = async () => {
         if (pendingVisibilityChange === null) return;
-        
         setIsToggling(true);
         try {
             const result = await updateClientVisibility(client._id, pendingVisibilityChange);
@@ -232,14 +248,6 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
             setPendingVisibilityChange(null);
         }
     };
-
-    // Get owner info
-    const ownerName = typeof client.clientOwnership === 'object' 
-        ? client.clientOwnership.name 
-        : "N/A";
-    const ownerEmail = typeof client.clientOwnership === 'object' 
-        ? client.clientOwnership.email 
-        : "N/A";
 
     return (
         <>
@@ -278,45 +286,41 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                 </button>
                             }
                         />
-                        
+
                         <div className="p-6">
-                            {/* Grid of Info Cards */}
                             <div className="grid grid-cols-3 gap-6">
-                                {/* Row 1 */}
-                                <InfoCard 
-                                    icon={Building2} 
-                                    label="Company Name" 
+                                <InfoCard
+                                    icon={Building2}
+                                    label="Company Name"
                                     value={client.name}
                                     iconColor="text-[#d45815]"
                                 />
-                                <InfoCard 
-                                    icon={MapPin} 
-                                    label="Location" 
+                                <InfoCard
+                                    icon={MapPin}
+                                    label="Location"
                                     value={client.location?.address}
                                     iconColor="text-[#d45815]"
                                 />
-                                <InfoCard 
-                                    icon={Globe} 
-                                    label="Region" 
+                                <InfoCard
+                                    icon={Globe}
+                                    label="Region"
                                     value={currentRegion || "N/A"}
                                     iconColor="text-[#d45815]"
                                 />
-                                
-                                {/* Row 2 */}
-                                <InfoCard 
-                                    icon={Package} 
-                                    label="End Product" 
+                                <InfoCard
+                                    icon={Package}
+                                    label="End Product"
                                     value={client.endProduct}
                                     iconColor="text-[#d45815]"
                                 />
-                                <InfoCard 
-                                    icon={User} 
-                                    label="Owner" 
-                                    value={ownerName}
+                                <InfoCard
+                                    icon={User}
+                                    label="Owner"
+                                    value={currentOwnerName}
                                 />
-                                <InfoCard 
-                                    icon={Gauge} 
-                                    label="Capacity" 
+                                <InfoCard
+                                    icon={Gauge}
+                                    label="Capacity"
                                     value={client.capacity}
                                     iconColor="text-[#d45815]"
                                 />
@@ -330,9 +334,9 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                         <div className="bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                             <SectionTitle title="Contact Information" />
                             <div className="p-6 flex flex-col gap-4">
-                                <ContactRow label="Primary Contact" value={ownerName} />
-                                <ContactRow label="Email" value={ownerEmail} />
-                                <ContactRow label="Phone" value="+91 0000000000" />
+                                <ContactRow label="Primary Contact" value={currentOwnerName} />
+                                <ContactRow label="Email" value={currentOwnerEmail} />
+                                <ContactRow label="Phone" value={currentPhone} />
                             </div>
                         </div>
 
@@ -340,15 +344,15 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                         <div className="bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
                             <SectionTitle title="Account Management" />
                             <div className="p-6 flex flex-col gap-4">
-                                <AccountRow 
-                                    label="Change ID" 
+                                <AccountRow
+                                    label="Change ID"
                                     value={currentUsername}
-                                    onEdit={handleEditId}
+                                    onEdit={() => setShowChangeIdModal(true)}
                                 />
-                                <AccountRow 
-                                    label="Change Password" 
+                                <AccountRow
+                                    label="Change Password"
                                     value="••••••••••"
-                                    onEdit={handleEditPassword}
+                                    onEdit={() => setShowChangePasswordModal(true)}
                                 />
                                 <AccountRow
                                     label="Change Region"
@@ -356,13 +360,18 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                     onEdit={() => setShowChangeRegionModal(true)}
                                 />
                                 <AccountRow
-                                    label="Change Customer"
-                                    value={currentCustomer || "Not set"}
-                                    onEdit={() => setShowChangeCustomerModal(true)}
+                                    label="Change Owner"
+                                    value={currentOwnerName}
+                                    onEdit={() => setShowChangeOwnerModal(true)}
+                                />
+                                <AccountRow
+                                    label="Change Phone"
+                                    value={currentPhone || "Not set"}
+                                    onEdit={() => setShowChangePhoneModal(true)}
                                 />
                                 <div className="flex items-center justify-between">
                                     <span className="text-[#6b7280] text-base leading-6">Account Status</span>
-                                    <VisibilityToggle 
+                                    <VisibilityToggle
                                         isActive={isActive}
                                         onToggle={handleToggleVisibilityClick}
                                         isLoading={isToggling}
@@ -402,11 +411,18 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                 onSave={handleSaveRegion}
             />
 
-            <ChangeCustomerModal
-                open={showChangeCustomerModal}
-                onOpenChange={setShowChangeCustomerModal}
-                currentCustomer={currentCustomer}
-                onSave={handleSaveCustomer}
+            <ChangeOwnerModal
+                open={showChangeOwnerModal}
+                onOpenChange={setShowChangeOwnerModal}
+                currentOwnerName={currentOwnerName}
+                onSave={handleSaveOwner}
+            />
+
+            <ChangePhoneModal
+                open={showChangePhoneModal}
+                onOpenChange={setShowChangePhoneModal}
+                currentPhone={currentPhone}
+                onSave={handleSavePhone}
             />
 
             <ConfirmationDialog

@@ -66,10 +66,10 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
     const [dailyRunningHours, setDailyRunningHours] = useState("");
     const [powerCost, setPowerCost] = useState("");
     const [fiberCost, setFiberCost] = useState("");
-    const [businessImage, setBusinessImage] = useState<File | null>(null);
-    
-    // Flowsheet & Stock Preparation Images
-    const [flowsheetImage, setFlowsheetImage] = useState<File | null>(null);
+    const [homeImage, setHomeImage] = useState<File | null>(null);
+
+    // Facility & Stock Preparation Images
+    const [facilityImage, setFacilityImage] = useState<File | null>(null);
     const [stockPrepImage, setStockPrepImage] = useState<File | null>(null);
 
     // Machine IDs created via AddCategoryMachineFlow — linked to the client on submit
@@ -116,9 +116,9 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
         try {
             // Upload any staged images straight to S3 (any size — original or
             // compressed) and collect their asset paths to store on the new client.
-            const [businessPath, flowsheetPath, stockPrepPath] = await Promise.all([
-                businessImage ? uploadClientImageDirect(businessImage) : Promise.resolve(undefined),
-                flowsheetImage ? uploadClientImageDirect(flowsheetImage) : Promise.resolve(undefined),
+            const [homePath, facilityPath, stockPrepPath] = await Promise.all([
+                homeImage ? uploadClientImageDirect(homeImage) : Promise.resolve(undefined),
+                facilityImage ? uploadClientImageDirect(facilityImage) : Promise.resolve(undefined),
                 stockPrepImage ? uploadClientImageDirect(stockPrepImage) : Promise.resolve(undefined),
             ]);
             const onboardingPaths = (
@@ -160,8 +160,8 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                 machineIds: createdMachineIds,
 
                 // Onboarding images (asset paths from direct-to-S3 upload)
-                businessImage: businessPath,
-                flowsheetImage: flowsheetPath,
+                homeImage: homePath,
+                facilityImage: facilityPath,
                 stockPrepImage: stockPrepPath,
                 onboardingImages: onboardingPaths.length ? onboardingPaths : undefined,
             };
@@ -429,28 +429,28 @@ export default function AddCustomerForm({ onBack, existingRegions }: AddCustomer
                             </div>
                         </div>
 
-                        {/* Business Image */}
+                        {/* Home Image */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-[#6b7280] text-sm leading-5">Business Image</label>
+                            <label className="text-[#6b7280] text-sm leading-5">Home Image</label>
                             <CompressUploadBox
-                                label="Click to upload business image"
+                                label="Click to upload home image"
                                 sublabel="Upload multiple images (PNG, JPG, GIF)"
-                                file={businessImage}
-                                onFileChange={setBusinessImage}
+                                file={homeImage}
+                                onFileChange={setHomeImage}
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Section 4: Flowsheet Image */}
+                {/* Section 4: Facility Image */}
                 <div className="mx-6 bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden">
-                    <SectionHeader number={3} title="Flowsheet Image" />
+                    <SectionHeader number={3} title="Facility Image" />
                     <div className="p-6">
                         <CompressUploadBox
-                            label="Click to upload flowsheet diagram"
+                            label="Click to upload facility image"
                             sublabel="PNG, JPG (Max 10MB)"
-                            file={flowsheetImage}
-                            onFileChange={setFlowsheetImage}
+                            file={facilityImage}
+                            onFileChange={setFacilityImage}
                         />
                     </div>
                 </div>

@@ -330,13 +330,6 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                         <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
                         Refresh
                     </Button>
-                    <Button
-                        onClick={() => setImportOpen(true)}
-                        className="bg-[#d45815] hover:bg-[#b8480f]"
-                    >
-                        <Upload className="w-4 h-4 mr-1" />
-                        Import CSV
-                    </Button>
                 </div>
             </div>
 

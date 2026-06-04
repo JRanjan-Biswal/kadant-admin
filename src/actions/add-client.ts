@@ -55,8 +55,8 @@ export interface AddClientFormData {
     machineIds?: string[];
 
     // Onboarding images — relative asset paths from the direct-to-S3 upload
-    businessImage?: string;
-    flowsheetImage?: string;
+    homeImage?: string;
+    facilityImage?: string;
     stockPrepImage?: string;
     onboardingImages?: string[];
 }
@@ -108,8 +108,8 @@ export async function addClient(formData: AddClientFormData): Promise<AddClientR
             machineIds: formData.machineIds,
 
             // Onboarding images (relative asset paths)
-            businessImage: formData.businessImage,
-            flowsheetImage: formData.flowsheetImage,
+            homeImage: formData.homeImage,
+            facilityImage: formData.facilityImage,
             stockPrepImage: formData.stockPrepImage,
             onboardingImages: formData.onboardingImages,
         };

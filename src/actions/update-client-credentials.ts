@@ -199,6 +199,74 @@ export async function updateClientVisibility(
     }
 }
 
+// Update client contact phone
+export async function updateClientPhone(
+    clientId: string,
+    phone: string
+): Promise<UpdateCredentialsResult> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser?.accessToken) return { success: false, error: 'Unauthorized' };
+
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/phone`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentUser.accessToken}`,
+                },
+                body: JSON.stringify({ phone }),
+            }
+        );
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Failed to update phone' }));
+            return { success: false, error: err.message || 'Failed to update phone' };
+        }
+
+        const data = await response.json();
+        revalidatePath('/client-management');
+        return { success: true, message: data.message };
+    } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unexpected error' };
+    }
+}
+
+// Update client ownership (which Kadant admin manages this client)
+export async function updateClientOwnership(
+    clientId: string,
+    userID: string
+): Promise<UpdateCredentialsResult> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser?.accessToken) return { success: false, error: 'Unauthorized' };
+
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/ownership`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentUser.accessToken}`,
+                },
+                body: JSON.stringify({ userID }),
+            }
+        );
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Failed to update owner' }));
+            return { success: false, error: err.message || 'Failed to update owner' };
+        }
+
+        const data = await response.json();
+        revalidatePath('/client-management');
+        return { success: true, message: data.message };
+    } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unexpected error' };
+    }
+}
+
 // Update client customer grouping name
 export async function updateClientCustomer(
     clientId: string,
