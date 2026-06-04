@@ -1,5 +1,62 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-04 — push to origin/master (1 commit)
+
+### b18e71e — fix(client-overview): improve client images and spare part data
+
+- **Full SHA:** `b18e71ecbd0609db59c72ba1bc902280acce6c68`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-04T07:07:41Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** fix
+- **Subject:** fix(client-overview): improve client images and spare part data
+
+#### Task — context
+User requested deploying the current work across the Kadant projects. Verbatim instruction: "now let deploy this for all the projects."
+This admin commit bundles the local changes prepared during the same session: spare-parts inventory schedule metadata from the provided CSV, client-details owner/login mapping corrections, safer client image upload handling, and the final request to add a much larger "View" experience to every shared upload-image modal.
+
+#### Task — what changed
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: moved the shared upload modal into a high-z-index portal, replaced the hidden label upload target with an explicit button trigger, enlarged the original/compressed previews, added `View` actions for current/original/compressed images, and added a full-screen large image viewer above nested dialogs.
+- Web / `src/app/components/MachineHierarchy/ImageUploadModal.tsx`: added saved-image size validation support and fixed blob URL lifecycle management so the original selected image remains loadable in the large viewer after compression finishes.
+- Web / `src/app/components/Modals/EditClientDetails.tsx`: wired home/facility image changes through the shared compression modal and enforced the requested 10 MB saved-image cap/copy for those client images.
+- Web / `src/app/components/ClientManagement/*`, `src/actions/update-client-credentials.ts`, `src/types/client.ts`: corrected client details to surface the client-role login/owner information and update owner display without exposing unrelated admin credentials.
+- Web / `src/app/(authenticated)/[clientID]/spare-parts-inventory/*`: added/editable maintenance schedule fields used for spare-part forecast timing, including CSV import and weekly planning UI updates.
+- Web / `src/app/components/ClientOverview/ClientOverviewContent.tsx`: carried the client overview image/data integration changes needed by the latest modal workflow.
+
+#### Task — design notes
+The image viewer was implemented in the shared `ImageUploadModal` so every upload-image modal benefits at once instead of duplicating client-overview-only code. The large viewer uses a second top-level overlay with the same maximum z-index and click/Escape close behavior, which avoids the Radix parent dialog swallowing clicks. Original/compressed cards separate "view image" from "choose saved version" so previewing does not accidentally change the selected upload. Client image size validation stays per-caller through `maxSavedBytes`, preserving full-size behavior for other modal consumers.
+
+#### Files
+`git show --stat --format="" b18e71e`
+
+```text
+src/actions/update-client-credentials.ts           |  52 +++
+.../spare-parts-inventory/CsvImportWizard.tsx      |  56 +++-
+.../MaintenanceScheduleEditor.tsx                  |  39 ++-
+.../SparePartsInventoryClient.tsx                  | 206 ++++++------
+.../ClientManagement/ClientManagementPage.tsx      |  10 +-
+.../ClientManagement/ViewCustomerDetails.tsx       |  41 ++-
+.../ClientManagement/modals/ChangeOwnerModal.tsx   |  66 ++--
+.../ClientOverview/ClientOverviewContent.tsx       |  13 +-
+.../MachineHierarchy/ImageUploadModal.tsx          | 234 +++++++++++---
+src/app/components/Modals/EditClientDetails.tsx    | 354 ++++++++++-----------
+src/types/client.ts                                |  18 +-
+11 files changed, 679 insertions(+), 410 deletions(-)
+```
+
+#### Tests
+- `npx tsc --noEmit` — passed.
+- `git diff --check` — passed.
+- `npm run lint` — passed with existing unrelated warnings.
+- Local browser verification on `http://localhost:4000/69fa3cd3894ab16ae9bbb582/client-overview`: opened Edit Client & Machine Details, opened Facility Image upload modal above the parent dialog, verified `View current image` opens the large preview with the real facility image loaded at natural dimensions `3150 x 1851` and rendered about `904 x 531` inside the large preview panel.
+
+#### Operator follow-up
+Deploy `kadant-admin` to Vercel production after the ledger commit is pushed.
+
+#### Related
+Sibling API commit: `b0505d5`. Sibling Machine Health commit: `e0d8c2b`.
+
 ## 2026-06-04 — fourth push to origin/master (1 commit)
 
 ### 57b8af6 — Merge remote-tracking branch 'origin/bhavesh-dev'
