@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, Check, Loader2 } from "lucide-react";
-import { fetchAdminUsers, AdminUser } from "@/actions/fetch-admin-users";
 
 interface ChangeOwnerModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     currentOwnerName: string;
-    onSave: (userID: string, userName: string, userEmail: string) => Promise<void>;
+    onSave: (ownerName: string) => Promise<void>;
 }
 
 export default function ChangeOwnerModal({
@@ -18,41 +17,34 @@ export default function ChangeOwnerModal({
     currentOwnerName,
     onSave,
 }: ChangeOwnerModalProps) {
-    const [users, setUsers] = useState<AdminUser[]>([]);
-    const [selectedUserID, setSelectedUserID] = useState("");
+    const [ownerName, setOwnerName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState("");
-
-    useEffect(() => {
-        if (!open) return;
-        setIsFetching(true);
-        fetchAdminUsers()
-            .then(setUsers)
-            .finally(() => setIsFetching(false));
-    }, [open]);
 
     const handleSave = async () => {
         setError("");
-        if (!selectedUserID) {
-            setError("Please select an owner");
+        const nextOwnerName = ownerName.trim();
+        if (!nextOwnerName) {
+            setError("Owner name is required");
             return;
         }
-        const selected = users.find((u) => u._id === selectedUserID);
-        if (!selected) return;
+        if (nextOwnerName === currentOwnerName) {
+            setError("Owner name must be different from current owner");
+            return;
+        }
         setIsLoading(true);
         try {
-            await onSave(selectedUserID, selected.name, selected.email);
+            await onSave(nextOwnerName);
             handleClose();
         } catch {
-            setError("Failed to update owner");
+            setError("Failed to update owner name");
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClose = () => {
-        setSelectedUserID("");
+        setOwnerName("");
         setError("");
         onOpenChange(false);
     };
@@ -64,7 +56,7 @@ export default function ChangeOwnerModal({
                 className="bg-white border border-[#96A5BA] rounded-[14px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] p-0 max-w-[500px] overflow-hidden"
             >
                 <div className="bg-[#DFE6EC] border-b border-[#96A5BA] flex items-center justify-between h-[72px] px-6">
-                    <h3 className="text-[#2D3E5C] text-xl font-bold leading-7">Change Owner</h3>
+                    <h3 className="text-[#2D3E5C] text-xl font-bold leading-7">Change Owner Name</h3>
                     <button
                         type="button"
                         onClick={handleClose}
@@ -83,26 +75,14 @@ export default function ChangeOwnerModal({
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[#6b7280] text-base leading-6">New Owner</label>
-                        {isFetching ? (
-                            <div className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[46px] px-4 flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin text-[#6b7280]" />
-                                <span className="text-[#6b7280] text-base">Loading users...</span>
-                            </div>
-                        ) : (
-                            <select
-                                value={selectedUserID}
-                                onChange={(e) => setSelectedUserID(e.target.value)}
-                                className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[46px] px-4 text-[#2D3E5C] text-base outline-none focus:border-[#d45815] transition-colors cursor-pointer"
-                            >
-                                <option value="">Select a user...</option>
-                                {users.map((u) => (
-                                    <option key={u._id} value={u._id}>
-                                        {u.name} ({u.role})
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        <label className="text-[#6b7280] text-base leading-6">New Owner Name</label>
+                        <input
+                            type="text"
+                            value={ownerName}
+                            onChange={(e) => setOwnerName(e.target.value)}
+                            placeholder="Enter owner name"
+                            className="bg-[#DFE6EC] border border-[#96A5BA] rounded-[10px] h-[46px] px-4 text-[#2D3E5C] text-base placeholder:text-[#4a4a4a] outline-none focus:border-[#d45815] transition-colors"
+                        />
                     </div>
 
                     {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -120,7 +100,7 @@ export default function ChangeOwnerModal({
                     <button
                         type="button"
                         onClick={handleSave}
-                        disabled={isLoading || isFetching}
+                        disabled={isLoading}
                         className="bg-[#2D3E5C] text-white px-5 py-[10px] rounded-[10px] text-base font-bold leading-6 hover:bg-[#1f2a44] transition-colors flex items-center gap-[9px] disabled:opacity-50"
                     >
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

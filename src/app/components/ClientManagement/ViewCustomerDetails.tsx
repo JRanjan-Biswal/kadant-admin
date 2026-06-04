@@ -26,7 +26,7 @@ import {
     updateClientPassword,
     updateClientVisibility,
     updateClientRegion,
-    updateClientOwnership,
+    updateClientOwnerName,
     updateClientPhone,
 } from "@/actions/update-client-credentials";
 
@@ -136,23 +136,30 @@ const VisibilityToggle = ({
     </div>
 );
 
+const isUserObject = (value: unknown): value is { name?: string; email?: string; role?: string } => {
+    return typeof value === "object" && value !== null;
+};
+
+const getClientAccount = (client: Client) => {
+    if (isUserObject(client.loginUser)) return client.loginUser;
+    if (isUserObject(client.clientOwnership) && client.clientOwnership.role === "client") {
+        return client.clientOwnership;
+    }
+    return null;
+};
+
 export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDetailsProps) {
+    const clientAccount = getClientAccount(client);
     const [isActive, setIsActive] = useState(client.isActive);
     const [currentUsername, setCurrentUsername] = useState(
-        typeof client.clientOwnership === 'object'
-            ? client.clientOwnership.email
-            : "N/A"
+        clientAccount?.email || "N/A"
     );
     const [currentRegion, setCurrentRegion] = useState(client.region || "");
     const [currentOwnerName, setCurrentOwnerName] = useState(
-        typeof client.clientOwnership === 'object'
-            ? client.clientOwnership.name || "N/A"
-            : "N/A"
+        clientAccount?.name || "N/A"
     );
     const [currentOwnerEmail, setCurrentOwnerEmail] = useState(
-        typeof client.clientOwnership === 'object'
-            ? client.clientOwnership.email || "N/A"
-            : "N/A"
+        clientAccount?.email || "N/A"
     );
     const [currentPhone, setCurrentPhone] = useState(client.phone || "");
 
@@ -173,6 +180,7 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
         const result = await updateClientEmail(client._id, newId);
         if (result.success) {
             setCurrentUsername(newId);
+            setCurrentOwnerEmail(newId);
             toast.success(result.message || "Email updated successfully");
         } else {
             toast.error(result.error || "Failed to update email");
@@ -201,14 +209,13 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
         }
     };
 
-    const handleSaveOwner = async (userID: string, userName: string, userEmail: string) => {
-        const result = await updateClientOwnership(client._id, userID);
+    const handleSaveOwner = async (ownerName: string) => {
+        const result = await updateClientOwnerName(client._id, ownerName);
         if (result.success) {
-            setCurrentOwnerName(userName);
-            setCurrentOwnerEmail(userEmail);
-            toast.success(result.message || "Owner updated successfully");
+            setCurrentOwnerName(ownerName);
+            toast.success(result.message || "Owner name updated successfully");
         } else {
-            toast.error(result.error || "Failed to update owner");
+            toast.error(result.error || "Failed to update owner name");
             throw new Error(result.error);
         }
     };
@@ -360,7 +367,7 @@ export default function ViewCustomerDetails({ client, onBack }: ViewCustomerDeta
                                     onEdit={() => setShowChangeRegionModal(true)}
                                 />
                                 <AccountRow
-                                    label="Change Owner"
+                                    label="Change Owner Name"
                                     value={currentOwnerName}
                                     onEdit={() => setShowChangeOwnerModal(true)}
                                 />

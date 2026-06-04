@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Upload, RefreshCw, Save, X, Loader2 } from "lucide-react";
+import { CalendarDays, Pencil, Upload, RefreshCw, Save, X, Loader2 } from "lucide-react";
 import {
     fetchInventoryForMachine,
     saveSparePart,
@@ -28,6 +28,7 @@ import {
     type MaintenanceScheduleEntry,
 } from "@/actions/spare-parts-inventory";
 import CsvImportWizard from "./CsvImportWizard";
+import MaintenanceScheduleEditor from "./MaintenanceScheduleEditor";
 
 interface Props {
     clientID: string;
@@ -93,35 +94,60 @@ const deliveryText = (sp: InventorySparePart): string => {
     return "—";
 };
 
-// Frequency = gap between the first two scheduled checks (e.g. weeks 4 and 12 → "Every 8 weeks").
-// Falls back to "—" if there aren't enough check entries to compute a gap.
+const intervalText = (label: string, weeks: number[]): string | null => {
+    const sorted = weeks.sort((a, b) => a - b);
+    if (sorted.length >= 2) return `${label} every ${sorted[1] - sorted[0]} weeks`;
+    if (sorted.length === 1) return `${label} at week ${sorted[0]}`;
+    return null;
+};
+
+// Summarize the week-grid schedule without flattening mixed Check/Change rows.
 const frequencyText = (schedule: MaintenanceScheduleEntry[]): string => {
     if (!schedule || schedule.length === 0) return "—";
     const checks = schedule
         .filter((e) => /check/i.test(e.action))
         .map((e) => e.week)
-        .sort((a, b) => a - b);
-    if (checks.length >= 2) return `Every ${checks[1] - checks[0]} weeks`;
+        .filter((w) => Number.isFinite(w));
+    const changes = schedule
+        .filter((e) => /change/i.test(e.action))
+        .map((e) => e.week)
+        .filter((w) => Number.isFinite(w));
+    const parts = [
+        intervalText("Check", checks),
+        intervalText("Change", changes),
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(" / ");
     if (schedule.length >= 2) {
         const wks = schedule.map((e) => e.week).sort((a, b) => a - b);
         return `Every ${wks[1] - wks[0]} weeks`;
     }
-    return "—";
+    return `Week ${schedule[0].week}`;
 };
 
-// Dominant action: "Change" wins over "Check" if any change is scheduled —
-// matches how the maintenance CSV labels rows.
-const dominantAction = (schedule: MaintenanceScheduleEntry[]): "Change" | "Check" | "—" => {
+const scheduleTypeText = (schedule: MaintenanceScheduleEntry[]): string => {
     if (!schedule || schedule.length === 0) return "—";
-    if (schedule.some((e) => /change/i.test(e.action))) return "Change";
-    if (schedule.some((e) => /check/i.test(e.action))) return "Check";
-    return "—";
+    const hasCheck = schedule.some((e) => /check/i.test(e.action));
+    const hasChange = schedule.some((e) => /change/i.test(e.action));
+    if (hasCheck && hasChange) return "Check + Change";
+    if (hasChange) return "Change";
+    if (hasCheck) return "Check";
+    const actions = Array.from(new Set(schedule.map((e) => e.action).filter(Boolean)));
+    return actions.length > 0 ? actions.join(" + ") : "—";
 };
 
 const actionPill = (action: string) => {
+    if (action === "Check + Change") return "bg-blue-500/20 text-blue-700";
     if (action === "Change") return "bg-orange-500/20 text-orange-700";
     if (action === "Check") return "bg-emerald-500/20 text-emerald-700";
     return "bg-zinc-200 text-zinc-700";
+};
+
+const scheduleSummary = (schedule: MaintenanceScheduleEntry[]): string => {
+    if (!schedule || schedule.length === 0) return "";
+    return [...schedule]
+        .sort((a, b) => a.week - b.week)
+        .map((e) => `W${e.week} ${e.action}`)
+        .join(", ");
 };
 
 const instructionText = (
@@ -133,7 +159,9 @@ const instructionText = (
     }
     const firstWithDesc = part.maintenanceSchedule?.find((e) => e.description?.trim());
     if (firstWithDesc) return firstWithDesc.description;
-    return "Routine inspection scheduled.";
+    const summary = scheduleSummary(part.maintenanceSchedule);
+    if (summary) return summary;
+    return "No maintenance schedule configured.";
 };
 
 const installedAtText = (part: InventorySparePart, machineInstallDate?: string | null) => {
@@ -204,15 +232,14 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const [error, setError] = useState<string | null>(null);
 
     const [importOpen, setImportOpen] = useState(false);
+    const [schedulePart, setSchedulePart] = useState<InventorySparePart | null>(null);
+    const [scheduleOpen, setScheduleOpen] = useState(false);
 
-    // Inline edit state — replaces the old modal-driven flow.
+    // Inline edit state for row-level inventory fields.
     interface DraftRow {
         current: number;
         required: number;
         deliveryWeeks: number;
-        frequencyWeeks: number;
-        type: "Check" | "Change";
-        instructions: string;
         status: StatusLabel | "auto";
     }
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -222,17 +249,12 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const startEdit = (part: InventorySparePart, statusLabel: string) => {
         const stock = part.clientMachineSparePart?.stockQuantity ?? 0;
         const required = part.clientMachineSparePart?.qtySelected ?? 0;
-        const action = dominantAction(part.maintenanceSchedule);
-        const freqMatch = frequencyText(part.maintenanceSchedule).match(/(\d+)/);
         const override = part.clientMachineSparePart?.statusOverride ?? null;
         setEditingId(part._id);
         setDraft({
             current: stock,
             required,
             deliveryWeeks: part.deliveryTime?.value || 0,
-            frequencyWeeks: freqMatch ? parseInt(freqMatch[1], 10) : 0,
-            type: action === "Change" ? "Change" : "Check",
-            instructions: instructionText(part, statusLabel),
             status: override ?? "auto",
         });
     };
@@ -247,19 +269,8 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
         setSaving(true);
         setError(null);
         try {
-            // Rewrite the maintenance schedule from frequency + type so the
-            // page can re-derive Frequency / Type / Instructions next render.
-            const f = Math.max(0, Math.floor(draft.frequencyWeeks));
-            const newSchedule: MaintenanceScheduleEntry[] = [];
-            if (f > 0) {
-                for (let w = f; w <= 52; w += f) {
-                    newSchedule.push({ week: w, action: draft.type, description: draft.instructions });
-                }
-            }
-
             const catalogRes = await saveSparePart(part._id, {
                 deliveryTime: { value: draft.deliveryWeeks, unit: "weeks" },
-                maintenanceSchedule: newSchedule,
             });
             if (!catalogRes.ok) {
                 setError(catalogRes.error || "Failed to save catalog fields");
@@ -283,6 +294,26 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
         } finally {
             setSaving(false);
         }
+    };
+
+    const openScheduleEditor = (part: InventorySparePart) => {
+        setSchedulePart(part);
+        setScheduleOpen(true);
+    };
+
+    const handleScheduleOpenChange = (open: boolean) => {
+        setScheduleOpen(open);
+        if (!open) setSchedulePart(null);
+    };
+
+    const saveSchedule = async (schedule: MaintenanceScheduleEntry[]) => {
+        if (!schedulePart) return;
+        setError(null);
+        const res = await saveSparePart(schedulePart._id, { maintenanceSchedule: schedule });
+        if (!res.ok) {
+            throw new Error(res.error || "Failed to save maintenance schedule");
+        }
+        await reload();
     };
 
     const reload = useCallback(async () => {
@@ -321,6 +352,14 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => setImportOpen(true)}
+                        className="border-[#607797] bg-[#DFE6EC] hover:bg-[#e5e7eb] text-gray-900"
+                    >
+                        <Upload className="w-4 h-4 mr-1" />
+                        Import CSV
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={reload}
@@ -439,7 +478,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                 const stock = part.clientMachineSparePart?.stockQuantity ?? 0;
                                 const required = part.clientMachineSparePart?.qtySelected ?? 0;
                                 const status = effectiveStatus(part);
-                                const action = dominantAction(part.maintenanceSchedule);
+                                const action = scheduleTypeText(part.maintenanceSchedule);
                                 const isEditing = editingId === part._id && draft !== null;
                                 // While editing, show the picked override; if user chose "auto"
                                 // fall back to the live derivation from current/required.
@@ -530,67 +569,25 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
                                         {/* Frequency */}
                                         <TableCell className="text-gray-700 text-sm">
-                                            {isEditing ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span>Every</span>
-                                                    <Input
-                                                        type="number"
-                                                        min={0}
-                                                        value={draft!.frequencyWeeks}
-                                                        onChange={(e) =>
-                                                            setDraft({ ...draft!, frequencyWeeks: Math.max(0, parseInt(e.target.value || "0", 10)) })
-                                                        }
-                                                        className="h-8 w-20 bg-white border-[#d1d5db] text-gray-900"
-                                                    />
-                                                    <span>weeks</span>
-                                                </div>
-                                            ) : (
-                                                frequencyText(part.maintenanceSchedule)
-                                            )}
+                                            <span className="block max-w-[190px] whitespace-normal break-words">
+                                                {frequencyText(part.maintenanceSchedule)}
+                                            </span>
                                         </TableCell>
 
                                         {/* Type */}
                                         <TableCell>
-                                            {isEditing ? (
-                                                <Select
-                                                    value={draft!.type}
-                                                    onValueChange={(v) =>
-                                                        setDraft({ ...draft!, type: v as "Check" | "Change" })
-                                                    }
-                                                >
-                                                    <SelectTrigger className="h-8 w-[110px] bg-[#96A5BA] border-[#607797]">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Check">Check</SelectItem>
-                                                        <SelectItem value="Change">Change</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                <span
-                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${actionPill(action)}`}
-                                                >
-                                                    {action}
-                                                </span>
-                                            )}
+                                            <span
+                                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${actionPill(action)}`}
+                                            >
+                                                {action}
+                                            </span>
                                         </TableCell>
 
                                         {/* Instructions */}
                                         <TableCell className="text-gray-700 text-xs max-w-[220px]">
-                                            {isEditing ? (
-                                                <textarea
-                                                    rows={2}
-                                                    value={draft!.instructions}
-                                                    onChange={(e) =>
-                                                        setDraft({ ...draft!, instructions: e.target.value })
-                                                    }
-                                                    className="w-full text-xs bg-white border border-[#96A5BA] rounded px-2 py-1 text-gray-900"
-                                                />
-                                            ) : (
-                                                <span className="block leading-snug max-w-[220px] whitespace-normal break-words">
-                                                    {instructionText(part, status.label)}
-                                                </span>
-                                            )}
+                                            <span className="block leading-snug max-w-[220px] whitespace-normal break-words">
+                                                {instructionText(part, status.label)}
+                                            </span>
                                         </TableCell>
 
                                         {/* Status — editable in place; "Auto" defers to current/required */}
@@ -653,14 +650,24 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => startEdit(part, status.label)}
-                                                        className="inline-flex items-center gap-1 text-orange hover:text-orange-light transition-colors cursor-pointer"
-                                                        title="Edit fields"
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                        <span className="text-xs font-medium">Edit</span>
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => startEdit(part, status.label)}
+                                                            className="inline-flex items-center gap-1 text-orange hover:text-orange-light transition-colors cursor-pointer"
+                                                            title="Edit inventory fields"
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                            <span className="text-xs font-medium">Edit</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openScheduleEditor(part)}
+                                                            className="inline-flex items-center gap-1 text-[#2D3E5C] hover:text-[#607797] transition-colors cursor-pointer"
+                                                            title="Edit maintenance schedule"
+                                                        >
+                                                            <CalendarDays className="w-4 h-4" />
+                                                            <span className="text-xs font-medium">Schedule</span>
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                         </TableCell>
@@ -685,6 +692,15 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 clientID={clientID}
                 onImported={reload}
             />
+            {schedulePart && (
+                <MaintenanceScheduleEditor
+                    open={scheduleOpen}
+                    onOpenChange={handleScheduleOpenChange}
+                    sparePartName={schedulePart.name}
+                    initialSchedule={schedulePart.maintenanceSchedule || []}
+                    onSave={saveSchedule}
+                />
+            )}
         </div>
     );
 }

@@ -99,7 +99,15 @@ export default function ClientManagementPage({ clients }: ClientManagementPagePr
     }, [selectedRegion, selectedCustomer, customersByRegion, isMounted]);
 
     const getOwnerName = (client: Client) => {
-        if (typeof client.clientOwnership === "object" && client.clientOwnership) {
+        if (typeof client.loginUser === "object" && client.loginUser) {
+            return client.loginUser.name || "N/A";
+        }
+        if (
+            typeof client.clientOwnership === "object" &&
+            client.clientOwnership &&
+            "role" in client.clientOwnership &&
+            client.clientOwnership.role === "client"
+        ) {
             return client.clientOwnership.name || "N/A";
         }
         return "N/A";

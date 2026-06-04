@@ -24,7 +24,11 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
+import ImageUploadModal from "@/app/components/MachineHierarchy/ImageUploadModal";
+import { uploadClientImageDirect } from "@/lib/uploadImage";
+
+const MAX_CLIENT_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_CLIENT_IMAGE_LABEL = "10 MB";
 
 interface EditClientDetailsProps {
     client: Client;
@@ -41,6 +45,21 @@ interface MachineRow {
     installationDate: string;
     _id?: string;
 }
+
+const getClientOwnerName = (client: Client) => {
+    if (typeof client.loginUser === "object" && client.loginUser) {
+        return client.loginUser.name || "";
+    }
+    if (
+        typeof client.clientOwnership === "object" &&
+        client.clientOwnership &&
+        "role" in client.clientOwnership &&
+        client.clientOwnership.role === "client"
+    ) {
+        return client.clientOwnership.name || "";
+    }
+    return "";
+};
 
 export default function EditClientDetails({ client, machines = [], open, onOpenChange }: EditClientDetailsProps) {
     const router = useRouter();
@@ -64,15 +83,29 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
     const [facilityImage, setFacilityImage] = useState<string | null>(client?.facilityImageUrl || null);
     // Storage path — what we send back to the backend on save. Backend builds the URL on read.
     const [facilityImagePath, setFacilityImagePath] = useState<string | null>(client?.facilityImagePath || null);
-    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [facilityImageFile, setFacilityImageFile] = useState<File | null>(null);
+    const [facilityPreviewUrl, setFacilityPreviewUrl] = useState<string | null>(null);
 
     const [homeImage, setHomeImage] = useState<string | null>(client?.homeImageUrl || null);
     const [homeImagePath, setHomeImagePath] = useState<string | null>(client?.homeImagePath || null);
-    const [isUploadingHomeImage, setIsUploadingHomeImage] = useState(false);
+    const [homeImageFile, setHomeImageFile] = useState<File | null>(null);
+    const [homePreviewUrl, setHomePreviewUrl] = useState<string | null>(null);
+    const [imageModal, setImageModal] = useState<null | {
+        title: string;
+        currentImageUrl: string | null;
+        onSave: (file: File) => Promise<void>;
+    }>(null);
 
     useEffect(() => {
         setIsReadOnly(session?.user?.isReadOnly || false);
     }, [session]);
+
+    useEffect(() => {
+        return () => {
+            if (facilityPreviewUrl) URL.revokeObjectURL(facilityPreviewUrl);
+            if (homePreviewUrl) URL.revokeObjectURL(homePreviewUrl);
+        };
+    }, [facilityPreviewUrl, homePreviewUrl]);
 
     const handleClientDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -80,7 +113,9 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
         if (name === 'owner') {
             setClientDetails(prev => ({
                 ...prev,
-                clientOwnership: { ...prev.clientOwnership, name: value }
+                loginUser: typeof prev.loginUser === "object" && prev.loginUser
+                    ? { ...prev.loginUser, name: value }
+                    : prev.loginUser
             }));
         } else if (name === 'location') {
             setClientDetails(prev => ({
@@ -122,94 +157,48 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
     //     setMachineRows(prev => prev.filter(machine => machine.id !== id));
     // };
 
-    const handleFacilityImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
-            return;
+    const stageFacilityImage = async (file: File) => {
+        if (file.size > MAX_CLIENT_IMAGE_SIZE) {
+            throw new Error(`Selected image must be ${MAX_CLIENT_IMAGE_LABEL} or smaller`);
         }
-
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error('File size must be less than 10MB');
-            return;
-        }
-
-        try {
-            setIsUploadingImage(true);
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to upload image');
-            }
-
-            const data = await response.json();
-            setFacilityImage(data.url);
-            setFacilityImagePath(data.path || null);
-            toast.success('Facility image uploaded successfully');
-        } catch (error) {
-            console.error('Error uploading facility image:', error);
-            toast.error('Failed to upload facility image');
-        } finally {
-            setIsUploadingImage(false);
-        }
+        const previewUrl = URL.createObjectURL(file);
+        setFacilityPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return previewUrl;
+        });
+        setFacilityImageFile(file);
+        setFacilityImage(previewUrl);
     };
 
     const removeFacilityImage = () => {
+        setFacilityPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+        });
+        setFacilityImageFile(null);
         setFacilityImage(null);
         setFacilityImagePath(null);
     };
 
-    const handleHomeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
-            return;
+    const stageHomeImage = async (file: File) => {
+        if (file.size > MAX_CLIENT_IMAGE_SIZE) {
+            throw new Error(`Selected image must be ${MAX_CLIENT_IMAGE_LABEL} or smaller`);
         }
-
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error('File size must be less than 10MB');
-            return;
-        }
-
-        try {
-            setIsUploadingHomeImage(true);
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to upload image');
-            }
-
-            const data = await response.json();
-            setHomeImage(data.url);
-            setHomeImagePath(data.path || null);
-            toast.success('Home image uploaded successfully');
-        } catch (error) {
-            console.error('Error uploading home image:', error);
-            toast.error('Failed to upload home image');
-        } finally {
-            setIsUploadingHomeImage(false);
-        }
+        const previewUrl = URL.createObjectURL(file);
+        setHomePreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return previewUrl;
+        });
+        setHomeImageFile(file);
+        setHomeImage(previewUrl);
     };
 
     const removeHomeImage = () => {
+        setHomePreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+        });
+        setHomeImageFile(null);
         setHomeImage(null);
         setHomeImagePath(null);
     };
@@ -255,31 +244,38 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
     // }, []);
 
     const handleSubmit = async () => {
-        const updatedData = {
-            capacity: clientDetails.capacity,
-            endProduct: clientDetails.endProduct,
-            name: clientDetails.name,
-            powerCost: {
-                value: clientDetails.powerCost.value,
-                priceUnit: clientDetails.powerCost.priceUnit,
-                perUnit: clientDetails.powerCost.perUnit
-            },
-            fiberCost: {
-                value: clientDetails.fiberCost.value,
-                priceUnit: clientDetails.fiberCost.priceUnit,
-                perUnit: clientDetails.fiberCost.perUnit
-            },
-            location: clientDetails.location,
-            // Send the relative path; backend rebuilds the public URL via virtual.
-            facilityImage: facilityImagePath,
-            homeImage: homeImagePath,
-            // Machines are managed in the dedicated machine flow — do NOT send
-            // them from this modal or the backend will treat the absence as
-            // "delete the rest" and wipe the client's ClientMachine rows.
-        }
-
         try {
             setIsLoading(true);
+
+            const nextFacilityImagePath = facilityImageFile
+                ? await uploadClientImageDirect(facilityImageFile)
+                : facilityImagePath;
+            const nextHomeImagePath = homeImageFile
+                ? await uploadClientImageDirect(homeImageFile)
+                : homeImagePath;
+
+            const updatedData = {
+                capacity: clientDetails.capacity,
+                endProduct: clientDetails.endProduct,
+                name: clientDetails.name,
+                powerCost: {
+                    value: clientDetails.powerCost.value,
+                    priceUnit: clientDetails.powerCost.priceUnit,
+                    perUnit: clientDetails.powerCost.perUnit
+                },
+                fiberCost: {
+                    value: clientDetails.fiberCost.value,
+                    priceUnit: clientDetails.fiberCost.priceUnit,
+                    perUnit: clientDetails.fiberCost.perUnit
+                },
+                location: clientDetails.location,
+                // Send the relative path; backend rebuilds the public URL via virtual.
+                facilityImage: nextFacilityImagePath,
+                homeImage: nextHomeImagePath,
+                // Machines are managed in the dedicated machine flow — do NOT send
+                // them from this modal or the backend will treat the absence as
+                // "delete the rest" and wipe the client's ClientMachine rows.
+            }
 
             const response = await fetch(`/api/clients/${clientDetails._id}`, {
                 method: "PUT",
@@ -294,6 +290,10 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
             }
 
             await response.json();
+            setFacilityImagePath(nextFacilityImagePath);
+            setHomeImagePath(nextHomeImagePath);
+            setFacilityImageFile(null);
+            setHomeImageFile(null);
             toast.success("Client details updated successfully");
             setIsOpen(false);
             router.refresh();
@@ -318,7 +318,16 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                     </button>
                 </DialogTrigger>
             )}
-            <DialogContent className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-white border border-[#96A5BA] rounded-[14px] max-h-[90vh] overflow-y-auto" showCloseButton={true}>
+            <DialogContent
+                className="w-[75%] sm:w-[75%] sm:max-w-[75%] bg-white border border-[#96A5BA] rounded-[14px] max-h-[90vh] overflow-y-auto"
+                showCloseButton={true}
+                onInteractOutside={(event) => {
+                    if (imageModal) event.preventDefault();
+                }}
+                onEscapeKeyDown={(event) => {
+                    if (imageModal) event.preventDefault();
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle className="text-[#2D3E5C] text-xl font-bold">Edit Client & Machine Details</DialogTitle>
                 </DialogHeader>
@@ -391,7 +400,7 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                             type="text"
                             name="owner"
                             onChange={handleClientDetailsChange}
-                            value={clientDetails?.clientOwnership?.name || ''}
+                            value={getClientOwnerName(clientDetails)}
                             className="h-11 rounded-md border-border bg-[#DFE6EC] bg-muted text-muted-foreground cursor-not-allowed"
                             placeholder="Owner"
                         />
@@ -424,9 +433,7 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                             <div className="relative shrink-0">
                                 <div className="w-40 h-24 border border-border rounded-md overflow-hidden">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <Image
-                                        width={160}
-                                        height={90}
+                                    <img
                                         src={facilityImage || ''}
                                         alt="Facility"
                                         className="w-full h-full object-cover"
@@ -441,42 +448,32 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                                 </button>
                             </div>
                         ) : (
-                            <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30 shrink-0">
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    onChange={handleFacilityImageUpload}
-                                    className="hidden"
-                                    disabled={isUploadingImage}
-                                />
-                                {isUploadingImage ? (
-                                    <Loader2 className="animate-spin text-orange" />
-                                ) : (
-                                    <>
-                                        <TbUpload className="text-muted-foreground text-xl mb-1" />
-                                        <span className="text-xs text-muted-foreground">Upload Image</span>
-                                    </>
-                                )}
-                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setImageModal({
+                                    title: "Facility Image",
+                                    currentImageUrl: facilityImage,
+                                    onSave: stageFacilityImage,
+                                })}
+                                className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30 shrink-0"
+                            >
+                                <TbUpload className="text-muted-foreground text-xl mb-1" />
+                                <span className="text-xs text-muted-foreground">Upload Image</span>
+                            </button>
                         )}
                         {facilityImage && (
-                            <label className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0">
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    onChange={handleFacilityImageUpload}
-                                    className="hidden"
-                                    disabled={isUploadingImage}
-                                />
-                                {isUploadingImage ? (
-                                    <Loader2 className="animate-spin" size={16} />
-                                ) : (
-                                    <>
-                                        <TbUpload size={16} />
-                                        <span className="text-sm">Change</span>
-                                    </>
-                                )}
-                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setImageModal({
+                                    title: "Facility Image",
+                                    currentImageUrl: facilityImage,
+                                    onSave: stageFacilityImage,
+                                })}
+                                className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0"
+                            >
+                                <TbUpload size={16} />
+                                <span className="text-sm">Change</span>
+                            </button>
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
@@ -490,9 +487,7 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                             <div className="relative shrink-0">
                                 <div className="w-40 h-24 border border-border rounded-md overflow-hidden">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <Image
-                                        width={160}
-                                        height={90}
+                                    <img
                                         src={homeImage || ''}
                                         alt="Home"
                                         className="w-full h-full object-cover"
@@ -507,42 +502,32 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                                 </button>
                             </div>
                         ) : (
-                            <label className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30 shrink-0">
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    onChange={handleHomeImageUpload}
-                                    className="hidden"
-                                    disabled={isUploadingHomeImage}
-                                />
-                                {isUploadingHomeImage ? (
-                                    <Loader2 className="animate-spin text-orange" />
-                                ) : (
-                                    <>
-                                        <TbUpload className="text-muted-foreground text-xl mb-1" />
-                                        <span className="text-xs text-muted-foreground">Upload Image</span>
-                                    </>
-                                )}
-                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setImageModal({
+                                    title: "Home Image",
+                                    currentImageUrl: homeImage,
+                                    onSave: stageHomeImage,
+                                })}
+                                className="flex flex-col items-center justify-center w-40 h-24 border-2 border-dashed border-border rounded-md cursor-pointer hover:border-orange/50 transition-colors bg-muted/30 shrink-0"
+                            >
+                                <TbUpload className="text-muted-foreground text-xl mb-1" />
+                                <span className="text-xs text-muted-foreground">Upload Image</span>
+                            </button>
                         )}
                         {homeImage && (
-                            <label className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0">
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    onChange={handleHomeImageUpload}
-                                    className="hidden"
-                                    disabled={isUploadingHomeImage}
-                                />
-                                {isUploadingHomeImage ? (
-                                    <Loader2 className="animate-spin" size={16} />
-                                ) : (
-                                    <>
-                                        <TbUpload size={16} />
-                                        <span className="text-sm">Change</span>
-                                    </>
-                                )}
-                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setImageModal({
+                                    title: "Home Image",
+                                    currentImageUrl: homeImage,
+                                    onSave: stageHomeImage,
+                                })}
+                                className="flex items-center gap-2 px-3 py-2 bg-[#DFE6EC] hover:bg-muted/80 border border-dashed border-border text-muted-foreground rounded-md cursor-pointer transition-colors shrink-0"
+                            >
+                                <TbUpload size={16} />
+                                <span className="text-sm">Change</span>
+                            </button>
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
@@ -642,6 +627,17 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                     </Button>
                 </DialogFooter>
             </DialogContent>
+            {imageModal && (
+                <ImageUploadModal
+                    open
+                    onClose={() => setImageModal(null)}
+                    title={imageModal.title}
+                    currentImageUrl={imageModal.currentImageUrl}
+                    onSave={imageModal.onSave}
+                    maxSavedBytes={MAX_CLIENT_IMAGE_SIZE}
+                    maxSavedLabel={MAX_CLIENT_IMAGE_LABEL}
+                />
+            )}
         </Dialog>
     );
 }

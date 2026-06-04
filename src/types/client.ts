@@ -1,10 +1,26 @@
 import { Admin } from "./admin";
 
+export interface ClientAccountUser {
+    _id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    designation?: string;
+    role?: string;
+    image?: string;
+    isActive?: boolean;
+    isBlocked?: boolean;
+    fullAccess?: boolean;
+    assignedRegions?: string[];
+    assignedClients?: string[];
+}
+
 export interface Client {
     _id: string;
     name: string;
     isActive: boolean;
-    clientOwnership: Admin;
+    loginUser?: ClientAccountUser | string | null;
+    clientOwnership: Admin | string | null;
     /** Legacy string region field (old data). Use `getClientRegion(client)` helper to resolve. */
     region?: string;
     /** ObjectId ref to Regions collection (new data). Resolved to string via helper. */

@@ -114,6 +114,58 @@ export async function updateClientPassword(
     }
 }
 
+// Update client owner/contact name on the linked client login account
+export async function updateClientOwnerName(
+    clientId: string,
+    name: string
+): Promise<UpdateCredentialsResult> {
+    try {
+        const currentUser = await getCurrentUser();
+
+        if (!currentUser?.accessToken) {
+            return {
+                success: false,
+                error: 'Unauthorized',
+            };
+        }
+
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/client/${clientId}/credentials/name`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentUser.accessToken}`,
+                },
+                body: JSON.stringify({ name }),
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to update owner name' }));
+            return {
+                success: false,
+                error: errorData.message || 'Failed to update owner name',
+            };
+        }
+
+        const data = await response.json();
+
+        revalidatePath('/client-management');
+
+        return {
+            success: true,
+            message: data.message,
+        };
+    } catch (error) {
+        console.error('Error updating client owner name:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        };
+    }
+}
+
 export async function updateClientRegion(
     clientId: string,
     region: string

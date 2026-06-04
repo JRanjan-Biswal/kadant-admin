@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Upload, X, Loader2, Check } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Upload, X, Loader2, Check, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -108,9 +109,19 @@ interface ImageUploadModalProps {
     title: string;
     currentImageUrl?: string | null;
     onSave: (file: File) => Promise<void>;
+    maxSavedBytes?: number;
+    maxSavedLabel?: string;
 }
 
-export default function ImageUploadModal({ open, onClose, title, currentImageUrl, onSave }: ImageUploadModalProps) {
+export default function ImageUploadModal({
+    open,
+    onClose,
+    title,
+    currentImageUrl,
+    onSave,
+    maxSavedBytes,
+    maxSavedLabel = "5 MB",
+}: ImageUploadModalProps) {
     const [pickedFile, setPickedFile] = useState<File | null>(null);
     const [pickedUrl, setPickedUrl] = useState<string | null>(null);
     const [quality, setQuality] = useState(70);
@@ -119,30 +130,64 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const [choice, setChoice] = useState<"original" | "compressed">("compressed");
     const [compressing, setCompressing] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [viewerImage, setViewerImage] = useState<{ src: string; label: string } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pickedUrlRef = useRef<string | null>(null);
+    const compressedUrlRef = useRef<string | null>(null);
     const compressInputRef = useRef<File | null>(null); // (possibly downscaled) copy fed to the compressor
 
+    useEffect(() => {
+        setMounted(true);
+        return () => {
+            if (pickedUrlRef.current) URL.revokeObjectURL(pickedUrlRef.current);
+            if (compressedUrlRef.current) URL.revokeObjectURL(compressedUrlRef.current);
+        };
+    }, []);
+
     const reset = useCallback(() => {
-        setPickedUrl((p) => { if (p) URL.revokeObjectURL(p); return null; });
-        setCompressedUrl((p) => { if (p) URL.revokeObjectURL(p); return null; });
+        setPickedUrl((p) => {
+            if (p) URL.revokeObjectURL(p);
+            pickedUrlRef.current = null;
+            return null;
+        });
+        setCompressedUrl((p) => {
+            if (p) URL.revokeObjectURL(p);
+            compressedUrlRef.current = null;
+            return null;
+        });
         setPickedFile(null);
         setCompressedFile(null);
         setQuality(70);
         setChoice("compressed");
+        setViewerImage(null);
         compressInputRef.current = null;
     }, []);
 
-    useEffect(() => () => {
-        if (pickedUrl) URL.revokeObjectURL(pickedUrl);
-        if (compressedUrl) URL.revokeObjectURL(compressedUrl);
-    }, [pickedUrl, compressedUrl]);
+    useEffect(() => {
+        if (!viewerImage) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setViewerImage(null);
+            }
+        };
+        window.addEventListener("keydown", onKeyDown, true);
+        return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, [viewerImage]);
 
     const runCompress = useCallback(async (file: File, q: number) => {
         setCompressing(true);
         try {
             const out = await compressViaServer(file, q);
+            const nextCompressedUrl = URL.createObjectURL(out);
             setCompressedFile(out);
-            setCompressedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(out); });
+            setCompressedUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                compressedUrlRef.current = nextCompressedUrl;
+                return nextCompressedUrl;
+            });
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Compression failed");
         } finally {
@@ -155,8 +200,13 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         if (!ACCEPTED.includes(file.type)) { toast.error("Only PNG, JPG, and WebP images are allowed."); return; }
         if (file.size > MAX) { toast.error("Image must be under 40 MB."); return; }
         // The Original is kept EXACTLY as the user picked it — never altered.
+        const nextPickedUrl = URL.createObjectURL(file);
         setPickedFile(file);
-        setPickedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+        setPickedUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            pickedUrlRef.current = nextPickedUrl;
+            return nextPickedUrl;
+        });
         setChoice("compressed");
         // Only the *compressed* preview is derived. For large originals we compress
         // from a downscaled, transport-safe copy (cached so the slider can re-compress
@@ -179,6 +229,10 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
     const handleSave = useCallback(async () => {
         const file = choice === "compressed" && compressedFile ? compressedFile : pickedFile;
         if (!file) return;
+        if (maxSavedBytes && file.size > maxSavedBytes) {
+            toast.error(`Selected image must be ${maxSavedLabel} or smaller. Use the compressed option or lower the quality.`);
+            return;
+        }
         setSaving(true);
         try {
             await onSave(file);
@@ -189,15 +243,20 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
         } finally {
             setSaving(false);
         }
-    }, [choice, compressedFile, pickedFile, onSave, reset, onClose]);
+    }, [choice, compressedFile, pickedFile, maxSavedBytes, maxSavedLabel, onSave, reset, onClose]);
 
-    if (!open) return null;
+    if (!open || !mounted) return null;
     // Original is savable the moment it's picked; Compressed needs its result ready.
-    const canSave = choice === "original" ? !!pickedFile : (!!compressedFile && !compressing);
+    const selectedFile = choice === "compressed" && compressedFile ? compressedFile : pickedFile;
+    const selectedFitsLimit = !maxSavedBytes || !selectedFile || selectedFile.size <= maxSavedBytes;
+    const originalFitsLimit = !maxSavedBytes || !pickedFile || pickedFile.size <= maxSavedBytes;
+    const compressedFitsLimit = !maxSavedBytes || !compressedFile || compressedFile.size <= maxSavedBytes;
+    const canSave = (choice === "original" ? !!pickedFile : (!!compressedFile && !compressing)) && selectedFitsLimit;
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={close}>
-            <div className="bg-white border border-[#96A5BA] rounded-[12px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] w-full max-w-[640px] max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    return createPortal(
+        <>
+            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/50 p-4 pointer-events-auto" role="dialog" aria-modal="true" aria-label={title} onClick={close}>
+                <div className="bg-white border border-[#96A5BA] rounded-[12px] shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)] w-full max-w-[960px] max-h-[92vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] px-6 py-4 shrink-0">
                     <h2 className="text-gray-900 text-[18px] font-semibold">{title}</h2>
@@ -211,21 +270,46 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                     {currentImageUrl && !pickedFile && (
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[#6b7280] text-[12px]">Current image</span>
-                            <div className="rounded-[8px] border border-[#d1d5db] bg-white h-[180px] flex items-center justify-center overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setViewerImage({ src: currentImageUrl, label: "Current image" })}
+                                className="group relative rounded-[8px] border border-[#d1d5db] bg-white h-[260px] flex items-center justify-center overflow-hidden cursor-zoom-in"
+                                aria-label="View current image"
+                            >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={currentImageUrl} alt="current" className="max-h-full max-w-full object-contain" />
-                            </div>
+                                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                    <Eye className="h-3.5 w-3.5" />
+                                    View
+                                </span>
+                            </button>
                         </div>
                     )}
 
-                    <label className="border-2 border-dashed border-[#d1d5db] rounded-[10px] bg-white flex flex-col items-center justify-center min-h-[90px] cursor-pointer hover:border-[#96A5BA] transition-colors">
-                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { handlePick(e.target.files?.[0]); e.target.value = ""; }} />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        tabIndex={-1}
+                        onChange={(e) => {
+                            handlePick(e.target.files?.[0]);
+                            e.target.value = "";
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-[#d1d5db] rounded-[10px] bg-white flex flex-col items-center justify-center min-h-[90px] cursor-pointer hover:border-[#96A5BA] transition-colors"
+                    >
                         <Upload className="w-6 h-6 text-muted-foreground mb-1" />
                         <span className="text-foreground text-[13px]">
                             {pickedFile ? "Choose a different image" : <>Upload <span className="text-orange font-medium">new image</span></>}
                         </span>
-                        <span className="text-muted-foreground text-[11px]">PNG, JPG, WebP — Original is kept full size</span>
-                    </label>
+                        <span className="text-muted-foreground text-[11px]">
+                            PNG, JPG, WebP{maxSavedBytes ? ` — saved image max ${maxSavedLabel}` : " — Original is kept full size"}
+                        </span>
+                    </button>
 
                     {pickedFile && (
                         <>
@@ -237,26 +321,52 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                                 <input type="range" min={1} max={100} value={quality} onChange={(e) => onSlider(parseInt(e.target.value, 10))} className="w-full accent-[#d45815] cursor-pointer" />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Original */}
-                                <button type="button" onClick={() => setChoice("original")} className={`text-left rounded-[10px] border-2 overflow-hidden bg-white cursor-pointer transition-colors ${choice === "original" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
-                                    <div className="h-[150px] flex items-center justify-center bg-[#f9fafb]">
+                                <div className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!originalFitsLimit ? "opacity-60" : ""} ${choice === "original" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => pickedUrl && setViewerImage({ src: pickedUrl, label: "Original image" })}
+                                        disabled={!pickedUrl}
+                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb] cursor-zoom-in disabled:cursor-default"
+                                        aria-label="View original image"
+                                    >
                                         {pickedUrl && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={pickedUrl} alt="original" className="max-h-full max-w-full object-contain" />
                                         )}
-                                    </div>
-                                    <div className="px-3 py-2 flex items-center justify-between border-t border-[#d1d5db]">
-                                        <span className="text-gray-900 text-[12px] font-medium flex items-center gap-1">
+                                        {pickedUrl && (
+                                            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                                <Eye className="h-3.5 w-3.5" />
+                                                View
+                                            </span>
+                                        )}
+                                    </button>
+                                    <div className="px-3 py-2 flex items-center justify-between gap-3 border-t border-[#d1d5db]">
+                                        <button
+                                            type="button"
+                                            onClick={() => setChoice("original")}
+                                            disabled={!originalFitsLimit}
+                                            className="text-gray-900 text-[12px] font-medium flex items-center gap-1 disabled:cursor-not-allowed disabled:text-[#6b7280]"
+                                            aria-pressed={choice === "original"}
+                                        >
                                             {choice === "original" && <Check className="w-3.5 h-3.5 text-orange" />}Original
+                                        </button>
+                                        <span className={`text-[11px] ${originalFitsLimit ? "text-[#6b7280]" : "text-red-600"}`}>
+                                            {fmtSize(pickedFile.size)}{!originalFitsLimit ? ` > ${maxSavedLabel}` : ""}
                                         </span>
-                                        <span className="text-[#6b7280] text-[11px]">{fmtSize(pickedFile.size)}</span>
                                     </div>
-                                </button>
+                                </div>
 
                                 {/* Compressed */}
-                                <button type="button" onClick={() => setChoice("compressed")} disabled={!compressedFile} className={`text-left rounded-[10px] border-2 overflow-hidden bg-white cursor-pointer transition-colors disabled:opacity-60 ${choice === "compressed" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
-                                    <div className="h-[150px] flex items-center justify-center bg-[#f9fafb] relative">
+                                <div className={`text-left rounded-[10px] border-2 overflow-hidden bg-white transition-colors ${!compressedFile || !compressedFitsLimit ? "opacity-60" : ""} ${choice === "compressed" ? "border-orange" : "border-[#d1d5db] hover:border-[#96A5BA]"}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => compressedUrl && setViewerImage({ src: compressedUrl, label: "Compressed image" })}
+                                        disabled={!compressedUrl}
+                                        className="group relative h-[260px] md:h-[340px] w-full flex items-center justify-center bg-[#f9fafb] cursor-zoom-in disabled:cursor-default"
+                                        aria-label="View compressed image"
+                                    >
                                         {compressing && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-white/60">
                                                 <Loader2 className="w-6 h-6 animate-spin text-orange" />
@@ -266,16 +376,33 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={compressedUrl} alt="compressed" className="max-h-full max-w-full object-contain" />
                                         )}
-                                    </div>
-                                    <div className="px-3 py-2 flex items-center justify-between border-t border-[#d1d5db]">
-                                        <span className="text-gray-900 text-[12px] font-medium flex items-center gap-1">
+                                        {compressedUrl && (
+                                            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-[8px] bg-white/95 border border-[#d1d5db] px-2.5 py-1.5 text-[12px] font-medium text-gray-900 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                                <Eye className="h-3.5 w-3.5" />
+                                                View
+                                            </span>
+                                        )}
+                                    </button>
+                                    <div className="px-3 py-2 flex items-center justify-between gap-3 border-t border-[#d1d5db]">
+                                        <button
+                                            type="button"
+                                            onClick={() => setChoice("compressed")}
+                                            disabled={!compressedFile || !compressedFitsLimit}
+                                            className="text-gray-900 text-[12px] font-medium flex items-center gap-1 disabled:cursor-not-allowed disabled:text-[#6b7280]"
+                                            aria-pressed={choice === "compressed"}
+                                        >
                                             {choice === "compressed" && <Check className="w-3.5 h-3.5 text-orange" />}Compressed
+                                        </button>
+                                        <span className={`text-[11px] ${compressedFitsLimit ? "text-[#6b7280]" : "text-red-600"}`}>
+                                            {compressedFile ? `${fmtSize(compressedFile.size)}${!compressedFitsLimit ? ` > ${maxSavedLabel}` : ""}` : "…"}
                                         </span>
-                                        <span className="text-[#6b7280] text-[11px]">{compressedFile ? fmtSize(compressedFile.size) : "…"}</span>
                                     </div>
-                                </button>
+                                </div>
                             </div>
-                            <p className="text-[#6b7280] text-[11px]">Pick the version to keep, then Save. The other is discarded.</p>
+                            <p className="text-[#6b7280] text-[11px]">
+                                Pick the version to keep, then Save. The other is discarded.
+                                {maxSavedBytes ? ` Saved image must be ${maxSavedLabel} or smaller.` : ""}
+                            </p>
                         </>
                     )}
                 </div>
@@ -288,7 +415,36 @@ export default function ImageUploadModal({ open, onClose, title, currentImageUrl
                         Save
                     </Button>
                 </div>
+                </div>
             </div>
-        </div>
+            {viewerImage && (
+                <div
+                    className="fixed inset-0 z-[2147483647] bg-black/85 p-4 pointer-events-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`${viewerImage.label} preview`}
+                    onClick={() => setViewerImage(null)}
+                >
+                    <div className="mx-auto flex h-full w-full max-w-[min(96vw,1400px)] flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between gap-3 text-white">
+                            <h3 className="min-w-0 truncate text-[16px] font-semibold">{viewerImage.label}</h3>
+                            <button
+                                type="button"
+                                onClick={() => setViewerImage(null)}
+                                className="h-10 w-10 shrink-0 rounded-[8px] border border-white/25 bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors"
+                                aria-label="Close image preview"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="min-h-0 flex-1 rounded-[12px] border border-white/20 bg-black/35 flex items-center justify-center overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={viewerImage.src} alt={viewerImage.label} className="max-h-full max-w-full object-contain" />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>,
+        document.body
     );
 }

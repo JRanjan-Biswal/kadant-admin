@@ -30,6 +30,7 @@ const TARGET_FIELDS = [
     { key: "itemOnSpareSketch", label: "Item on spare sketch" },
     { key: "lifetimeText", label: "Lifetime (e.g. '3 Months')" },
     { key: "deliveryTimeText", label: "Delivery time (e.g. '22 weeks')" },
+    { key: "comments", label: "Comments / instructions" },
     { key: "unitPriceNew", label: "Unit price (new)" },
     { key: "priceRepairPerPc", label: "Repair price / pc" },
     { key: "qtySelected", label: "Qty selected" },
@@ -43,6 +44,7 @@ const TARGET_FIELDS = [
 ];
 
 const WEEK_HEADER_REGEX = /^\s*(\d+)\s*weeks?\b/i;
+const WEEK_SLOTS = Array.from({ length: 78 }, (_, index) => index + 1);
 
 // ── CSV parser (handles quoted fields, embedded commas/newlines) ──────────────
 
@@ -151,30 +153,44 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
             const headers = parsed[candidate?.idx ?? 0].map(cleanCell);
             const guess: Record<string, string> = {};
             headers.forEach((h, i) => {
+                const setGuess = (key: string) => {
+                    if (guess[key] === undefined) guess[key] = String(i);
+                };
                 const lower = h.toLowerCase();
                 if (!lower) return;
                 if (lower.includes("kl code") || lower === "kl code" || lower.includes("kl value"))
-                    guess.klValue = String(i);
+                    setGuess("klValue");
                 else if (lower.includes("designation\n1rst") || lower.includes("1rst level"))
-                    guess.sparePartName = String(i);
-                else if (lower.includes("category")) guess.category = String(i);
-                else if (lower.includes("life") && lower.includes("time")) guess.lifetimeText = String(i);
-                else if (lower.includes("delivery")) guess.deliveryTimeText = String(i);
+                    setGuess("sparePartName");
+                else if (lower.includes("machine") && lower.includes("name"))
+                    setGuess("machineName");
+                else if (lower.includes("category")) setGuess("category");
+                else if (lower.includes("life") && lower.includes("time")) setGuess("lifetimeText");
+                else if (lower.includes("delivery")) setGuess("deliveryTimeText");
+                else if (lower.includes("comment")) setGuess("comments");
                 else if (lower.includes("item on") && lower.includes("sketch"))
-                    guess.itemOnSpareSketch = String(i);
-                else if (lower.includes("qty") && lower.includes("selected")) guess.qtySelected = String(i);
+                    setGuess("itemOnSpareSketch");
+                else if ((lower.includes("client") || lower.includes("andal")) && lower.includes("item"))
+                    setGuess("clientItemNumber");
+                else if (lower.includes("qty") && lower.includes("selected")) setGuess("qtySelected");
                 else if (lower.includes("unit price") && lower.includes("new"))
-                    guess.unitPriceNew = String(i);
+                    setGuess("unitPriceNew");
+                else if (
+                    lower.includes("price") &&
+                    lower.includes("repair") &&
+                    (lower.includes("/pc") || lower.includes("per pc") || lower.endsWith("pc"))
+                )
+                    setGuess("priceRepairPerPc");
                 else if (lower.includes("price") && lower.includes("repair"))
-                    guess.priceRepairPerPc = String(i);
+                    setGuess("priceRepairPerPc");
                 else if (lower.includes("parts") && lower.includes("available"))
-                    guess.stockQuantity = String(i);
-                else if (lower.includes('nb') && lower.includes('"new"')) guess.nbNew = String(i);
-                else if (lower.includes('nb') && lower.includes('"repair"')) guess.nbRepair = String(i);
+                    setGuess("stockQuantity");
+                else if (lower.includes("nb") && lower.includes("new")) setGuess("nbNew");
+                else if (lower.includes("nb") && lower.includes("repair")) setGuess("nbRepair");
                 else if (lower.includes("kl") && lower.includes("last order"))
-                    guess.lastOrderRefKL = String(i);
+                    setGuess("lastOrderRefKL");
                 else if (lower.includes("last order") && !lower.includes("kl"))
-                    guess.lastOrderRefClient = String(i);
+                    setGuess("lastOrderRefClient");
             });
             setMapping(guess);
             setStep("map");
@@ -200,7 +216,7 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
             const m = h.match(WEEK_HEADER_REGEX);
             if (m) {
                 const week = Number(m[1]);
-                if ([4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52].includes(week)) {
+                if (WEEK_SLOTS.includes(week)) {
                     cols.push({ columnIdx: i, week });
                 }
             }
@@ -219,6 +235,7 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
         const sparePartCol = colIdx("sparePartName");
         const klCol = colIdx("klValue");
         const categoryCol = colIdx("category");
+        const machineCol = colIdx("machineName");
 
         for (const row of dataRows) {
             const cat = categoryCol >= 0 ? cleanCell(row[categoryCol]) : "";
@@ -226,6 +243,9 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
 
             const sparePartCell = sparePartCol >= 0 ? cleanCell(row[sparePartCol]) : "";
             const klCell = klCol >= 0 ? cleanCell(row[klCol]) : "";
+            const explicitMachine =
+                machineCol >= 0 && machineCol !== sparePartCol ? cleanCell(row[machineCol]) : "";
+            if (explicitMachine) currentMachine = explicitMachine;
 
             // Heading row: spare part column has text but KL column is empty → it's a machine name.
             if (sparePartCell && !klCell) {
@@ -233,10 +253,12 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
                 continue;
             }
             if (!klCell || !sparePartCell) continue;
+            const commentIdx = colIdx("comments");
+            const commentText = commentIdx >= 0 ? cleanCell(row[commentIdx]) : "";
 
             const ingest: Record<string, unknown> = {
                 category: currentCategory,
-                machineName: currentMachine,
+                machineName: explicitMachine || currentMachine,
                 sparePartName: sparePartCell,
                 klValue: klCell,
             };
@@ -258,7 +280,7 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
                 let action = v;
                 if (lower.startsWith("check")) action = "Check";
                 else if (lower.startsWith("change")) action = "Change";
-                schedule.push({ week, action, description: "" });
+                schedule.push({ week, action, description: commentText });
             }
             if (schedule.length > 0) ingest.maintenanceSchedule = schedule;
             out.push(ingest);

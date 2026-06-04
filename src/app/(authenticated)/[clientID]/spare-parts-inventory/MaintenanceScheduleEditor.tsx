@@ -9,7 +9,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
     SelectContent,
@@ -20,7 +20,7 @@ import {
 import { Trash2, Plus } from "lucide-react";
 import type { MaintenanceScheduleEntry } from "@/actions/spare-parts-inventory";
 
-const WEEK_SLOTS = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52];
+const WEEK_SLOTS = Array.from({ length: 78 }, (_, index) => index + 1);
 
 const ACTION_SUGGESTIONS = ["Check", "Change", "Adjust", "Send for repair"];
 
@@ -41,11 +41,13 @@ export default function MaintenanceScheduleEditor({
 }: Props) {
     const [rows, setRows] = useState<MaintenanceScheduleEntry[]>([]);
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (open) {
             const sorted = [...initialSchedule].sort((a, b) => a.week - b.week);
             setRows(sorted);
+            setError(null);
         }
     }, [open, initialSchedule]);
 
@@ -70,10 +72,13 @@ export default function MaintenanceScheduleEditor({
 
     const handleSave = async () => {
         setSaving(true);
+        setError(null);
         try {
             const sorted = [...rows].sort((a, b) => a.week - b.week);
             await onSave(sorted);
             onOpenChange(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to save schedule");
         } finally {
             setSaving(false);
         }
@@ -81,18 +86,24 @@ export default function MaintenanceScheduleEditor({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-[#ffffff] border-[#607797] max-w-[720px]">
+            <DialogContent className="bg-[#ffffff] border-[#607797] w-[96vw] max-w-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)] lg:max-w-[1120px] max-h-[92vh]">
                 <DialogHeader>
                     <DialogTitle className="text-gray-900">
                         Maintenance schedule — {sparePartName}
                     </DialogTitle>
                     <p className="text-sm text-[#6b7280]">
-                        Cycle anchors to January 1 each year. Each row fires a notification
-                        at the corresponding week.
+                        Cycle anchors to January 1. Each row fires a notification
+                        at the corresponding week, up to week 78.
                     </p>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1">
+                {error && (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
+
+                <div className="flex flex-col gap-3 max-h-[68vh] overflow-y-auto pr-1">
                     {rows.length === 0 && (
                         <p className="text-sm text-[#6b7280] py-4 text-center">
                             No scheduled actions yet.
@@ -101,13 +112,13 @@ export default function MaintenanceScheduleEditor({
                     {rows.map((row, idx) => (
                         <div
                             key={idx}
-                            className="grid grid-cols-[110px_140px_1fr_40px] gap-2 items-center bg-white border border-[#96A5BA] rounded-md p-2"
+                            className="grid min-w-0 grid-cols-1 gap-3 rounded-md border border-[#96A5BA] bg-white p-3 md:grid-cols-[120px_160px_minmax(0,1fr)_40px]"
                         >
                             <Select
                                 value={String(row.week)}
                                 onValueChange={(v) => updateRow(idx, { week: Number(v) })}
                             >
-                                <SelectTrigger className="bg-[#ffffff] border-[#607797] h-9">
+                                <SelectTrigger className="h-9 w-full bg-[#ffffff] border-[#607797]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -125,7 +136,7 @@ export default function MaintenanceScheduleEditor({
                                 value={row.action}
                                 onValueChange={(v) => updateRow(idx, { action: v })}
                             >
-                                <SelectTrigger className="bg-[#ffffff] border-[#607797] h-9">
+                                <SelectTrigger className="h-9 w-full bg-[#ffffff] border-[#607797]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -140,18 +151,18 @@ export default function MaintenanceScheduleEditor({
                                 </SelectContent>
                             </Select>
 
-                            <Input
-                                placeholder="e.g. Check the condition of the Rotor & Adjust the gap"
+                            <Textarea
+                                placeholder="Add comments or instructions for this week..."
                                 value={row.description}
                                 onChange={(e) =>
                                     updateRow(idx, { description: e.target.value })
                                 }
-                                className="bg-[#ffffff] border-[#607797] h-9"
+                                className="min-h-[96px] w-full min-w-0 max-w-full resize-y bg-[#ffffff] border-[#607797] text-sm leading-5"
                             />
 
                             <button
                                 onClick={() => removeRow(idx)}
-                                className="text-red-400 hover:text-red-300 flex items-center justify-center h-9"
+                                className="flex h-9 items-center justify-center text-red-400 hover:text-red-300 md:mt-0"
                                 aria-label="Remove row"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -167,7 +178,7 @@ export default function MaintenanceScheduleEditor({
                     className="w-fit border-[#607797] bg-[#DFE6EC] hover:bg-[#e5e7eb] text-gray-900"
                 >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add row {availableWeeks.length === 0 ? "(all 13 slots used)" : ""}
+                    Add row {availableWeeks.length === 0 ? "(all 78 weeks used)" : ""}
                 </Button>
 
                 <DialogFooter>

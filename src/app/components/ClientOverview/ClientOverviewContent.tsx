@@ -414,10 +414,15 @@ export default function ClientOverviewContent({
         }
     }, []);
 
-    // Get owner name
-    const ownerName = typeof clientDetails?.clientOwnership === 'object'
-        ? clientDetails.clientOwnership.name
-        : "N/A";
+    // Get client-side owner/contact name
+    const ownerName = typeof clientDetails?.loginUser === "object" && clientDetails.loginUser
+        ? clientDetails.loginUser.name || "N/A"
+        : typeof clientDetails?.clientOwnership === "object" &&
+            clientDetails.clientOwnership &&
+            "role" in clientDetails.clientOwnership &&
+            clientDetails.clientOwnership.role === "client"
+            ? clientDetails.clientOwnership.name || "N/A"
+            : "N/A";
 
     // Get last update date
     const lastUpdate = clientDetails?.updatedAt
