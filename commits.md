@@ -1,5 +1,51 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-12 — push to origin/master (1 commit)
+
+### 97f8399 — feat(rebuild): manage spare part rebuild metadata
+
+- **Full SHA:** `97f83996aac0349fd7b6cb6d2042c89ba14ebf3b`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-12T06:31:43Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** feat
+- **Subject:** feat(rebuild): manage spare part rebuild metadata
+
+#### Task — context
+User requested the Kadant rebuild workflow end to end and then deployment. Relevant verbatim instructions included: "now let me explain this is a major change that needs to be taken care of so there are machine categories, with machines in it and machines have spare parts. now initially the machines are installed new, then they can be send to rebuild, and rebuild have a different delivery time compared to the newly installed." Follow-up admin/client-overview instructions included: "show installation date and last service on as well in the spare parts", "remove the cross and tick icon from health column", and "in the spare part table dont show the machine naem remove it". The final deployment instruction was: "lets deploy this".
+
+#### Task — what changed
+- Web / `src/actions/spare-parts-inventory.ts`: preserved rebuild metadata from spare-part inventory edits/imports so admin can manage rebuild-specific fields alongside existing spare-part cost and timing data.
+- Web / `src/app/(authenticated)/[clientID]/spare-parts-inventory/CsvImportWizard.tsx`: surfaced rebuild fields in CSV import preview/mapping so spreadsheet imports can carry rebuild status, rebuild delivery timing, and rebuild cost data.
+- Web / `src/app/(authenticated)/[clientID]/spare-parts-inventory/SparePartEditDialog.tsx`: added rebuild metadata controls to the spare-part edit modal while keeping existing inventory edit behavior intact.
+- Web / `src/app/components/ClientOverview/ClientOverviewContent.tsx`: refined the expanded spare-parts table UI, showing installation date and last service date, removing the machine-name repetition, simplifying the health tag, and allowing spare-part names to wrap cleanly.
+
+#### Task — design notes
+The admin changes keep rebuild metadata as an additive extension of existing client-machine spare-part records rather than replacing current stock/cost fields. The client-overview spare-part table was kept dense and operational, with narrower columns and simpler health tags to match the repeated-use admin workflow. Existing actions and routing were preserved so current spare-part inventory and client overview behavior remains compatible.
+
+#### Files
+`git show --stat --format="" 97f8399`
+
+```text
+src/actions/spare-parts-inventory.ts               |   7 +
+.../spare-parts-inventory/CsvImportWizard.tsx      |   9 ++
+.../spare-parts-inventory/SparePartEditDialog.tsx  |  65 ++++++++++
+.../ClientOverview/ClientOverviewContent.tsx       | 144 +++++++++++++--------
+4 files changed, 173 insertions(+), 52 deletions(-)
+```
+
+#### Tests
+- `npm run build` in `kadant-admin` — passed.
+- `git diff --check` — passed.
+- Local UI was iteratively checked on `http://localhost:4000/69fa3cd3894ab16ae9bbb582/client-overview` while refining the spare-part table.
+
+#### Operator follow-up
+Deploy `kadant-admin` to Vercel production from this pushed state and smoke test the client-overview/spare-parts inventory pages.
+
+#### Related
+Sibling API rebuild commit: `6b2e4cb`. Sibling Machine Health rebuild/forecasting commit: `b0118d6`.
+
 ## 2026-06-04 — fifth push to origin/master (1 commit)
 
 ### 47d3a91 — fix(image-upload): separate selection from preview view
