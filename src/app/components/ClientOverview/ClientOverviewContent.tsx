@@ -745,58 +745,98 @@ export default function ClientOverviewContent({
                                                                         {isMachineOpen && (
                                                                             <tr className="bg-[#ffffff]">
                                                                                 <td colSpan={6} className="p-0 border-b border-[#607797]">
-                                                                                    <div className="px-4 pb-4">
-                                                                                        {spareParts.length > 0 ? (
-                                                                                            <table className="w-full border-collapse rounded-none overflow-hidden border border-[#607797]">
-                                                                                                <thead>
-                                                                                                    <tr className="bg-[#f3f4f6] border-b border-[#607797]">
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-12">#</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Spare Part Name</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Health</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider">Current Status</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-24">Edit Detail</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Parts</th>
-                                                                                                        <th className="text-left py-2 px-3 text-[#1f2937] text-xs font-bold uppercase tracking-wider w-20">Delete</th>
-                                                                                                    </tr>
-                                                                                                </thead>
-                                                                                                <tbody>
-                                                                                                    {spareParts.map((sparePart, spIndex) => (
-                                                                                                        <tr key={sparePart._id} className="border-b border-[#607797] bg-[#DFE6EC] hover:bg-[#e5e7eb]/50 last:border-b-0">
-                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm font-semibold">{spIndex + 1}</td>
-                                                                                                            <td className="py-2 px-3 text-gray-900 text-sm font-semibold">{sparePart.customName || sparePart.name}</td>
-                                                                                                            <td className="py-2 px-3">
-                                                                                                                <div className="flex items-center gap-1.5">
-                                                                                                                    {getStatusIcon(sparePart.status)}
-                                                                                                                    <Badge className={`${getStatusColor(sparePart.status)} text-xs border font-medium`}>{getStatusText(sparePart.status)}</Badge>
-                                                                                                                </div>
-                                                                                                            </td>
-                                                                                                            <td className="py-2 px-3">
-                                                                                                                <Badge className={`text-xs border ${sparePart.isActive !== false ? "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40" : "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40"}`}>
-                                                                                                                    {sparePart.isActive !== false ? "Active" : "Inactive"}
-                                                                                                                </Badge>
-                                                                                                            </td>
-                                                                                                            <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openUploadEditor(category._id, machine._id, sparePart._id); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Edit spare part">
-                                                                                                                    <Pencil className="w-4 h-4" />
-                                                                                                                </Button>
-                                                                                                            </td>
-                                                                                                            <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPartsModal(sparePart._id, sparePart.customName || sparePart.name); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#d45815] hover:bg-[#d45815]/10" title="Manage parts">
-                                                                                                                    <Package className="w-4 h-4" />
-                                                                                                                </Button>
-                                                                                                            </td>
-                                                                                                            <td className="py-2 px-3">
-                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "sparePart", id: sparePart._id, name: sparePart.customName || sparePart.name }); }} className="h-8 w-8 p-0 text-[#374151] hover:text-[#bf1e21] hover:bg-[#bf1e21]/10" title="Delete spare part">
-                                                                                                                    <Trash2 className="w-4 h-4" />
-                                                                                                                </Button>
-                                                                                                            </td>
-                                                                                                        </tr>
-                                                                                                    ))}
-                                                                                                </tbody>
-                                                                                            </table>
-                                                                                        ) : !isLoading ? (
-                                                                                            <p className="text-[#374151] text-sm font-medium py-4">No spare parts found</p>
-                                                                                        ) : null}
+                                                                                    <div className="bg-[#f8fafc] px-5 py-4">
+                                                                                        <div className="overflow-hidden rounded-[12px] border border-[#b8c6d8] bg-white shadow-sm">
+                                                                                            <div className="flex items-center justify-between gap-4 border-b border-[#d4dde8] bg-gradient-to-r from-[#f4f7fb] to-white px-4 py-3">
+                                                                                                <div className="min-w-0">
+                                                                                                    <h3 className="text-[15px] font-semibold text-[#111827]">Spare parts</h3>
+                                                                                                </div>
+                                                                                                <Badge className="shrink-0 rounded-full border border-[#d45815]/30 bg-[#d45815]/10 px-3 py-1 text-xs font-semibold text-[#d45815]">
+                                                                                                    {isLoading ? "Loading..." : `${spareParts.length} items`}
+                                                                                                </Badge>
+                                                                                            </div>
+
+                                                                                            {isLoading ? (
+                                                                                                <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm font-medium text-[#607797]">
+                                                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                                    Loading spare parts...
+                                                                                                </div>
+                                                                                            ) : spareParts.length > 0 ? (
+                                                                                                <div className="overflow-x-auto">
+                                                                                                    <table className="w-full min-w-[820px] table-fixed border-collapse">
+                                                                                                        <thead>
+                                                                                                            <tr className="border-b border-[#d4dde8] bg-[#f9fafb]">
+                                                                                                                <th className="w-14 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">#</th>
+                                                                                                                <th className="w-[220px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Spare Part</th>
+                                                                                                                <th className="w-[120px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Health</th>
+                                                                                                                <th className="w-[140px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Installed On</th>
+                                                                                                                <th className="w-[150px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Last Service On</th>
+                                                                                                                <th className="w-[120px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Status</th>
+                                                                                                                <th className="w-[148px] px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-[#607797]">Actions</th>
+                                                                                                            </tr>
+                                                                                                        </thead>
+                                                                                                        <tbody className="divide-y divide-[#edf1f5]">
+                                                                                                            {spareParts.map((sparePart, spIndex) => {
+                                                                                                                return (
+                                                                                                                    <tr key={sparePart._id} className="bg-white hover:bg-[#f8fafc]">
+                                                                                                                        <td className="px-4 py-3 text-sm font-semibold text-[#374151]">{spIndex + 1}</td>
+                                                                                                                        <td className="px-4 py-3">
+                                                                                                                            <div className="flex min-w-0 flex-col gap-0.5">
+                                                                                                                                <span className="whitespace-normal break-words text-sm font-semibold leading-5 text-[#111827]">{sparePart.customName || sparePart.name}</span>
+                                                                                                                                {sparePart.klValue && (
+                                                                                                                                    <span className="text-xs font-medium text-[#6b7280]">KL: {sparePart.klValue}</span>
+                                                                                                                                )}
+                                                                                                                            </div>
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3">
+                                                                                                                            <div className="flex items-center">
+                                                                                                                                <Badge className={`${getStatusColor(sparePart.status)} rounded-full border text-xs font-medium`}>
+                                                                                                                                    {getStatusText(sparePart.status)}
+                                                                                                                                </Badge>
+                                                                                                                            </div>
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3 text-sm font-medium text-[#374151]">
+                                                                                                                            {sparePart.sparePartInstallationDate
+                                                                                                                                ? format(new Date(sparePart.sparePartInstallationDate), "dd MMM yyyy")
+                                                                                                                                : "—"}
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3 text-sm font-medium text-[#374151]">
+                                                                                                                            {sparePart.lastServiceDate
+                                                                                                                                ? format(new Date(sparePart.lastServiceDate), "dd MMM yyyy")
+                                                                                                                                : "—"}
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3">
+                                                                                                                            <Badge className={`rounded-full border text-xs ${sparePart.isActive !== false ? "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40" : "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40"}`}>
+                                                                                                                                {sparePart.isActive !== false ? "Active" : "Inactive"}
+                                                                                                                            </Badge>
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3">
+                                                                                                                            <div className="flex items-center justify-end gap-1">
+                                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openUploadEditor(category._id, machine._id, sparePart._id); }} className="h-8 w-8 p-0 text-[#374151] hover:bg-[#d45815]/10 hover:text-[#d45815]" title="Edit spare part">
+                                                                                                                                    <Pencil className="w-4 h-4" />
+                                                                                                                                </Button>
+                                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPartsModal(sparePart._id, sparePart.customName || sparePart.name); }} className="h-8 w-8 p-0 text-[#374151] hover:bg-[#d45815]/10 hover:text-[#d45815]" title="Manage parts">
+                                                                                                                                    <Package className="w-4 h-4" />
+                                                                                                                                </Button>
+                                                                                                                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "sparePart", id: sparePart._id, name: sparePart.customName || sparePart.name }); }} className="h-8 w-8 p-0 text-[#374151] hover:bg-[#bf1e21]/10 hover:text-[#bf1e21]" title="Delete spare part">
+                                                                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                                                                </Button>
+                                                                                                                            </div>
+                                                                                                                        </td>
+                                                                                                                    </tr>
+                                                                                                                );
+                                                                                                            })}
+                                                                                                        </tbody>
+                                                                                                    </table>
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+                                                                                                    <Package className="h-8 w-8 text-[#9ca3af]" />
+                                                                                                    <p className="text-sm font-semibold text-[#374151]">No spare parts found</p>
+                                                                                                    <p className="text-xs text-[#6b7280]">Add spare parts from Edit Machine Data.</p>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>

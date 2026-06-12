@@ -40,6 +40,10 @@ const TARGET_FIELDS = [
     { key: "nbRepair", label: "Nb repair (yearly)" },
     { key: "lastOrderRefKL", label: "KL last order ref" },
     { key: "lastOrderRefClient", label: "Client last order ref" },
+    { key: "rotorType", label: "Rotor type (New/Rebuilt)" },
+    { key: "rebuildStatus", label: "Rebuild status" },
+    { key: "rebuildDeliveryTimeText", label: "Rebuild delivery time (e.g. '8 weeks')" },
+    { key: "rebuildLifetimeText", label: "Rebuild lifetime (e.g. '3 Months')" },
     // Maintenance schedule columns are detected automatically (see WEEK_HEADER_REGEX).
 ];
 
@@ -165,6 +169,11 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
                 else if (lower.includes("machine") && lower.includes("name"))
                     setGuess("machineName");
                 else if (lower.includes("category")) setGuess("category");
+                else if (lower.includes("rotor") && lower.includes("type")) setGuess("rotorType");
+                else if (lower.includes("rebuild") && lower.includes("status")) setGuess("rebuildStatus");
+                else if (lower.includes("rebuild") && lower.includes("delivery")) setGuess("rebuildDeliveryTimeText");
+                else if (lower.includes("rebuild") && lower.includes("life")) setGuess("rebuildLifetimeText");
+                else if (lower.includes("original") && lower.includes("rotor") && lower.includes("life")) setGuess("rebuildLifetimeText");
                 else if (lower.includes("life") && lower.includes("time")) setGuess("lifetimeText");
                 else if (lower.includes("delivery")) setGuess("deliveryTimeText");
                 else if (lower.includes("comment")) setGuess("comments");

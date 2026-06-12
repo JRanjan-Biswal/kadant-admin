@@ -35,6 +35,10 @@ interface Props {
             nbRepair: number;
             lastOrderRefKL: string;
             lastOrderRefClient: string;
+            rotorType: "New" | "Rebuilt";
+            rebuildStatus: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
+            rebuildDeliveryTimeText: string;
+            rebuildLifetimeText: string;
         };
     }) => Promise<void>;
 }
@@ -58,6 +62,10 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
         nbRepair: 0,
         lastOrderRefKL: "",
         lastOrderRefClient: "",
+        rotorType: "New" as "New" | "Rebuilt",
+        rebuildStatus: "None" as "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock",
+        rebuildDeliveryTimeText: "",
+        rebuildLifetimeText: "",
     });
     const [saving, setSaving] = useState(false);
 
@@ -78,6 +86,10 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                 nbRepair: sparePart.clientMachineSparePart?.nbRepair || 0,
                 lastOrderRefKL: sparePart.clientMachineSparePart?.lastOrderRefKL || "",
                 lastOrderRefClient: sparePart.clientMachineSparePart?.lastOrderRefClient || "",
+                rotorType: sparePart.clientMachineSparePart?.rotorType || "New",
+                rebuildStatus: sparePart.clientMachineSparePart?.rebuildStatus || "None",
+                rebuildDeliveryTimeText: parseDeliveryWeeks(sparePart.clientMachineSparePart?.rebuildDeliveryTime),
+                rebuildLifetimeText: sparePart.clientMachineSparePart?.rebuildLifetimeText || "",
             });
         }
     }, [open, sparePart]);
@@ -103,6 +115,10 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                     nbRepair: Number(form.nbRepair) || 0,
                     lastOrderRefKL: form.lastOrderRefKL.trim(),
                     lastOrderRefClient: form.lastOrderRefClient.trim(),
+                    rotorType: form.rotorType,
+                    rebuildStatus: form.rebuildStatus,
+                    rebuildDeliveryTimeText: form.rebuildDeliveryTimeText.trim(),
+                    rebuildLifetimeText: form.rebuildLifetimeText.trim(),
                 },
             });
             onOpenChange(false);
@@ -221,6 +237,55 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                         <Input
                             value={form.lastOrderRefClient}
                             onChange={(e) => setForm({ ...form, lastOrderRefClient: e.target.value })}
+                        />
+                    </Field>
+
+                    <div className="col-span-2 border-t border-[#607797] mt-2 pt-3">
+                        <p className="text-xs uppercase tracking-wider text-[#6b7280]">
+                            Rebuild planning
+                        </p>
+                    </div>
+
+                    <Field label="Rotor type">
+                        <select
+                            value={form.rotorType}
+                            onChange={(e) => setForm({ ...form, rotorType: e.target.value as "New" | "Rebuilt" })}
+                            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900"
+                        >
+                            <option value="New">New</option>
+                            <option value="Rebuilt">Rebuilt</option>
+                        </select>
+                    </Field>
+                    <Field label="Rebuild status">
+                        <select
+                            value={form.rebuildStatus}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    rebuildStatus: e.target.value as "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock",
+                                    rotorType: e.target.value === "None" ? form.rotorType : "Rebuilt",
+                                })
+                            }
+                            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900"
+                        >
+                            <option value="None">None</option>
+                            <option value="Sent to Rebuild">Sent to Rebuild</option>
+                            <option value="Rebuilt">Rebuilt</option>
+                            <option value="In Stock">In Stock</option>
+                        </select>
+                    </Field>
+                    <Field label="Rebuild delivery time (e.g. '8 weeks')">
+                        <Input
+                            value={form.rebuildDeliveryTimeText}
+                            onChange={(e) => setForm({ ...form, rebuildDeliveryTimeText: e.target.value })}
+                            placeholder="8 weeks"
+                        />
+                    </Field>
+                    <Field label="Rebuild lifetime (e.g. '3 Months')">
+                        <Input
+                            value={form.rebuildLifetimeText}
+                            onChange={(e) => setForm({ ...form, rebuildLifetimeText: e.target.value })}
+                            placeholder="3 Months"
                         />
                     </Field>
                 </div>

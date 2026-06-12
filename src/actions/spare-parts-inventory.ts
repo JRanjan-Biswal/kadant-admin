@@ -43,6 +43,13 @@ export interface InventorySparePart {
         lifetimeOfRotor?: { value: number; unit: string };
         sparePartInstallationDate?: string | null;
         lastServiceDate?: string | null;
+        rotorType?: "New" | "Rebuilt";
+        rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
+        isSentToRebuild?: boolean;
+        rebuildSentDate?: string | null;
+        rebuildDeliveryTime?: { value: number; unit: string };
+        rebuildLifetime?: { value: number; unit: string };
+        rebuildLifetimeText?: string | null;
         statusOverride?: "In Stock" | "Low Stocks" | "Out of Stock" | null;
         updatedAt?: string;
     } | null;
