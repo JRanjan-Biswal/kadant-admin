@@ -6,7 +6,7 @@ import { LuCalendarCog, LuBookOpen, LuPackage } from "react-icons/lu";
 import { PiGearFineBold } from "react-icons/pi";
 import { LuHistory } from "react-icons/lu";
 import { HiOutlineUserGroup } from "react-icons/hi";
-import { ShieldCheck } from "lucide-react";
+import { LineChart, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { NavMain } from "@/app/components/AppSideBar/NavMain";
@@ -79,6 +79,12 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       title: "Spare Parts Inventory",
       url: hasSelectedClient ? `/${clientID}/spare-parts-inventory` : "#",
       icon: LuPackage,
+      disabled: !hasSelectedClient,
+    },
+    {
+      title: "Forecasting",
+      url: hasSelectedClient ? `/${clientID}/forecasting` : "#",
+      icon: LineChart,
       disabled: !hasSelectedClient,
     },
     {
