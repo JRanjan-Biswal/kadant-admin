@@ -1,5 +1,50 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-29 — push to origin/master (1 commit)
+
+### f384fc5 — feat(forecasting): add pricing management
+
+- **Full SHA:** `f384fc57e5f33e7458d883ea4694dc9f3a0207ae`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-29T12:36:25Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** feat
+- **Subject:** feat(forecasting): add pricing management
+
+#### Task — context
+User requested a principal-engineer-style forecasting pricing workflow and deployment. Verbatim instruction: "also there should be a page where i can add the pricing of the spare parts, so in the kadant-admin add another tab forecasting, this is where all things should be listed with pricing, make sure this is synced perfectly with  spare part invetory and client overview page." Follow-up deployment instruction: "push these changes to and deploy"
+
+#### Task — what changed
+- Web / `src/app/(authenticated)/[clientID]/forecasting/page.tsx`: added the authenticated client-scoped Forecasting route and loaded the same linked client machines used by spare-parts inventory.
+- Web / `src/app/(authenticated)/[clientID]/forecasting/ForecastingPricingClient.tsx`: added a forecasting pricing table across all client machine spare parts, with category/machine/search filters, inline editing for annual new quantity, annual repair quantity, new unit price, and repair price per piece, plus new/repair/total forecast totals and missing-price warnings.
+- Web / `src/app/components/AppSideBar/AppSideBar.tsx`: added the Forecasting navigation tab for selected clients.
+
+#### Task — design notes
+The page writes to existing `ClientMachineSpareParts` fields through `saveClientSparePart`: `nbNew`, `nbRepair`, `unitPriceNew`, and `priceRepairPerPc`. That keeps forecasting pricing aligned with the spare-parts inventory import/edit model and avoids creating another pricing source. Pricing is client-specific, with machine-health able to fall back to catalog prices when no client override exists. Existing dirty work in the admin repo was deliberately left unstaged; this commit includes only the new forecasting route and sidebar tab.
+
+#### Files
+`git show --stat --format="" f384fc5`
+
+```text
+.../forecasting/ForecastingPricingClient.tsx       | 664 +++++++++++++++++++++
+.../[clientID]/forecasting/page.tsx                |  21 +
+src/app/components/AppSideBar/AppSideBar.tsx       |   8 +-
+3 files changed, 692 insertions(+), 1 deletion(-)
+```
+
+#### Tests
+- `npx tsc --noEmit` in `kadant-admin` — passed.
+- `npm run build` in `kadant-admin` — passed.
+- `npm run lint` in `kadant-admin` — completed with existing unrelated warnings.
+- `git diff --cached --check` — passed before commit.
+
+#### Operator follow-up
+Deploy `kadant-admin` production from this pushed state and smoke test `/<clientID>/forecasting` pricing saves against spare-parts inventory values.
+
+#### Related
+Sibling Machine Health report/PDF commit: `b09fdb2`.
+
 ## 2026-06-12 — push to origin/master (1 commit)
 
 ### 97f8399 — feat(rebuild): manage spare part rebuild metadata
