@@ -1,5 +1,76 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-06-30 — push to origin/master (1 commit)
+
+### aaeceb0 — feat(inventory): sync admin spare part workflows
+
+- **Full SHA:** `aaeceb0cb9a715990dc2399321259c15a4c3dceb`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-06-30T12:30:42Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** feat
+- **Subject:** feat(inventory): sync admin spare part workflows
+
+#### Task — context
+User asked to sync the current admin state and ship it live. Verbatim instruction: "let sync everything, push the kadant admin to live"
+The local admin tree already contained a broad inventory/client-overview workflow update that had not been pushed. During preflight, matching local API changes were found in `kadant-api`; those API changes were pushed first as `3f46338` so the admin UI would not be ahead of the backend routes it calls.
+
+#### Task — what changed
+- Web / `src/app/(authenticated)/[clientID]/spare-parts-inventory/SparePartsInventoryClient.tsx`: synced the spare-parts inventory workflow with rebuild, order-new, replacement, queue, pagination, and richer part state handling.
+- Web / `src/app/(authenticated)/[clientID]/spare-parts-inventory/InventoryManagementAddModal.tsx`: added a dedicated add modal for inventory management.
+- Web / `src/components` and modal paths under `src/app/components/*`: carried the replacement/rebuild/order-new fields through machine hierarchy, visit data, spare-part edit, machine insight selector, and client overview surfaces.
+- Web / `src/app/components/ClientOverview/ClientOverviewContent.tsx`: aligned client overview with the expanded inventory state so replacement/rebuild data stays visible outside the inventory page.
+- API proxy / `src/app/api/hidden/rise/*`, `src/app/(fullLayout)/hidden/rise/upload/page.tsx`, `src/lib/rise-auth.ts`: added the hidden RISE image upload page and auth/proxy routes.
+- Security / `src/lib/rise-auth.ts`, `src/app/api/hidden/rise/images/route.ts`: removed production credential material from source by requiring `RISE_UPLOAD_*` environment variables in production while leaving development-only fallbacks.
+- Types/actions / `src/actions/spare-parts-inventory.ts`, `src/types/client.ts`, `src/types/machine.ts`: added the TypeScript contracts and server actions for replacement options, inventory queues, snapshots, and quote CSV metadata.
+
+#### Task — design notes
+The inventory workflow remains client-machine-spare-part centric so spare-parts inventory, client overview, forecasting, and Machine Health can share one canonical set of per-client fields. Replacement state is additive: new fields and history arrays preserve current stock/rebuild behavior while allowing an old installed part to be replaced by a rebuilt or newly ordered part. The hidden RISE uploader is intentionally routed through admin server routes so the browser never receives the internal API secret. Production now requires configured `RISE_UPLOAD_API_SECRET`, `RISE_UPLOAD_PASSWORD_SALT`, and `RISE_UPLOAD_PASSWORD_HASH` instead of hard-coded production secrets.
+
+#### Files
+`git show --stat --format="" aaeceb0`
+
+```text
+src/actions/spare-parts-inventory.ts               |  177 +++
+.../_components/MachineInsightsClient.tsx          |   56 +-
+.../InventoryManagementAddModal.tsx                |  303 ++++
+.../spare-parts-inventory/SparePartEditDialog.tsx  |   17 +
+.../SparePartsInventoryClient.tsx                  | 1646 ++++++++++++++++----
+src/app/(fullLayout)/hidden/rise/upload/page.tsx   |  504 ++++++
+src/app/api/hidden/rise/auth/route.ts              |   67 +
+src/app/api/hidden/rise/images/route.ts            |   83 +
+.../machines/spare-parts/[sparePartID]/route.ts    |    4 +-
+src/app/api/machines/spare-parts/route.ts          |    4 +-
+src/app/components/AppSideBar/AppSideBar.tsx       |    2 +-
+.../ClientOverview/ClientOverviewContent.tsx       |  653 +++++++-
+.../MachineHierarchy/AddCategoryMachineFlow.tsx    |  219 ++-
+.../MachineHierarchy/AddEntityModals.tsx           |   66 +-
+src/app/components/MachineInsightSelector.tsx      |    2 +-
+src/app/components/Modals/AddMachineModal.tsx      |    1 +
+src/app/components/Modals/AddVisitDataModal.tsx    |   19 +-
+.../components/Modals/EditSparePartInsights.tsx    |    4 +-
+src/app/components/Modals/EditSparePartModal.tsx   |    2 +-
+src/app/components/Modals/EditVisitDataModal.tsx   |    8 +-
+src/lib/rise-auth.ts                               |   83 +
+src/types/client.ts                                |   24 +
+src/types/machine.ts                               |   87 +-
+23 files changed, 3614 insertions(+), 417 deletions(-)
+```
+
+#### Tests
+- `rm -rf .next && npm run build` in `kadant-admin` — passed.
+- `npx tsc --noEmit` in `kadant-admin` — passed after clean build regenerated Next types.
+- `npm run lint` in `kadant-admin` — passed with existing warnings, plus warnings for new hidden RISE page `<img>` usage and one inventory hook dependency warning.
+- `git diff --check` in `kadant-admin` — passed.
+- Security scan for removed hard-coded RISE secret/hash literals across `kadant-admin/src` and `kadant-api` — no matches.
+
+#### Operator follow-up
+Ensure the production Admin and API environments have matching `RISE_UPLOAD_API_SECRET`, and ensure Admin has `RISE_UPLOAD_PASSWORD_SALT` and `RISE_UPLOAD_PASSWORD_HASH`. Deploy or verify deployment of API commit `3f46338` if GitHub push does not automatically update the EC2/PM2 API host.
+
+#### Related
+Required API support commit: `3f46338` (`feat(inventory): sync spare part replacement workflows`). Previous admin forecasting pricing commit: `f384fc5`.
+
 ## 2026-06-29 — push to origin/master (1 commit)
 
 ### f384fc5 — feat(forecasting): add pricing management
