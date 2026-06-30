@@ -57,6 +57,30 @@ export interface Client {
     stockPrepImageUrl?: string;
     onboardingImages?: string[];
     onboardingImageUrls?: string[];
+    quoteCsvData?: {
+        fileName?: string | null;
+        uploadedAt?: string | null;
+        headers?: string[];
+        rows?: string[][];
+        sections?: Array<{
+            title: string;
+            headers: string[];
+            rows: string[][];
+            subtotal?: {
+                label: string;
+                value: string;
+            };
+        }>;
+        grandTotals?: Array<{
+            label: string;
+            value: string;
+        }>;
+        summaryRows?: Array<{
+            label: string;
+            value: string;
+            note?: string;
+        }>;
+    };
     createdAt: string;
     updatedAt: string;
     // Extended properties from backend

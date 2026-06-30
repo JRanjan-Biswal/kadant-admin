@@ -314,7 +314,7 @@ const MachineInsightSelector = ({ clientId }: MachineInsightSelectorProps) => {
                                         </div>
                                     </div>
                                     <div className="col-span-1">
-                                        <Label className="text-base-4 mb-[10px]">Lifetime of Rotor</Label>
+                                        <Label className="text-base-4 mb-[10px]">Lifetime</Label>
                                         <div className="relative">
                                             <Input
                                                 readOnly

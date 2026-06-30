@@ -1,19 +1,28 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, Fragment } from "react";
+import { useState, useMemo, useCallback, useEffect, Fragment, type ChangeEvent } from "react";
 import { HiOutlineSearch, HiOutlineChevronRight } from "react-icons/hi";
 import { FaPlus } from "react-icons/fa";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import AddCategoryMachineFlow, { type AddCategoryMachineFlowFocusTarget } from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
 import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntityModals";
 import { Client } from "@/types/client";
-import { Machine, SparePart, ClientMachineSparePart } from "@/types/machine";
+import { Machine, SparePart, ClientMachineSparePart, type ReplacementPartSnapshot } from "@/types/machine";
 import EditClientDetails from "@/app/components/Modals/EditClientDetails";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus, GripVertical } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, Pencil, Trash2, Package, Plus, GripVertical, FileSpreadsheet, Upload } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -58,6 +67,16 @@ const getStatusIcon = (status?: string) => {
             return <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />;
     }
 };
+
+const formatPartMoney = (price?: { value?: number; priceUnit?: string } | null) => {
+    if (!price || !price.value) return null;
+    return `${price.value} ${price.priceUnit || "EUR"}`;
+};
+
+const formatPartDuration = (duration?: { value?: number; unit?: string } | null) => {
+    if (!duration || !duration.value) return null;
+    return `${duration.value} ${duration.unit || ""}`.trim();
+};
 /** Status logic aligned with machine-health: totalRunningHours > lifeTime → Attention, === → Monitor, else Healthy */
 function getSparePartStatusFromHours(
     totalRunningHours: number,
@@ -66,6 +85,174 @@ function getSparePartStatusFromHours(
     if (totalRunningHours > lifetimeValue) return "critical"; // Attention
     if (totalRunningHours === lifetimeValue) return "warning";  // Monitor
     return "healthy"; // Healthy
+}
+
+type QuoteCsvData = NonNullable<Client["quoteCsvData"]>;
+type QuoteCsvSection = NonNullable<QuoteCsvData["sections"]>[number];
+
+const FALLBACK_QUOTE_HEADERS: Record<number, string> = {
+    1: "S.No.",
+    2: "Equipment with Spares Description",
+    3: "KL Code",
+    4: "Req.Qty",
+    5: "Category",
+    6: "Machine",
+};
+
+const cleanCsvCell = (value: unknown) =>
+    String(value ?? "")
+        .replace(/\u00a0/g, " ")
+        .replace(/Â/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+const isHiddenQuoteColumn = (header: string) => {
+    const normalized = header.toLowerCase();
+    return normalized.includes("contract") || normalized.includes("price");
+};
+
+const isHeaderRow = (row: string[]) => {
+    const joined = row.join(" ").toLowerCase();
+    return joined.includes("equipment") && joined.includes("req.qty");
+};
+
+const isSubtotalRow = (row: string[]) =>
+    row.some((cell) => cell.toLowerCase() === "sub-total");
+
+const isGrandTotalRow = (row: string[]) =>
+    row.some((cell) => cell.toLowerCase().startsWith("grand total"));
+
+const firstValue = (row: string[]) => row.find(Boolean) || "";
+
+const lastValue = (row: string[]) => {
+    for (let i = row.length - 1; i >= 0; i -= 1) {
+        if (row[i]) return row[i];
+    }
+    return "";
+};
+
+const getSectionTitle = (row: string[]) => row[2] || row[1] || firstValue(row);
+
+const getHeaderColumns = (row: string[]) =>
+    row
+        .map((header, index) => ({
+            index,
+            header: header || FALLBACK_QUOTE_HEADERS[index] || "",
+        }))
+        .filter(({ header }) => header && !isHiddenQuoteColumn(header));
+
+const normalizeQuoteCsvRows = (rows: unknown[][], fileName: string): QuoteCsvData => {
+    const cleanedRows = rows.map((row) => row.map(cleanCsvCell));
+    const firstHeaderRowIndex = cleanedRows.findIndex(isHeaderRow);
+
+    if (firstHeaderRowIndex < 0) {
+        throw new Error("Could not find the CSV header row.");
+    }
+
+    const sections: QuoteCsvSection[] = [];
+    const grandTotals: NonNullable<QuoteCsvData["grandTotals"]> = [];
+    const summaryRows: NonNullable<QuoteCsvData["summaryRows"]> = [];
+    let currentSection: QuoteCsvSection | null = null;
+    let currentColumns = getHeaderColumns(cleanedRows[firstHeaderRowIndex]);
+    let pendingTitle = "";
+    let afterGrandTotals = false;
+
+    const pushCurrentSection = () => {
+        if (currentSection && currentSection.rows.length) {
+            sections.push(currentSection);
+        }
+        currentSection = null;
+    };
+
+    for (let i = firstHeaderRowIndex + 1; i < cleanedRows.length; i += 1) {
+        const row = cleanedRows[i];
+        if (!row.some(Boolean)) continue;
+
+        if (isGrandTotalRow(row)) {
+            pushCurrentSection();
+            grandTotals.push({
+                label: firstValue(row),
+                value: row[8] || lastValue(row),
+            });
+            afterGrandTotals = true;
+            continue;
+        }
+
+        if (afterGrandTotals) {
+            const label = row[7] || row[1] || row[2] || firstValue(row);
+            const value = row[9] || row[8] || "";
+            const note = row[10] || "";
+            if (label) summaryRows.push({ label, value, note });
+            continue;
+        }
+
+        if (isHeaderRow(row)) {
+            currentColumns = getHeaderColumns(row);
+            continue;
+        }
+
+        if (isSubtotalRow(row)) {
+            if (currentSection) {
+                currentSection.subtotal = {
+                    label: "Sub-Total",
+                    value: row[8] || lastValue(row),
+                };
+            }
+            pushCurrentSection();
+            pendingTitle = "";
+            continue;
+        }
+
+        const serialValue = row[1];
+        const isItemRow = /^\d+$/.test(serialValue);
+
+        if (!isItemRow) {
+            pendingTitle = getSectionTitle(row);
+            continue;
+        }
+
+        if (!currentSection) {
+            currentSection = {
+                title: pendingTitle || "Quote Items",
+                headers: currentColumns.map(({ header }) => header),
+                rows: [],
+            };
+        }
+
+        currentSection.rows.push(currentColumns.map(({ index }) => row[index] || ""));
+    }
+
+    pushCurrentSection();
+
+    const headers = sections[0]?.headers || [];
+    const flatRows = sections.flatMap((section) => section.rows);
+
+    if (!sections.length || !flatRows.length) {
+        throw new Error("No quote CSV rows were found after cleanup.");
+    }
+
+    return {
+        fileName,
+        uploadedAt: new Date().toISOString(),
+        headers,
+        rows: flatRows,
+        sections,
+        grandTotals,
+        summaryRows,
+    };
+};
+
+async function parseQuoteCsvFile(file: File): Promise<QuoteCsvData> {
+    const csvText = await file.text();
+    const workbook = XLSX.read(csvText, { type: "string", raw: false });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+        header: 1,
+        defval: "",
+        blankrows: false,
+        raw: false,
+    });
+    return normalizeQuoteCsvRows(rows, file.name);
 }
 
 interface Category {
@@ -85,6 +272,7 @@ interface ClientOverviewContentProps {
 }
 
 interface SparePartWithStatus extends SparePart {
+    klValue?: string;
     status?: "healthy" | "warning" | "critical";
     healthPercentage?: number;
     lastServiceDate?: string | null;
@@ -92,10 +280,251 @@ interface SparePartWithStatus extends SparePart {
     customName?: string;
     clientSparePartId?: string;
     isActive?: boolean;
+    rotorType?: "New" | "Rebuilt";
+    rebuildsPossible?: number;
+    rebuildLifetime?: { value: number; unit: string };
+    rebuildLifetimeText?: string | null;
+    rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
+    isSentToRebuild?: boolean;
+    rebuildSentDate?: string | null;
+    orderNewStatus?: "None" | "Ordered New" | "Received" | "In Stock";
+    isOrderedNew?: boolean;
+    orderNewRequestedDate?: string | null;
+    replacementSource?: "Rebuild" | "Order New" | null;
+    replacementDate?: string | null;
+    replacementSparePart?: string | null;
+    replacementPartSnapshot?: ReplacementPartSnapshot | null;
+    replacementPartName?: string | null;
+    replacementPartKlValue?: string | null;
+    replacementPartSerialNumber?: string | null;
+    replacementNotes?: string | null;
+    replacementLifetimeText?: string | null;
+    replacementMediaUrls?: string[];
 }
 
 interface MachineSpareParts {
     [machineId: string]: SparePartWithStatus[];
+}
+
+interface QuoteCsvUploadModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    initialData?: QuoteCsvData | null;
+    clientId: string;
+    onSaved: (data: QuoteCsvData) => void;
+}
+
+function QuoteCsvUploadModal({ open, onOpenChange, initialData, clientId, onSaved }: QuoteCsvUploadModalProps) {
+    const [previewData, setPreviewData] = useState<QuoteCsvData | null>(initialData || null);
+    const [isParsing, setIsParsing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [parseError, setParseError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open) {
+            setPreviewData(initialData || null);
+            setParseError(null);
+        }
+    }, [initialData, open]);
+
+    const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+            setParseError("Please upload a CSV file.");
+            return;
+        }
+
+        setIsParsing(true);
+        setParseError(null);
+        try {
+            const parsed = await parseQuoteCsvFile(file);
+            setPreviewData(parsed);
+        } catch (error) {
+            setPreviewData(null);
+            setParseError(error instanceof Error ? error.message : "Failed to parse CSV file.");
+        } finally {
+            setIsParsing(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!previewData) return;
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/clients/${clientId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ quoteCsvData: previewData }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to save quote CSV data.");
+            }
+            onSaved(previewData);
+            toast.success("Quote CSV data saved.");
+            onOpenChange(false);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to save quote CSV data.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const previewSections = previewData?.sections?.length
+        ? previewData.sections
+        : previewData?.headers?.length && previewData?.rows?.length
+            ? [{ title: "Quote Items", headers: previewData.headers, rows: previewData.rows }]
+            : [];
+    const previewRowCount = previewSections.reduce((sum, section) => sum + (section.rows?.length || 0), 0);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-[min(1180px,calc(100vw-2rem))] bg-white p-0 text-[#111827]">
+                <DialogHeader className="border-b border-[#d4dde8] bg-[#f8fafc] px-6 py-5">
+                    <DialogTitle className="flex items-center gap-2 text-xl text-[#2D3E5C]">
+                        <FileSpreadsheet className="h-5 w-5 text-[#d45815]" />
+                        Add Quote CSV Data
+                    </DialogTitle>
+                    <DialogDescription>
+                        Upload the customer quote CSV. Contract price columns are removed from the preview and saved report.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-5 px-6 py-5">
+                    <label className="flex min-h-[116px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed border-[#96A5BA] bg-[#f8fafc] px-4 text-center transition-colors hover:border-[#d45815] hover:bg-[#fff7ed]">
+                        {isParsing ? (
+                            <Loader2 className="h-6 w-6 animate-spin text-[#d45815]" />
+                        ) : (
+                            <Upload className="h-6 w-6 text-[#d45815]" />
+                        )}
+                        <span className="text-sm font-semibold text-[#1f2937]">
+                            {isParsing ? "Reading CSV..." : "Choose CSV file"}
+                        </span>
+                        <span className="text-xs text-[#6b7280]">Only non-contract columns will be shown.</span>
+                        <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} />
+                    </label>
+
+                    {parseError && (
+                        <div className="rounded-[8px] border border-[#bf1e21]/30 bg-[#bf1e21]/10 px-4 py-3 text-sm font-medium text-[#991b1b]">
+                            {parseError}
+                        </div>
+                    )}
+
+                    {previewData && previewSections.length ? (
+                        <div className="grid gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[#96A5BA] bg-gradient-to-r from-[#DFE6EC] to-white px-4 py-3">
+                                <div>
+                                    <p className="text-sm font-bold text-[#111827]">{previewData.fileName || "Quote CSV"}</p>
+                                    <p className="text-xs font-medium text-[#607797]">{previewRowCount} rows across {previewSections.length} sections</p>
+                                </div>
+                                <Badge className="rounded-full border border-[#d45815]/30 bg-[#d45815]/10 px-3 py-1 text-xs font-semibold text-[#d45815]">
+                                    Contract columns hidden
+                                </Badge>
+                            </div>
+
+                            <div className="max-h-[460px] overflow-auto pr-1">
+                                <div className="grid gap-4">
+                                    {previewSections.map((section, sectionIndex) => (
+                                        <div key={`${section.title}-${sectionIndex}`} className="overflow-hidden rounded-[12px] border border-[#96A5BA] bg-white">
+                                            <div className="flex items-center justify-between gap-3 border-b border-[#d4dde8] bg-[#f8fafc] px-4 py-3">
+                                                <div>
+                                                    <p className="text-sm font-bold text-[#111827]">{section.title}</p>
+                                                    <p className="text-xs font-medium text-[#607797]">{section.rows?.length || 0} rows</p>
+                                                </div>
+                                                {section.subtotal?.value && (
+                                                    <div className="rounded-[8px] border border-[#d45815]/20 bg-[#fff7ed] px-3 py-1.5 text-right">
+                                                        <p className="text-[11px] font-bold uppercase text-[#9a3412]">{section.subtotal.label}</p>
+                                                        <p className="text-sm font-bold text-[#d45815]">{section.subtotal.value}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full min-w-[820px] border-collapse">
+                                                    <thead className="bg-[#f9fafb]">
+                                                        <tr className="border-b border-[#d4dde8]">
+                                                            {(section.headers || []).map((header, index) => (
+                                                                <th key={`${header}-${index}`} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">
+                                                                    {header}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[#edf1f5]">
+                                                        {(section.rows || []).map((row, rowIndex) => (
+                                                            <tr key={rowIndex} className="bg-white hover:bg-[#f8fafc]">
+                                                                {row.map((cell, cellIndex) => (
+                                                                    <td key={`${rowIndex}-${cellIndex}`} className="px-4 py-3 align-top text-sm font-medium text-[#374151]">
+                                                                        {cell || "—"}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {!!previewData.grandTotals?.length && (
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    {previewData.grandTotals.map((total, index) => (
+                                        <div key={`${total.label}-${index}`} className="rounded-[12px] border border-[#d45815]/30 bg-[#fff7ed] px-4 py-3">
+                                            <p className="text-xs font-bold uppercase tracking-wide text-[#9a3412]">{total.label}</p>
+                                            <p className="mt-1 text-2xl font-bold text-[#d45815]">{total.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {!!previewData.summaryRows?.length && (
+                                <div className="overflow-hidden rounded-[12px] border border-[#96A5BA] bg-white">
+                                    <div className="border-b border-[#d4dde8] bg-[#f8fafc] px-4 py-3">
+                                        <p className="text-sm font-bold text-[#111827]">Scope Summary</p>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[720px] border-collapse">
+                                            <tbody className="divide-y divide-[#edf1f5]">
+                                                {previewData.summaryRows.map((row, rowIndex) => (
+                                                    <tr key={rowIndex} className="bg-white">
+                                                        <td className="px-4 py-3 text-sm font-medium text-[#374151]">{row.label}</td>
+                                                        <td className="px-4 py-3 text-right text-sm font-bold text-[#111827]">{row.value || "—"}</td>
+                                                        <td className="w-20 px-4 py-3 text-right text-sm font-bold text-[#d45815]">{row.note || ""}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="rounded-[10px] border border-[#d4dde8] bg-[#f8fafc] px-4 py-8 text-center text-sm font-medium text-[#607797]">
+                            No quote CSV data uploaded yet.
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter className="border-t border-[#d4dde8] bg-[#f8fafc] px-6 py-4">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={!previewData || isSaving}
+                        className="bg-[#d45815] text-white hover:bg-[#c34f12]"
+                    >
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save CSV Data
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 interface SortableCategoryCardProps {
@@ -186,6 +615,7 @@ export default function ClientOverviewContent({
     const [expandedMachine, setExpandedMachine] = useState<string | null>(null);
     const [machineSpareParts, setMachineSpareParts] = useState<MachineSpareParts>({});
     const [loadingSpareParts, setLoadingSpareParts] = useState<Record<string, boolean>>({});
+    const [activeSparePartSavingKey, setActiveSparePartSavingKey] = useState<string | null>(null);
     type DeleteTarget = { type: "category"; id: string; name: string } | { type: "machine"; id: string; name: string } | { type: "sparePart"; id: string; name: string } | { type: "part"; id: string; name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<DeleteTarget | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -198,6 +628,8 @@ export default function ClientOverviewContent({
     const [uploadFocusTarget, setUploadFocusTarget] = useState<UploadFocusTarget | null>(null);
     const [addCategoryOpen, setAddCategoryOpen] = useState(false);
     const [addMachineForCategoryId, setAddMachineForCategoryId] = useState<string | null>(null);
+    const [quoteCsvModalOpen, setQuoteCsvModalOpen] = useState(false);
+    const [quoteCsvData, setQuoteCsvData] = useState<QuoteCsvData | null>(clientDetails.quoteCsvData || null);
     // Categories created this session, merged into the Upload Data list so a
     // brand-new (machine-less) category shows up immediately after saving.
     const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
@@ -290,14 +722,9 @@ export default function ClientOverviewContent({
         }
     }, [currentClientId, router]);
 
-    const fetchSpareParts = useCallback(async (machineId: string) => {
-        if (machineSpareParts[machineId]) {
-            setExpandedMachine((prev) => (prev === machineId ? null : machineId));
-            return;
-        }
-
+    const loadSparePartsForMachine = useCallback(async (machineId: string, expand = true) => {
         setLoadingSpareParts((prev) => ({ ...prev, [machineId]: true }));
-        setExpandedMachine(machineId);
+        if (expand) setExpandedMachine(machineId);
         try {
             const response = await fetch(`/api/products/${currentClientId}/spare-parts/${machineId}`);
             if (!response.ok) {
@@ -310,11 +737,31 @@ export default function ClientOverviewContent({
             const transformedSpareParts: SparePartWithStatus[] = data.map((part: SparePart & { clientMachineSparePart?: ClientMachineSparePart & { lastServiceDate?: string; sparePartInstallationDate?: string; customName?: string; isActive?: boolean } }) => {
                 const clientSparePart = part.clientMachineSparePart;
                 const totalRunningHours = clientSparePart?.totalRunningHours?.value ?? 0;
-                const lifetimeValue = part.lifeTime?.value ?? clientSparePart?.lifetimeOfRotor?.value ?? 0;
+                const clientLifetimeValue = clientSparePart?.lifetimeOfRotor?.value;
+                const rebuildLifetimeValue =
+                    clientSparePart?.rotorType === "Rebuilt"
+                        ? clientSparePart?.rebuildLifetime?.value
+                        : 0;
+                const lifetimeValue = clientLifetimeValue && clientLifetimeValue > 0
+                    ? clientLifetimeValue
+                    : rebuildLifetimeValue && rebuildLifetimeValue > 0
+                    ? rebuildLifetimeValue
+                    : part.lifeTime?.value ?? 0;
                 const healthPercentage = lifetimeValue > 0
                     ? Math.max(0, Math.min(100, ((lifetimeValue - totalRunningHours) / lifetimeValue) * 100))
                     : 100;
                 const status = getSparePartStatusFromHours(totalRunningHours, lifetimeValue);
+                const replacementInstalled = Boolean(
+                    clientSparePart?.replacementDate ||
+                    clientSparePart?.replacementRecordedAt
+                );
+                const activeDisplayName =
+                    replacementInstalled
+                        ? clientSparePart?.replacementPartName ||
+                          clientSparePart?.replacementPartSnapshot?.name ||
+                          clientSparePart?.customName ||
+                          part.name
+                        : clientSparePart?.customName || part.name;
 
                 return {
                     ...part,
@@ -322,9 +769,29 @@ export default function ClientOverviewContent({
                     healthPercentage: Math.round(healthPercentage),
                     lastServiceDate: clientSparePart?.lastServiceDate || null,
                     sparePartInstallationDate: clientSparePart?.sparePartInstallationDate || null,
-                    customName: clientSparePart?.customName || part.name,
+                    customName: activeDisplayName,
                     clientSparePartId: clientSparePart?._id || undefined,
                     isActive: clientSparePart?.isActive !== undefined ? clientSparePart.isActive : true,
+                    rotorType: clientSparePart?.rotorType,
+                    rebuildsPossible: clientSparePart?.rebuildsPossible ?? 0,
+                    rebuildLifetime: clientSparePart?.rebuildLifetime,
+                    rebuildLifetimeText: clientSparePart?.rebuildLifetimeText || null,
+                    rebuildStatus: clientSparePart?.rebuildStatus,
+                    isSentToRebuild: clientSparePart?.isSentToRebuild,
+                    rebuildSentDate: clientSparePart?.rebuildSentDate || null,
+                    orderNewStatus: clientSparePart?.orderNewStatus,
+                    isOrderedNew: clientSparePart?.isOrderedNew,
+                    orderNewRequestedDate: clientSparePart?.orderNewRequestedDate || null,
+                    replacementSource: clientSparePart?.replacementSource || null,
+                    replacementDate: clientSparePart?.replacementDate || null,
+                    replacementSparePart: clientSparePart?.replacementSparePart || null,
+                    replacementPartSnapshot: clientSparePart?.replacementPartSnapshot || null,
+                    replacementPartName: clientSparePart?.replacementPartName || null,
+                    replacementPartKlValue: clientSparePart?.replacementPartKlValue || null,
+                    replacementPartSerialNumber: clientSparePart?.replacementPartSerialNumber || null,
+                    replacementNotes: clientSparePart?.replacementNotes || null,
+                    replacementLifetimeText: clientSparePart?.replacementLifetimeText || null,
+                    replacementMediaUrls: clientSparePart?.replacementMediaUrls || [],
                 };
             });
 
@@ -336,7 +803,45 @@ export default function ClientOverviewContent({
         } finally {
             setLoadingSpareParts((prev) => ({ ...prev, [machineId]: false }));
         }
-    }, [currentClientId, machineSpareParts]);
+    }, [currentClientId]);
+
+    const fetchSpareParts = useCallback(async (machineId: string) => {
+        if (machineSpareParts[machineId]) {
+            setExpandedMachine((prev) => (prev === machineId ? null : machineId));
+            return;
+        }
+
+        await loadSparePartsForMachine(machineId);
+    }, [loadSparePartsForMachine, machineSpareParts]);
+
+    const handleToggleSparePartActive = useCallback(async (
+        machineId: string,
+        sparePart: SparePartWithStatus,
+        nextActive: boolean
+    ) => {
+        const savingKey = `${machineId}:${sparePart._id}`;
+        setActiveSparePartSavingKey(savingKey);
+        try {
+            const response = await fetch(`/api/clients/${currentClientId}/machines/${machineId}/spare-parts`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sparePartID: sparePart._id,
+                    isActive: nextActive,
+                }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to update active status");
+            }
+            await loadSparePartsForMachine(machineId, true);
+            toast.success(`Spare part marked ${nextActive ? "active" : "inactive"}.`);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update active status");
+        } finally {
+            setActiveSparePartSavingKey(null);
+        }
+    }, [currentClientId, loadSparePartsForMachine]);
 
     const toggleMachine = useCallback((machineId: string) => {
         if (expandedMachine === machineId) {
@@ -525,6 +1030,15 @@ export default function ClientOverviewContent({
                                 )}
                             </SelectContent>
                         </Select> */}
+
+                        <Button
+                            type="button"
+                            onClick={() => setQuoteCsvModalOpen(true)}
+                            className="h-10 rounded-[8px] bg-[#d45815] px-4 text-sm font-semibold text-white hover:bg-[#c34f12]"
+                        >
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Add Quote CSV Data
+                        </Button>
 
                         {/* Edit Details Button */}
                         <EditClientDetails client={clientDetails} machines={[]} />
@@ -763,7 +1277,7 @@ export default function ClientOverviewContent({
                                                                                                 </div>
                                                                                             ) : spareParts.length > 0 ? (
                                                                                                 <div className="overflow-x-auto">
-                                                                                                    <table className="w-full min-w-[820px] table-fixed border-collapse">
+                                                                                                    <table className="w-full min-w-[920px] table-fixed border-collapse">
                                                                                                         <thead>
                                                                                                             <tr className="border-b border-[#d4dde8] bg-[#f9fafb]">
                                                                                                                 <th className="w-14 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">#</th>
@@ -777,6 +1291,31 @@ export default function ClientOverviewContent({
                                                                                                         </thead>
                                                                                                         <tbody className="divide-y divide-[#edf1f5]">
                                                                                                             {spareParts.map((sparePart, spIndex) => {
+                                                                                                                const replacementSnapshot = sparePart.replacementPartSnapshot || null;
+                                                                                                                const replacementName = sparePart.replacementPartName || replacementSnapshot?.name || null;
+                                                                                                                const replacementKl = sparePart.replacementPartKlValue || replacementSnapshot?.klValue || null;
+                                                                                                                const replacementLifetime = sparePart.replacementLifetimeText || replacementSnapshot?.lifetimeText || null;
+                                                                                                                const replacementMeta = [
+                                                                                                                    sparePart.replacementSource ? `Source: ${sparePart.replacementSource}` : null,
+                                                                                                                    replacementKl ? `KL: ${replacementKl}` : null,
+                                                                                                                    sparePart.replacementPartSerialNumber ? `Ref: ${sparePart.replacementPartSerialNumber}` : null,
+                                                                                                                    replacementLifetime ? `Lifetime: ${replacementLifetime}` : null,
+                                                                                                                    replacementSnapshot?.itemOnSpareSketch ? `Drawing: ${replacementSnapshot.itemOnSpareSketch}` : null,
+                                                                                                                ].filter(Boolean);
+                                                                                                                const replacementCommercial = [
+                                                                                                                    formatPartDuration(replacementSnapshot?.deliveryTime)
+                                                                                                                        ? `Delivery: ${formatPartDuration(replacementSnapshot?.deliveryTime)}`
+                                                                                                                        : null,
+                                                                                                                    formatPartMoney(replacementSnapshot?.unitPriceNew)
+                                                                                                                        ? `New: ${formatPartMoney(replacementSnapshot?.unitPriceNew)}`
+                                                                                                                        : null,
+                                                                                                                    formatPartMoney(replacementSnapshot?.priceRepairPerPc)
+                                                                                                                        ? `Repair: ${formatPartMoney(replacementSnapshot?.priceRepairPerPc)}`
+                                                                                                                        : null,
+                                                                                                                ].filter(Boolean);
+                                                                                                                const activeSavingKey = `${machine._id}:${sparePart._id}`;
+                                                                                                                const activeSaving = activeSparePartSavingKey === activeSavingKey;
+                                                                                                                const isSparePartActive = sparePart.isActive !== false;
                                                                                                                 return (
                                                                                                                     <tr key={sparePart._id} className="bg-white hover:bg-[#f8fafc]">
                                                                                                                         <td className="px-4 py-3 text-sm font-semibold text-[#374151]">{spIndex + 1}</td>
@@ -786,8 +1325,58 @@ export default function ClientOverviewContent({
                                                                                                                                 {sparePart.klValue && (
                                                                                                                                     <span className="text-xs font-medium text-[#6b7280]">KL: {sparePart.klValue}</span>
                                                                                                                                 )}
-                                                                                                                            </div>
-                                                                                                                        </td>
+                                                                                                                                <div className="mt-1 flex flex-wrap gap-1.5">
+                                                                                                                                    <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#334155]">
+                                                                                                                                        Type: {sparePart.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
+                                                                                                                                    </Badge>
+                                                                                                                                    <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f8fafc] px-2 py-0.5 text-[10px] font-semibold text-[#475569]">
+                                                                                                                                        Rebuilds: {sparePart.rebuildsPossible ?? 0}
+                                                                                                                                    </Badge>
+                                                                                                                                    {(sparePart.isSentToRebuild || (sparePart.rebuildStatus && sparePart.rebuildStatus !== "None")) && (
+                                                                                                                                        <Badge className="w-fit rounded-full border border-[#fb923c]/40 bg-[#fed7aa] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c]">
+                                                                                                                                            Rebuild: {sparePart.rebuildStatus || "Sent"}
+                                                                                                                                        </Badge>
+                                                                                                                                    )}
+                                                                                                                                    {(sparePart.isOrderedNew || (sparePart.orderNewStatus && sparePart.orderNewStatus !== "None")) && (
+                                                                                                                                        <Badge className="w-fit rounded-full border border-[#2563eb]/30 bg-[#dbeafe] px-2 py-0.5 text-[10px] font-semibold text-[#1d4ed8]">
+                                                                                                                                            Ordered New: {sparePart.orderNewStatus || "Ordered"}
+                                                                                                                                        </Badge>
+                                                                                                                                    )}
+	                                                                                                                                    {sparePart.replacementDate && (
+	                                                                                                                                        <Badge className="w-fit rounded-full border border-[#16a34a]/30 bg-[#dcfce7] px-2 py-0.5 text-[10px] font-semibold text-[#15803d]">
+	                                                                                                                                            Replaced {format(new Date(sparePart.replacementDate), "dd MMM yyyy")}
+	                                                                                                                                        </Badge>
+	                                                                                                                                    )}
+	                                                                                                                                </div>
+                                                                                                                                {sparePart.replacementDate && (replacementName || replacementMeta.length > 0) && (
+                                                                                                                                    <div className="mt-2 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-1.5 text-[11px] leading-4 text-[#166534]">
+                                                                                                                                        <div className="font-semibold text-[#14532d]">
+                                                                                                                                            Replacement: {replacementName || "Manual entry"}
+                                                                                                                                        </div>
+                                                                                                                                        {replacementMeta.length > 0 && (
+                                                                                                                                            <div className="mt-0.5 text-[#15803d]">
+                                                                                                                                                {replacementMeta.join(" · ")}
+                                                                                                                                            </div>
+                                                                                                                                        )}
+                                                                                                                                        {replacementCommercial.length > 0 && (
+                                                                                                                                            <div className="mt-0.5 text-[#15803d]">
+                                                                                                                                                {replacementCommercial.join(" · ")}
+                                                                                                                                            </div>
+                                                                                                                                        )}
+                                                                                                                                        {(sparePart.replacementMediaUrls?.length || sparePart.replacementNotes) && (
+                                                                                                                                            <div className="mt-0.5 text-[#4d7c0f]">
+                                                                                                                                                {[
+                                                                                                                                                    sparePart.replacementMediaUrls?.length
+                                                                                                                                                        ? `${sparePart.replacementMediaUrls.length} media`
+                                                                                                                                                        : null,
+                                                                                                                                                    sparePart.replacementNotes || null,
+                                                                                                                                                ].filter(Boolean).join(" · ")}
+                                                                                                                                            </div>
+                                                                                                                                        )}
+                                                                                                                                    </div>
+                                                                                                                                )}
+	                                                                                                                            </div>
+	                                                                                                                        </td>
                                                                                                                         <td className="px-4 py-3">
                                                                                                                             <div className="flex items-center">
                                                                                                                                 <Badge className={`${getStatusColor(sparePart.status)} rounded-full border text-xs font-medium`}>
@@ -806,9 +1395,28 @@ export default function ClientOverviewContent({
                                                                                                                                 : "—"}
                                                                                                                         </td>
                                                                                                                         <td className="px-4 py-3">
-                                                                                                                            <Badge className={`rounded-full border text-xs ${sparePart.isActive !== false ? "bg-[#00a82d]/20 text-[#00a82d] border-[#00a82d]/40" : "bg-[#bf1e21]/20 text-[#bf1e21] border-[#bf1e21]/40"}`}>
-                                                                                                                                {sparePart.isActive !== false ? "Active" : "Inactive"}
-                                                                                                                            </Badge>
+                                                                                                                            <button
+                                                                                                                                type="button"
+                                                                                                                                disabled={activeSaving}
+                                                                                                                                onClick={(e) => {
+                                                                                                                                    e.stopPropagation();
+                                                                                                                                    void handleToggleSparePartActive(machine._id, sparePart, !isSparePartActive);
+                                                                                                                                }}
+                                                                                                                                className={`inline-flex min-w-[82px] items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                                                                                                    isSparePartActive
+                                                                                                                                        ? "border-[#00a82d]/40 bg-[#00a82d]/20 text-[#007a22] hover:bg-[#00a82d]/30"
+                                                                                                                                        : "border-[#bf1e21]/40 bg-[#bf1e21]/15 text-[#9f1d20] hover:bg-[#bf1e21]/25"
+                                                                                                                                }`}
+                                                                                                                                title={isSparePartActive ? "Mark inactive" : "Mark active"}
+                                                                                                                            >
+                                                                                                                                {activeSaving ? (
+                                                                                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                                                                                ) : isSparePartActive ? (
+                                                                                                                                    "Active"
+                                                                                                                                ) : (
+                                                                                                                                    "Inactive"
+                                                                                                                                )}
+                                                                                                                            </button>
                                                                                                                         </td>
                                                                                                                         <td className="px-4 py-3">
                                                                                                                             <div className="flex items-center justify-end gap-1">
@@ -943,6 +1551,13 @@ export default function ClientOverviewContent({
                 )}
             </div>
 
+            <QuoteCsvUploadModal
+                open={quoteCsvModalOpen}
+                onOpenChange={setQuoteCsvModalOpen}
+                initialData={quoteCsvData}
+                clientId={currentClientId}
+                onSaved={setQuoteCsvData}
+            />
 
             {/* Add Machine modal (triggered from Overview tab empty-state) */}
             {addMachineForCategoryId && (

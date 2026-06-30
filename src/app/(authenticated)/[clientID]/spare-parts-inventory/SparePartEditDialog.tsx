@@ -36,6 +36,7 @@ interface Props {
             lastOrderRefKL: string;
             lastOrderRefClient: string;
             rotorType: "New" | "Rebuilt";
+            rebuildsPossible: number;
             rebuildStatus: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
             rebuildDeliveryTimeText: string;
             rebuildLifetimeText: string;
@@ -63,6 +64,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
         lastOrderRefKL: "",
         lastOrderRefClient: "",
         rotorType: "New" as "New" | "Rebuilt",
+        rebuildsPossible: 0,
         rebuildStatus: "None" as "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock",
         rebuildDeliveryTimeText: "",
         rebuildLifetimeText: "",
@@ -87,6 +89,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                 lastOrderRefKL: sparePart.clientMachineSparePart?.lastOrderRefKL || "",
                 lastOrderRefClient: sparePart.clientMachineSparePart?.lastOrderRefClient || "",
                 rotorType: sparePart.clientMachineSparePart?.rotorType || "New",
+                rebuildsPossible: Math.max(0, Number(sparePart.clientMachineSparePart?.rebuildsPossible) || 0),
                 rebuildStatus: sparePart.clientMachineSparePart?.rebuildStatus || "None",
                 rebuildDeliveryTimeText: parseDeliveryWeeks(sparePart.clientMachineSparePart?.rebuildDeliveryTime),
                 rebuildLifetimeText: sparePart.clientMachineSparePart?.rebuildLifetimeText || "",
@@ -116,6 +119,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                     lastOrderRefKL: form.lastOrderRefKL.trim(),
                     lastOrderRefClient: form.lastOrderRefClient.trim(),
                     rotorType: form.rotorType,
+                    rebuildsPossible: Math.max(0, Number(form.rebuildsPossible) || 0),
                     rebuildStatus: form.rebuildStatus,
                     rebuildDeliveryTimeText: form.rebuildDeliveryTimeText.trim(),
                     rebuildLifetimeText: form.rebuildLifetimeText.trim(),
@@ -255,6 +259,19 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                             <option value="New">New</option>
                             <option value="Rebuilt">Rebuilt</option>
                         </select>
+                    </Field>
+                    <Field label="Rebuilds possible">
+                        <Input
+                            type="number"
+                            min={0}
+                            value={form.rebuildsPossible}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    rebuildsPossible: Math.max(0, Number(e.target.value) || 0),
+                                })
+                            }
+                        />
                     </Field>
                     <Field label="Rebuild status">
                         <select

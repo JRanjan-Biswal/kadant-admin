@@ -76,7 +76,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       disabled: !hasSelectedClient,
     },
     {
-      title: "Spare Parts Inventory",
+      title: "Inventory Management",
       url: hasSelectedClient ? `/${clientID}/spare-parts-inventory` : "#",
       icon: LuPackage,
       disabled: !hasSelectedClient,

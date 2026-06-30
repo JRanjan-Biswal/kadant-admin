@@ -5,6 +5,7 @@ import { Upload, X, Loader2, Plus, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import ImageUploadModal from "./ImageUploadModal";
 import { uploadEntityImageDirect, uploadMachineGalleryDirect } from "@/lib/uploadImage";
@@ -352,6 +353,10 @@ interface AddSparePartFormModalProps {
 export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ open, onClose, machineId, clientId, existingKlValues = [], onCreated }) => {
     const [name, setName] = useState("");
     const [klValue, setKlValue] = useState("");
+    const [lifetimeText, setLifetimeText] = useState("");
+    const [rotorType, setRotorType] = useState<"New" | "Rebuilt">("New");
+    const [rebuildsPossible, setRebuildsPossible] = useState(0);
+    const [isActive, setIsActive] = useState(true);
     const [installationDate, setInstallationDate] = useState("");
     const [lastServiceDate, setLastServiceDate] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -362,7 +367,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
     const partSeq = useRef(0);
 
     const reset = useCallback(() => {
-        setName(""); setKlValue(""); setInstallationDate(""); setLastServiceDate(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
+        setName(""); setKlValue(""); setLifetimeText(""); setRotorType("New"); setRebuildsPossible(0); setIsActive(true); setInstallationDate(""); setLastServiceDate(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
     }, []);
 
     const close = useCallback(() => { if (!saving) { reset(); onClose(); } }, [saving, reset, onClose]);
@@ -381,20 +386,26 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
             const res = await fetch("/api/machines/spare-parts", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name.trim(), klValue: kl, machineID: machineId }),
+                body: JSON.stringify({ name: name.trim(), klValue: kl, lifetimeText: lifetimeText.trim(), machineID: machineId }),
             });
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Failed to add spare part");
             const sp = await res.json();
             const sparePartId: string = sp._id;
-            if (clientId && (installationDate || lastServiceDate)) {
+            if (clientId) {
+                const detailsBody: Record<string, unknown> = {
+                    sparePartID: sparePartId,
+                    sparePartInstallationDate: installationDate ? new Date(installationDate).toISOString() : null,
+                    lastServiceDate: lastServiceDate ? new Date(lastServiceDate).toISOString() : null,
+                    rotorType,
+                    rebuildsPossible: Math.max(0, Number(rebuildsPossible) || 0),
+                    isActive,
+                };
+                if (lifetimeText.trim()) detailsBody.lifetimeText = lifetimeText.trim();
+                if (rotorType === "Rebuilt") detailsBody.rebuildLifetimeText = lifetimeText.trim();
                 const dateRes = await fetch(`/api/clients/${encodeURIComponent(clientId)}/machines/${encodeURIComponent(machineId)}/spare-parts`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sparePartID: sparePartId,
-                        sparePartInstallationDate: installationDate ? new Date(installationDate).toISOString() : null,
-                        lastServiceDate: lastServiceDate ? new Date(lastServiceDate).toISOString() : null,
-                    }),
+                    body: JSON.stringify(detailsBody),
                 });
                 if (!dateRes.ok) throw new Error((await dateRes.json().catch(() => ({}))).error || "Spare part added but failed to save dates");
             }
@@ -421,7 +432,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
         } finally {
             setSaving(false);
         }
-    }, [canSubmit, klValue, existingKlValues, name, machineId, clientId, installationDate, lastServiceDate, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
+    }, [canSubmit, klValue, existingKlValues, name, lifetimeText, rotorType, rebuildsPossible, isActive, machineId, clientId, installationDate, lastServiceDate, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
 
     if (!open) return null;
 
@@ -437,6 +448,43 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                     <Label className="text-[#6b7280] text-[12px]">KL Value (Model Number) <span className="text-[#bf1e21]">*</span></Label>
                     <Input value={klValue} onChange={(e) => setKlValue(e.target.value)} placeholder="Unique ID"
                         className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label className="text-[#6b7280] text-[12px]">Lifetime</Label>
+                    <Input value={lifetimeText} onChange={(e) => setLifetimeText(e.target.value)} placeholder="e.g. 3 Months"
+                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label className="text-[#6b7280] text-[12px]">Rebuild Part</Label>
+                    <div className="h-[40px] rounded-[8px] border border-[#d1d5db] bg-white px-3 flex items-center justify-between gap-3">
+                        <span className="text-gray-900 text-[13px]">{rotorType === "Rebuilt" ? "Rebuilt" : "New"}</span>
+                        <Switch
+                            checked={rotorType === "Rebuilt"}
+                            onCheckedChange={(checked) => setRotorType(checked ? "Rebuilt" : "New")}
+                            className="data-[state=checked]:bg-[#d45815]"
+                        />
+                    </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label className="text-[#6b7280] text-[12px]">Rebuilds Possible</Label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={rebuildsPossible}
+                        onChange={(e) => setRebuildsPossible(Math.max(0, Number(e.target.value) || 0))}
+                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label className="text-[#6b7280] text-[12px]">Active</Label>
+                    <div className="h-[40px] rounded-[8px] border border-[#d1d5db] bg-white px-3 flex items-center justify-between gap-3">
+                        <span className="text-gray-900 text-[13px]">{isActive ? "Active" : "Inactive"}</span>
+                        <Switch
+                            checked={isActive}
+                            onCheckedChange={setIsActive}
+                            className="data-[state=checked]:bg-[#d45815]"
+                        />
+                    </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                     <Label className="text-[#6b7280] text-[12px]">Installation Date</Label>

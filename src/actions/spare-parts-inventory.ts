@@ -16,6 +16,76 @@ export interface MaintenanceScheduleEntry {
     description: string;
 }
 
+export interface ReplacementHistoryEntry {
+    source?: "Rebuild" | "Order New" | null;
+    replacementDate?: string | null;
+    recordedAt?: string | null;
+    oldPartName?: string | null;
+    oldPartKlValue?: string | null;
+    oldTotalRunningHours?: { value: number; unit: string } | null;
+    oldLifetimeOfRotor?: { value: number; unit: string } | null;
+    oldLifetimeText?: string | null;
+    oldSparePartInstallationDate?: string | null;
+    oldLastServiceDate?: string | null;
+    newPartName?: string | null;
+    newPartKlValue?: string | null;
+    newPartSerialNumber?: string | null;
+    newPartSparePart?: string | null;
+    newPartSnapshot?: ReplacementPartSnapshot | null;
+    newLifetimeText?: string | null;
+    notes?: string | null;
+    mediaUrls?: string[];
+}
+
+export interface ReplacementPartSnapshot {
+    sparePart?: string | null;
+    name?: string | null;
+    klValue?: string | null;
+    itemOnSpareSketch?: string | null;
+    lifetimeText?: string | null;
+    lifeTime?: { value: number; unit: string };
+    deliveryTime?: { value: number; unit: string };
+    unitPriceNew?: { value: number; priceUnit: string };
+    priceRepairPerPc?: { value: number; priceUnit: string };
+    imageUrl?: string | null;
+    imageUrls?: string[];
+    optimalStateVideoUrl?: string | null;
+    rotorType?: "New" | "Rebuilt";
+    rebuildsPossible?: number;
+    sourceMachine?: string | null;
+    sourceMachineName?: string | null;
+    sourceMachineSerialNumber?: string | null;
+    sourceCategory?: string | null;
+    sourceCategoryName?: string | null;
+}
+
+export interface ReplacementOption {
+    _id: string;
+    replacementSparePartID: string;
+    replacementSourceMachineID: string;
+    name: string;
+    originalName?: string | null;
+    klValue?: string | null;
+    itemOnSpareSketch?: string | null;
+    lifetimeText?: string | null;
+    lifeTime?: { value: number; unit: string };
+    deliveryTime?: { value: number; unit: string };
+    unitPriceNew?: { value: number; priceUnit: string };
+    priceRepairPerPc?: { value: number; priceUnit: string };
+    imageUrl?: string | null;
+    imageUrls?: string[];
+    optimalStateVideoUrl?: string | null;
+    rotorType?: "New" | "Rebuilt";
+    rebuildsPossible?: number;
+    sourceMachine?: {
+        _id: string;
+        name: string;
+        serialNumber?: string | null;
+        categoryId?: string | null;
+        categoryName?: string | null;
+    };
+}
+
 export interface InventorySparePart {
     _id: string;
     name: string;
@@ -41,16 +111,36 @@ export interface InventorySparePart {
         nbRepair?: number;
         totalRunningHours?: { value: number; unit: string };
         lifetimeOfRotor?: { value: number; unit: string };
+        lifetimeText?: string | null;
         sparePartInstallationDate?: string | null;
         lastServiceDate?: string | null;
         rotorType?: "New" | "Rebuilt";
+        rebuildsPossible?: number;
         rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
         isSentToRebuild?: boolean;
         rebuildSentDate?: string | null;
         rebuildDeliveryTime?: { value: number; unit: string };
         rebuildLifetime?: { value: number; unit: string };
         rebuildLifetimeText?: string | null;
+        orderNewStatus?: "None" | "Ordered New" | "Received" | "In Stock";
+        isOrderedNew?: boolean;
+        orderNewRequestedDate?: string | null;
+        orderNewDeliveryTime?: { value: number; unit: string };
+        replacementSource?: "Rebuild" | "Order New" | null;
+        replacementDate?: string | null;
+        replacementRecordedAt?: string | null;
+        replacementSparePart?: string | null;
+        replacementPartSnapshot?: ReplacementPartSnapshot | null;
+        replacementPartName?: string | null;
+        replacementPartKlValue?: string | null;
+        replacementPartSerialNumber?: string | null;
+        replacementNotes?: string | null;
+        replacementLifetimeText?: string | null;
+        replacementMediaUrls?: string[];
+        replacementHistory?: ReplacementHistoryEntry[];
+        replacementHistoryEntry?: ReplacementHistoryEntry | null;
         statusOverride?: "In Stock" | "Low Stocks" | "Out of Stock" | null;
+        isActive?: boolean;
         updatedAt?: string;
     } | null;
 }
@@ -63,6 +153,30 @@ export interface InventoryMachine {
     categoryId?: string | null;
     categoryName?: string | null;
     installationDate?: string | null;
+}
+
+export type InventoryQueueType = "rebuild" | "orderedNew" | "replaced";
+
+export interface InventoryQueueItem {
+    queueType: InventoryQueueType;
+    machine: InventoryMachine;
+    part: InventorySparePart;
+}
+
+export interface InventoryQueueResponse {
+    items: InventoryQueueItem[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
+
+export interface ReplacementOptionsResponse {
+    items: ReplacementOption[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
 }
 
 export async function fetchInventoryMachines(clientID: string): Promise<InventoryMachine[]> {
@@ -116,6 +230,69 @@ export async function fetchInventoryForMachine(
     if (!res.ok) return [];
     const data = await res.json();
     return (data.spareParts || []) as InventorySparePart[];
+}
+
+export async function fetchInventoryQueue(
+    clientID: string,
+    type: InventoryQueueType,
+    page = 1,
+    limit = 10,
+    filters: { categoryID?: string; machineID?: string } = {}
+): Promise<InventoryQueueResponse> {
+    const token = await requireToken();
+    const params = new URLSearchParams({
+        type,
+        page: String(page),
+        limit: String(limit),
+    });
+    if (filters.categoryID) params.set("categoryID", filters.categoryID);
+    if (filters.machineID) params.set("machineID", filters.machineID);
+    const res = await fetch(`${API}/client-machines/spare-parts/queue/${clientID}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) {
+        let message = "Failed to load tracked spare parts";
+        try {
+            const body = await res.json();
+            message = body.message || message;
+        } catch {}
+        throw new Error(message);
+    }
+    return res.json();
+}
+
+export async function fetchReplacementOptions(
+    clientID: string,
+    filters: {
+        page?: number;
+        limit?: number;
+        categoryID?: string;
+        machineID?: string;
+        search?: string;
+    } = {}
+): Promise<ReplacementOptionsResponse> {
+    const token = await requireToken();
+    const params = new URLSearchParams({
+        page: String(filters.page || 1),
+        limit: String(filters.limit || 10),
+    });
+    if (filters.categoryID) params.set("categoryID", filters.categoryID);
+    if (filters.machineID) params.set("machineID", filters.machineID);
+    if (filters.search) params.set("search", filters.search);
+    const res = await fetch(`${API}/client-machines/spare-parts/replacement-options/${clientID}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) {
+        let message = "Failed to load replacement options";
+        try {
+            const body = await res.json();
+            message = body.message || message;
+        } catch {}
+        throw new Error(message);
+    }
+    return res.json();
 }
 
 export async function saveSparePart(

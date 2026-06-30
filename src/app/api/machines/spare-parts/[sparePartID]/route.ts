@@ -12,7 +12,7 @@ export async function PUT(
         }
         const { sparePartID } = await params;
         const body = await request.json();
-        const { name, klValue, lifeTime } = body;
+        const { name, klValue, lifeTime, lifetimeText } = body;
         const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/machines/spare-parts/${sparePartID}`,
             {
@@ -21,7 +21,7 @@ export async function PUT(
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${currentUser.accessToken}`,
                 },
-                body: JSON.stringify({ name, klValue, lifeTime }),
+                body: JSON.stringify({ name, klValue, lifeTime, lifetimeText }),
             }
         );
         if (!response.ok) {

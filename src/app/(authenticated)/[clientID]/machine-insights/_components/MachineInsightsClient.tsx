@@ -8,9 +8,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 import MetricCard from "./MetricCard";
 import InsightSection from "./InsightSection";
@@ -24,12 +24,6 @@ interface CategoryOption {
     machines?: Array<{ _id: string; name: string; category?: string }>;
 }
 
-interface MachineOption {
-    _id: string;
-    name: string;
-    categoryId?: string;
-}
-
 interface SparePartFromApi {
     _id: string;
     name: string;
@@ -37,6 +31,10 @@ interface SparePartFromApi {
     status?: string;
     healthPercentage?: number;
     lifetimeOfRotor?: { value: number; unit: string };
+    rotorType?: "New" | "Rebuilt";
+    rebuildsPossible?: number;
+    rebuildLifetime?: { value: number; unit: string };
+    rebuildLifetimeText?: string | null;
     totalRunningHours?: { value: number; unit: string };
     capacityOfLine?: { value: number; unit: string };
     dailyRunningHours?: { value: number; unit: string };
@@ -58,7 +56,7 @@ interface MachineInsightsClientProps {
 }
 
 function buildInsightDataFromSparePart(sp: SparePartFromApi | null): {
-    metrix: { label: string; value: number; unit: string }[];
+    metrix: { label: string; value: number | string; unit: string }[];
     fiberLoss: {
         ranges: { id: string; label: string; value: number; unit: string }[];
         fiberCost: { value: number; currencySymbol: string; perUnit: string };
@@ -83,11 +81,13 @@ function buildInsightDataFromSparePart(sp: SparePartFromApi | null): {
     return {
         metrix: [
             { label: "Capacity of Line", value: fmt(sp.capacityOfLine?.value), unit: sp.capacityOfLine?.unit ?? "TPD" },
-            { label: "Lifetime of Rotor", value: fmt(sp.lifetimeOfRotor?.value), unit: sp.lifetimeOfRotor?.unit ?? "Hrs" },
+            { label: "Lifetime", value: fmt(sp.lifetimeOfRotor?.value), unit: sp.lifetimeOfRotor?.unit ?? "Hrs" },
             { label: "Total Running Hrs", value: fmt(sp.totalRunningHours?.value), unit: sp.totalRunningHours?.unit ?? "Hrs" },
             { label: "Exceeded Life (Hrs)", value: fmt(sp.exceededLife?.value), unit: sp.exceededLife?.unit ?? "Hrs" },
             { label: "Daily Running Hrs", value: fmt(sp.dailyRunningHours?.value), unit: sp.dailyRunningHours?.unit ?? "Hrs" },
             { label: "Total Production", value: fmt(sp.totalProduction?.value), unit: sp.totalProduction?.unit ?? "TPD" },
+            { label: "Part Type", value: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New", unit: "" },
+            { label: "Rebuilds Possible", value: fmt(sp.rebuildsPossible), unit: "" },
         ],
         fiberLoss: {
             ranges,
@@ -266,6 +266,8 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                 exceededLife: activeSparePart.exceededLife ?? { value: 0, unit: "Hrs" },
                 dailyRunningHours: activeSparePart.dailyRunningHours ?? { value: 0, unit: "Hrs" },
                 totalProduction: activeSparePart.totalProduction ?? { value: 0, unit: "tpd" },
+                rotorType: activeSparePart.rotorType ?? "New",
+                rebuildsPossible: activeSparePart.rebuildsPossible ?? 0,
             });
         } else if (section === "fiberLoss") {
             const defaultRanges = [
@@ -441,7 +443,7 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {([
                                 { key: "capacityOfLine", label: "Capacity of Line", unit: "tpd" },
-                                { key: "lifetimeOfRotor", label: "Lifetime of Rotor", unit: "Hrs" },
+                                { key: "lifetimeOfRotor", label: "Lifetime", unit: "Hrs" },
                                 { key: "totalRunningHours", label: "Total Running Hrs", unit: "Hrs" },
                                 { key: "exceededLife", label: "Exceeded Life", unit: "Hrs" },
                                 { key: "dailyRunningHours", label: "Daily Running Hrs", unit: "Hrs" },
@@ -471,6 +473,40 @@ const MachineInsightsClient: React.FC<MachineInsightsClientProps> = ({ clientId 
                                     </div>
                                 );
                             })}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between gap-3 rounded-md border border-[#d1d5db] bg-[#f9fafb] px-3 py-2">
+                                <div>
+                                    <Label className="text-xs text-muted-foreground">Rebuild Part</Label>
+                                    <p className="text-xs text-[#6b7280]">Off = new part, on = rebuilt part</p>
+                                </div>
+                                <Switch
+                                    checked={draft.rotorType === "Rebuilt"}
+                                    onCheckedChange={(checked) =>
+                                        setDraft((prev) => ({
+                                            ...prev,
+                                            rotorType: checked ? "Rebuilt" : "New",
+                                        }))
+                                    }
+                                    className="data-[state=checked]:bg-[#d45815]"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-xs text-muted-foreground">Rebuilds Possible</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={(draft.rebuildsPossible as number | undefined) ?? 0}
+                                    onChange={(e) =>
+                                        setDraft((prev) => ({
+                                            ...prev,
+                                            rebuildsPossible: Math.max(0, Number(e.target.value) || 0),
+                                        }))
+                                    }
+                                    className="h-9 max-w-[160px]"
+                                />
+                            </div>
                         </div>
                     </div>
                 ) : (

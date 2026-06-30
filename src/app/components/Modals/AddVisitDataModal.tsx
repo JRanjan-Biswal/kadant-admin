@@ -70,18 +70,6 @@ const ACTION_OPTIONS: { value: string; idle: string; active: string }[] = [
         active:
             "bg-[#dc2626] border border-[#dc2626] text-white ring-2 ring-offset-1 ring-[#dc2626]",
     },
-    {
-        value: "Needs Repair",
-        idle: "bg-[#f59e0b] border border-[#f59e0b] text-white opacity-80",
-        active:
-            "bg-[#f59e0b] border border-[#f59e0b] text-white ring-2 ring-offset-1 ring-[#f59e0b]",
-    },
-    {
-        value: "Monitor",
-        idle: "bg-[#2D3E5C] border border-[#2D3E5C] text-white opacity-80",
-        active:
-            "bg-[#2D3E5C] border border-[#2D3E5C] text-white ring-2 ring-offset-1 ring-[#2D3E5C]",
-    },
 ];
 
 const STATUS_TEXT_STYLES: Record<string, string> = {
@@ -95,8 +83,6 @@ const ACTION_PILL_STYLES: Record<string, string> = {
     "Send to Rebuild":
         "bg-[#fed7aa] border border-[#fb923c] text-[#c2410c]",
     "Order New": "bg-[#fee2e2] border border-[#dc2626] text-[#991b1b]",
-    "Needs Repair": "bg-[#fef3c7] border border-[#f59e0b] text-[#92400e]",
-    Monitor: "bg-[#dbeafe] border border-[#2D3E5C] text-[#2D3E5C]",
 };
 
 function isVideoUrl(url: string): boolean {
@@ -797,8 +783,8 @@ export default function AddVisitDataModal({
 
     const handleAddMachineIssue = async () => {
         if (addingIssue) return;
-        if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status) {
-            toast.error("Select machine, spare part, and status");
+        if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status || !newIssue.actionNeeded) {
+            toast.error("Select machine, spare part, status, and action needed");
             return;
         }
 
@@ -2171,4 +2157,3 @@ export default function AddVisitDataModal({
         </Dialog>
     );
 }
-

@@ -102,6 +102,7 @@ export default function AddMachineModal({ onSuccess, children, clientID }: AddMa
                 <div className="px-6 py-5">
                     <AddCategoryMachineFlow
                         compact={false}
+                        clientID={clientID}
                         onSuccess={onSuccess}
                         onComplete={handleComplete}
                         onCloseGuardChange={handleCloseGuardChange}

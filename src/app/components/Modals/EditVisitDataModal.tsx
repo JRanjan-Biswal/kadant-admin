@@ -46,9 +46,7 @@ const MACHINE_STATUS_OPTIONS = [
 
 const ACTION_NEEDED_OPTIONS = [
     "Send to Rebuild",
-    "Order Now",
-    "Needs Repair",
-    "Monitor",
+    "Order New",
 ];
 
 function isVideoUrl(url: string): boolean {
@@ -376,8 +374,8 @@ export default function EditVisitDataModal({
 
     const handleAddMachineIssue = async () => {
         if (addingIssue) return;
-        if (!newMachineIssue.machineId || !newMachineIssue.sparePartId || !newMachineIssue.status) {
-            toast.error("Please select machine, spare part, and status");
+        if (!newMachineIssue.machineId || !newMachineIssue.sparePartId || !newMachineIssue.status || !newMachineIssue.actionNeeded) {
+            toast.error("Please select machine, spare part, status, and action needed");
             return;
         }
 

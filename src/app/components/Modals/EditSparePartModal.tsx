@@ -176,7 +176,7 @@ export default function EditSparePartModal({
                             </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-[#6b7280]">Lifetime of Rotor:</span>
+                            <span className="text-[#6b7280]">Lifetime:</span>
                             <span className="text-gray-900 font-medium">
                                 {sparePart.lifetimeOfRotor?.value || 0} {sparePart.lifetimeOfRotor?.unit || "Hrs"}
                             </span>
