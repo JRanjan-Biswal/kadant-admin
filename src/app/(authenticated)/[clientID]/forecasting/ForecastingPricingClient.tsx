@@ -26,6 +26,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { useCurrency } from "@/context/CurrencyContext";
+import {
+    convertAndFormatWithContext,
+    convertEurToDisplay,
+    convertToEurFromContext,
+    formatCurrency,
+} from "@/lib/currencyChange";
+import CurrencyChanger from "@/app/components/CurrencyChanger";
 
 interface Props {
     clientID: string;
@@ -50,8 +58,6 @@ type ForecastingClientPart = NonNullable<InventorySparePart["clientMachineSpareP
     priceRepairPerPc?: { value?: number; priceUnit?: string };
 };
 
-const ALL_CATEGORIES = "__all__";
-const ALL_MACHINES = "__all_machines__";
 const PRICE_UNIT = "EUR";
 
 const toNumber = (value: unknown) => {
@@ -67,13 +73,6 @@ const positivePrice = (
     if (clientValue > 0) return clientValue;
     return toNumber(catalogPrice?.value);
 };
-
-const formatMoney = (value: number) =>
-    new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: PRICE_UNIT,
-        maximumFractionDigits: 0,
-    }).format(toNumber(value));
 
 const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(toNumber(value));
@@ -122,11 +121,14 @@ const updatePricingRow = (row: PricingRow, draft: PricingDraft): PricingRow => {
 };
 
 export default function ForecastingPricingClient({ clientID, machines }: Props) {
+    const currency = useCurrency();
+    const formatMoney = (value: number) => convertAndFormatWithContext(value, currency);
+    const formatDisplayMoney = (value: number) => formatCurrency(value, currency.selectedCurrency);
     const [rows, setRows] = useState<PricingRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
-    const [selectedMachine, setSelectedMachine] = useState(ALL_MACHINES);
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [selectedMachine, setSelectedMachine] = useState("");
     const [search, setSearch] = useState("");
     const [editingKey, setEditingKey] = useState<string | null>(null);
     const [draft, setDraft] = useState<PricingDraft | null>(null);
@@ -142,20 +144,24 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
     }, [machines]);
 
+    useEffect(() => {
+        if (!selectedCategory && categories.length > 0) {
+            setSelectedCategory(categories[0].id);
+        }
+    }, [categories, selectedCategory]);
+
     const filterMachines = useMemo(
-        () =>
-            selectedCategory === ALL_CATEGORIES
-                ? machines
-                : machines.filter((machine) => machine.categoryId === selectedCategory),
+        () => machines.filter((machine) => machine.categoryId === selectedCategory),
         [machines, selectedCategory]
     );
 
     useEffect(() => {
-        if (
-            selectedMachine !== ALL_MACHINES &&
-            !filterMachines.some((machine) => machine._id === selectedMachine)
-        ) {
-            setSelectedMachine(ALL_MACHINES);
+        if (filterMachines.length === 0) {
+            if (selectedMachine) setSelectedMachine("");
+            return;
+        }
+        if (!filterMachines.some((machine) => machine._id === selectedMachine)) {
+            setSelectedMachine(filterMachines[0]._id);
         }
     }, [filterMachines, selectedMachine]);
 
@@ -189,8 +195,8 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
     const visibleRows = useMemo(() => {
         const query = search.trim().toLowerCase();
         return rows.filter(({ machine, part }) => {
-            if (selectedCategory !== ALL_CATEGORIES && machine.categoryId !== selectedCategory) return false;
-            if (selectedMachine !== ALL_MACHINES && machine._id !== selectedMachine) return false;
+            if (selectedCategory && machine.categoryId !== selectedCategory) return false;
+            if (selectedMachine && machine._id !== selectedMachine) return false;
             if (!query) return true;
             return [
                 machine.name,
@@ -241,8 +247,8 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         setDraft({
             nbNew: math.nbNew,
             nbRepair: math.nbRepair,
-            unitPriceNew: math.unitPriceNew,
-            priceRepairPerPc: math.priceRepairPerPc,
+            unitPriceNew: convertEurToDisplay(math.unitPriceNew, currency),
+            priceRepairPerPc: convertEurToDisplay(math.priceRepairPerPc, currency),
         });
     };
 
@@ -258,8 +264,8 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         const nextDraft = {
             nbNew: Math.max(0, toNumber(draft.nbNew)),
             nbRepair: Math.max(0, toNumber(draft.nbRepair)),
-            unitPriceNew: Math.max(0, toNumber(draft.unitPriceNew)),
-            priceRepairPerPc: Math.max(0, toNumber(draft.priceRepairPerPc)),
+            unitPriceNew: Math.max(0, convertToEurFromContext(draft.unitPriceNew, currency)),
+            priceRepairPerPc: Math.max(0, convertToEurFromContext(draft.priceRepairPerPc, currency)),
         };
 
         try {
@@ -291,7 +297,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         <div className="flex flex-col gap-6 p-4 pb-8 animate-fadeIn">
             <div>
                 <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">
-                    Forecasting
+                    Cost Forecasting
                 </h1>
                 <p className="mt-1 text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
                     Manage spare-part forecast quantities and pricing
@@ -311,22 +317,15 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
 
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div className="flex flex-wrap items-end gap-4">
-                    <div className="flex min-w-[240px] flex-col gap-2">
+                    <div className="flex w-[240px] flex-col gap-2">
                         <label className="text-[13px] leading-[20px] text-[#6b7280]">
                             Category
                         </label>
-                        <Select
-                            value={selectedCategory}
-                            onValueChange={(value) => {
-                                setSelectedCategory(value);
-                                setSelectedMachine(ALL_MACHINES);
-                            }}
-                        >
-                            <SelectTrigger className="h-11 rounded-[8px] border-[#C5D1DC] bg-[#DFE6EC] text-[#2D3E5C]">
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger className="!h-11 w-full rounded-[8px] border-[#C5D1DC] bg-[#DFE6EC] text-[#2D3E5C]">
                                 <SelectValue placeholder="Select a category" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
                                 {categories.map((category) => (
                                     <SelectItem key={category.id} value={category.id}>
                                         {category.name}
@@ -336,16 +335,15 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                         </Select>
                     </div>
 
-                    <div className="flex min-w-[260px] flex-col gap-2">
+                    <div className="flex w-[260px] flex-col gap-2">
                         <label className="text-[13px] leading-[20px] text-[#6b7280]">
                             Machine
                         </label>
                         <Select value={selectedMachine} onValueChange={setSelectedMachine}>
-                            <SelectTrigger className="h-11 rounded-[8px] border-[#C5D1DC] bg-[#DFE6EC] text-[#2D3E5C]">
+                            <SelectTrigger className="!h-11 w-full rounded-[8px] border-[#C5D1DC] bg-[#DFE6EC] text-[#2D3E5C]">
                                 <SelectValue placeholder="Select a machine" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value={ALL_MACHINES}>All machines</SelectItem>
                                 {filterMachines.map((machine) => (
                                     <SelectItem key={machine._id} value={machine._id}>
                                         {[machine.name, machine.serialNumber].filter(Boolean).join(" - ")}
@@ -366,13 +364,15 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                             className="h-11 rounded-[8px] border-[#C5D1DC] bg-[#DFE6EC] text-[#2D3E5C]"
                         />
                     </div>
+
+                    <CurrencyChanger />
                 </div>
 
                 <Button
                     variant="outline"
                     onClick={() => void reload()}
                     disabled={loading}
-                    className="border-[#607797] bg-[#DFE6EC] text-gray-900 hover:bg-[#e5e7eb]"
+                    className="h-11 border-[#607797] bg-[#DFE6EC] text-gray-900 hover:bg-[#e5e7eb]"
                 >
                     <RefreshCw className={`mr-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                     Refresh
@@ -529,12 +529,12 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right font-bold text-[#2D3E5C]">
-                                            {formatMoney(
-                                                isEditing
-                                                    ? activeDraft.nbNew * activeDraft.unitPriceNew +
+                                            {isEditing
+                                                ? formatDisplayMoney(
+                                                      activeDraft.nbNew * activeDraft.unitPriceNew +
                                                           activeDraft.nbRepair * activeDraft.priceRepairPerPc
-                                                    : math.totalCost
-                                            )}
+                                                  )
+                                                : formatMoney(math.totalCost)}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex items-center justify-center gap-2">
@@ -649,9 +649,12 @@ function NumberInput({
 }
 
 function PriceCell({ value, clientOverride }: { value: number; clientOverride: boolean }) {
+    const currency = useCurrency();
     return (
         <div className="flex flex-col items-end gap-0.5">
-            <span className="font-medium text-gray-900">{formatMoney(value)}</span>
+            <span className="font-medium text-gray-900">
+                {convertAndFormatWithContext(value, currency)}
+            </span>
             <span className="text-[11px] font-medium text-gray-500">
                 {clientOverride ? "Client" : "Catalog"}
             </span>

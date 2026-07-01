@@ -82,7 +82,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       disabled: !hasSelectedClient,
     },
     {
-      title: "Forecasting",
+      title: "Cost Forecasting",
       url: hasSelectedClient ? `/${clientID}/forecasting` : "#",
       icon: LineChart,
       disabled: !hasSelectedClient,
