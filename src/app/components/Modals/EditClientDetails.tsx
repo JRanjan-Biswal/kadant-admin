@@ -26,13 +26,21 @@ import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import ImageUploadModal from "@/app/components/MachineHierarchy/ImageUploadModal";
 import { uploadClientImageDirect } from "@/lib/uploadImage";
+import FacilityImageMapper, { type CategoryPosition } from "@/app/components/MachineHierarchy/FacilityImageMapper";
+import { Map as MapIcon } from "lucide-react";
 
 const MAX_CLIENT_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_CLIENT_IMAGE_LABEL = "10 MB";
 
+interface CategoryInfo {
+    _id: string;
+    name: string;
+}
+
 interface EditClientDetailsProps {
     client: Client;
     machines: ClientMachine[];
+    categories?: CategoryInfo[];
     /** Optional controlled-open mode. When provided, the built-in trigger is hidden. */
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -61,7 +69,7 @@ const getClientOwnerName = (client: Client) => {
     return "";
 };
 
-export default function EditClientDetails({ client, machines = [], open, onOpenChange }: EditClientDetailsProps) {
+export default function EditClientDetails({ client, machines = [], categories = [], open, onOpenChange }: EditClientDetailsProps) {
     const router = useRouter();
     const [clientDetails, setClientDetails] = useState<Client>(client);
     const [machineRows, setMachineRows] = useState<MachineRow[]>([]);
@@ -95,6 +103,13 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
         currentImageUrl: string | null;
         onSave: (file: File) => Promise<void>;
     }>(null);
+    const [showFacilityMapper, setShowFacilityMapper] = useState(false);
+    const [facilityLayout, setFacilityLayout] = useState<CategoryPosition[]>(
+        () => (client.facilityLayout || []).map((item) => ({
+            category: typeof item.category === "object" ? (item.category as { _id: string })._id : item.category as string,
+            points: item.points,
+        }))
+    );
 
     useEffect(() => {
         setIsReadOnly(session?.user?.isReadOnly || false);
@@ -242,6 +257,21 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
     // useEffect(() => {
     //     getProducts();
     // }, []);
+
+    const handleSaveFacilityLayout = async (positions: CategoryPosition[]) => {
+        const res = await fetch(`/api/clients/${clientDetails._id}/facility-layout`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ facilityLayout: positions }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error((err as { error?: string }).error || "Failed to save facility layout");
+        }
+        setFacilityLayout(positions);
+        setShowFacilityMapper(false);
+        toast.success("Facility layout saved.");
+    };
 
     const handleSubmit = async () => {
         try {
@@ -475,6 +505,16 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                                 <span className="text-sm">Change</span>
                             </button>
                         )}
+                        {facilityImage && categories.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowFacilityMapper(true)}
+                                className="flex items-center gap-2 px-3 py-2 bg-[#2D3E5C] hover:bg-[#1a2744] text-white rounded-md cursor-pointer transition-colors shrink-0"
+                            >
+                                <MapIcon size={16} />
+                                <span className="text-sm">Facility Mapper</span>
+                            </button>
+                        )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
                 </div>
@@ -636,6 +676,15 @@ export default function EditClientDetails({ client, machines = [], open, onOpenC
                     onSave={imageModal.onSave}
                     maxSavedBytes={MAX_CLIENT_IMAGE_SIZE}
                     maxSavedLabel={MAX_CLIENT_IMAGE_LABEL}
+                />
+            )}
+            {showFacilityMapper && facilityImage && categories.length > 0 && (
+                <FacilityImageMapper
+                    facilityImageUrl={facilityImage}
+                    categories={categories.map((c) => ({ id: c._id, name: c.name }))}
+                    initialPositions={facilityLayout}
+                    onSave={handleSaveFacilityLayout}
+                    onClose={() => setShowFacilityMapper(false)}
                 />
             )}
         </Dialog>

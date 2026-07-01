@@ -16,6 +16,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import AddCategoryMachineFlow, { type AddCategoryMachineFlowFocusTarget } from "@/app/components/MachineHierarchy/AddCategoryMachineFlow";
+import FacilityImageMapper, { type CategoryPosition } from "@/app/components/MachineHierarchy/FacilityImageMapper";
+import { Map as MapIcon } from "lucide-react";
 import { AddMachineFormModal } from "@/app/components/MachineHierarchy/AddEntityModals";
 import { Client } from "@/types/client";
 import { Machine, SparePart, ClientMachineSparePart, type ReplacementPartSnapshot } from "@/types/machine";
@@ -630,6 +632,13 @@ export default function ClientOverviewContent({
     const [addMachineForCategoryId, setAddMachineForCategoryId] = useState<string | null>(null);
     const [quoteCsvModalOpen, setQuoteCsvModalOpen] = useState(false);
     const [quoteCsvData, setQuoteCsvData] = useState<QuoteCsvData | null>(clientDetails.quoteCsvData || null);
+    const [showFacilityMapper, setShowFacilityMapper] = useState(false);
+    const [facilityLayout, setFacilityLayout] = useState<CategoryPosition[]>(
+        () => (clientDetails.facilityLayout || []).map((item) => ({
+            category: typeof item.category === "object" ? item.category._id : item.category,
+            points: item.points,
+        }))
+    );
     // Categories created this session, merged into the Upload Data list so a
     // brand-new (machine-less) category shows up immediately after saving.
     const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
@@ -667,6 +676,21 @@ export default function ClientOverviewContent({
             return reordered;
         });
     }, []);
+
+    const handleSaveFacilityLayout = useCallback(async (positions: CategoryPosition[]) => {
+        const res = await fetch(`/api/clients/${currentClientId}/facility-layout`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ facilityLayout: positions }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error((err as { error?: string }).error || "Failed to save facility layout");
+        }
+        setFacilityLayout(positions);
+        setShowFacilityMapper(false);
+        toast.success("Facility layout saved.");
+    }, [currentClientId]);
 
     const openUploadEditor = useCallback((categoryId: string, machineId?: string, sparePartId?: string) => {
         setActiveTab("upload");
@@ -1040,8 +1064,19 @@ export default function ClientOverviewContent({
                             Add Quote CSV Data
                         </Button>
 
+                        {clientDetails.facilityImageUrl && categories.length > 0 && (
+                            <Button
+                                type="button"
+                                onClick={() => setShowFacilityMapper(true)}
+                                className="h-10 rounded-[8px] bg-[#2D3E5C] px-4 text-sm font-semibold text-white hover:bg-[#1a2744]"
+                            >
+                                <MapIcon className="mr-2 h-4 w-4" />
+                                Facility Mapper
+                            </Button>
+                        )}
+
                         {/* Edit Details Button */}
-                        <EditClientDetails client={clientDetails} machines={[]} />
+                        <EditClientDetails client={clientDetails} machines={[]} categories={categories} />
                     </div>
                 </div>
 
@@ -1599,6 +1634,16 @@ export default function ClientOverviewContent({
             )}
 
             {/* Parts list modal (for a spare part) */}
+            {showFacilityMapper && clientDetails.facilityImageUrl && (
+                <FacilityImageMapper
+                    facilityImageUrl={clientDetails.facilityImageUrl}
+                    categories={categories.map((c) => ({ id: c._id, name: c.name }))}
+                    initialPositions={facilityLayout}
+                    onSave={handleSaveFacilityLayout}
+                    onClose={() => setShowFacilityMapper(false)}
+                />
+            )}
+
             {partsModalSparePart && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPartsModalSparePart(null)} role="dialog" aria-modal="true" aria-labelledby="parts-modal-title">
                     <div className="bg-white border border-[#96A5BA] rounded-[14px] shadow-xl max-w-md w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>

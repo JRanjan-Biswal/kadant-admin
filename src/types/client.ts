@@ -46,6 +46,11 @@ export interface Client {
     facilityImage?: string;
     facilityImageUrl?: string;
     facilityImagePath?: string;
+    facilityLayout?: Array<{
+        category: { _id: string; name: string } | string;
+        /** Exactly 4 corners (normalized 0-100%). */
+        points: Array<{ x: number; y: number }>;
+    }>;
     homeImage?: string;
     homeImageUrl?: string;
     homeImagePath?: string;

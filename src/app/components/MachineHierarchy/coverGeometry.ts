@@ -49,3 +49,24 @@ export function pxToNorm(rect: CoverRect, xPx: number, yPx: number) {
 export function pxDeltaToNorm(rect: CoverRect, dxPx: number, dyPx: number) {
     return { dLeft: (dxPx / rect.rw) * 100, dTop: (dyPx / rect.rh) * 100 };
 }
+
+/** one normalized {x,y} (0..100) corner -> container px. */
+export function pointToPx(rect: CoverRect, x: number, y: number) {
+    return {
+        xPx: rect.offX + (x / 100) * rect.rw,
+        yPx: rect.offY + (y / 100) * rect.rh,
+    };
+}
+
+/** array of normalized {x,y} corners -> array of container px points. */
+export function pointsToPx(rect: CoverRect, points: { x: number; y: number }[]) {
+    return points.map((p) => pointToPx(rect, p.x, p.y));
+}
+
+/** container px -> image-normalized {x,y} (0..100). Inverse of pointToPx. */
+export function pxToPoint(rect: CoverRect, xPx: number, yPx: number) {
+    return {
+        x: ((xPx - rect.offX) / rect.rw) * 100,
+        y: ((yPx - rect.offY) / rect.rh) * 100,
+    };
+}
