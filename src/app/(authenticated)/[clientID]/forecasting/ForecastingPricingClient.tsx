@@ -393,9 +393,9 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
             )}
 
             <div className="overflow-hidden rounded-[10px] border border-[#607797] bg-[#DFE6EC]">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-[#607797] bg-[#e5e7eb]">
+                <Table containerClassName="max-h-[65vh] overflow-y-auto">
+                    <TableHeader className="sticky top-0 z-10 bg-[#e5e7eb]">
+                        <TableRow className="border-[#607797] bg-[#e5e7eb] hover:bg-[#e5e7eb]">
                             <TableHead className="pl-5 text-xs font-semibold uppercase tracking-wider text-gray-900">
                                 Component
                             </TableHead>
