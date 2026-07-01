@@ -1068,7 +1068,7 @@ export default function ClientOverviewContent({
                             <Button
                                 type="button"
                                 onClick={() => setShowFacilityMapper(true)}
-                                className="h-10 rounded-[8px] bg-[#2D3E5C] px-4 text-sm font-semibold text-white hover:bg-[#1a2744]"
+                                className="h-10 rounded-[8px] bg-[#d45815] px-4 text-sm font-semibold text-white hover:bg-[#b84c11]"
                             >
                                 <MapIcon className="mr-2 h-4 w-4" />
                                 Facility Mapper

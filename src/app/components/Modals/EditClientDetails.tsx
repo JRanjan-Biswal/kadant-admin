@@ -22,7 +22,7 @@ import { format } from "date-fns";
 //     SelectValue,
 // } from "@/components/ui/select"
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 import { useSession } from "next-auth/react";
 import ImageUploadModal from "@/app/components/MachineHierarchy/ImageUploadModal";
 import { uploadClientImageDirect } from "@/lib/uploadImage";
@@ -455,9 +455,9 @@ export default function EditClientDetails({ client, machines = [], categories = 
                     </div>
                 </div>
 
-                {/* Facility Image Upload Section */}
-                <div className="mt-5">
-                    <Label className="text-muted-foreground text-sm">Facility Image</Label>
+                {/* Facility Image + Section Mapping — unified card */}
+                <div className="mt-5 border border-[#e2e8f0] rounded-xl p-4">
+                    <Label className="text-muted-foreground text-sm font-medium">Facility Image</Label>
                     <div className="flex items-center gap-4 mt-2">
                         {facilityImage ? (
                             <div className="relative shrink-0">
@@ -505,18 +505,54 @@ export default function EditClientDetails({ client, machines = [], categories = 
                                 <span className="text-sm">Change</span>
                             </button>
                         )}
-                        {facilityImage && categories.length > 0 && (
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
+
+                    {/* Map Facility Sections */}
+                    {facilityImage && categories && categories.length > 0 && (
+                        <div className="mt-4 flex flex-col gap-3 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] p-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-gray-900 text-sm font-semibold">Map Facility Sections</h3>
+                                {facilityLayout.length >= categories.length && facilityLayout.length > 0 && (
+                                    <span className="text-[#22c55e] text-xs font-medium flex items-center gap-1">
+                                        <MapPin size={12} /> All mapped
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[#6b7280] text-xs">
+                                Place each production section on the facility image so users can click through to it.
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {categories.map((cat) => {
+                                    const isMapped = facilityLayout.some((p) => p.category === cat.id);
+                                    return (
+                                        <div
+                                            key={cat.id}
+                                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border ${
+                                                isMapped
+                                                    ? "border-[#22c55e]/40 bg-[#22c55e]/10 text-[#22c55e]"
+                                                    : "border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444]"
+                                            }`}
+                                        >
+                                            <MapPin size={10} />
+                                            {cat.name}
+                                            <span className="ml-1 text-[10px] opacity-70">
+                                                {isMapped ? "mapped" : "not mapped"}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setShowFacilityMapper(true)}
-                                className="flex items-center gap-2 px-3 py-2 bg-[#2D3E5C] hover:bg-[#1a2744] text-white rounded-md cursor-pointer transition-colors shrink-0"
+                                className="flex items-center gap-2 bg-[#d45815] hover:bg-[#b84c11] text-white rounded-[10px] px-4 py-2 text-sm font-medium w-fit transition-colors"
                             >
-                                <MapIcon size={16} />
-                                <span className="text-sm">Facility Mapper</span>
+                                <MapPin size={14} />
+                                {facilityLayout.length > 0 ? "Edit Section Positions" : "Open Facility Mapper"}
                             </button>
-                        )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">Supported: JPEG, PNG, WebP (max 10MB)</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Home Image Upload Section */}
