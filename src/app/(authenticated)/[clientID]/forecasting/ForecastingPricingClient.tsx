@@ -448,25 +448,30 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                         key={row.key}
                                         className="border-[#607797]/40 transition-colors hover:bg-[#96A5BA]/20"
                                     >
-                                        <TableCell className="pl-5">
-                                            <div className="flex max-w-[260px] flex-col gap-0.5">
-                                                <span className="font-semibold text-gray-900">
+                                        <TableCell className="max-w-[260px] min-w-[200px] pl-5 whitespace-normal">
+                                            <div className="flex min-w-0 flex-col gap-0.5">
+                                                <span
+                                                    className="block truncate font-semibold text-gray-900"
+                                                    title={row.part.name}
+                                                >
                                                     {row.part.name}
                                                 </span>
-                                                <span className="text-xs font-mono text-gray-500">
+                                                <span className="block truncate text-xs font-mono text-gray-500">
                                                     {row.part.klValue || "No KL code"}
                                                 </span>
                                                 {row.part.itemOnSpareSketch && (
-                                                    <span className="text-xs text-gray-500">
+                                                    <span className="block truncate text-xs text-gray-500">
                                                         {row.part.itemOnSpareSketch}
                                                     </span>
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-sm text-gray-700">
-                                            <div className="flex max-w-[240px] flex-col gap-0.5">
-                                                <span>{row.machine.name}</span>
-                                                <span className="text-xs text-gray-500">
+                                        <TableCell className="max-w-[220px] min-w-[160px] text-sm text-gray-700 whitespace-normal">
+                                            <div className="flex min-w-0 flex-col gap-0.5">
+                                                <span className="block truncate" title={row.machine.name}>
+                                                    {row.machine.name}
+                                                </span>
+                                                <span className="block truncate text-xs text-gray-500">
                                                     {[row.machine.categoryName, row.machine.serialNumber]
                                                         .filter(Boolean)
                                                         .join(" - ") || "No category"}
