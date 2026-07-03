@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -13,15 +13,24 @@ import { useCurrency, type SelectedCurrency } from "@/context/CurrencyContext";
 
 export default function CurrencyChanger() {
     const { selectedCurrency, currencyValue, updateCurrency } = useCurrency();
-    const [rateInput, setRateInput] = useState(currencyValue);
+    const [rateInput, setRateInput] = useState(String(currencyValue));
+
+    useEffect(() => {
+        setRateInput(String(currencyValue));
+    }, [currencyValue]);
 
     const handleCurrencyChange = useCallback(
-        (currency: SelectedCurrency, value: number) => {
-            if (currency === selectedCurrency && value === currencyValue) {
-                return;
+        async (currency: SelectedCurrency, rawRate: string) => {
+            const rate = parseFloat(rawRate);
+            if (!rate || rate <= 0) return;
+            if (currency === selectedCurrency && rate === currencyValue) return;
+            try {
+                await updateCurrency(currency, rate);
+                toast.success("Currency updated.");
+            } catch (error) {
+                console.error("Failed to update currency:", error);
+                toast.error("Currency updated locally, but failed to save.");
             }
-            updateCurrency(currency, value);
-            toast.success("Currency updated.");
         },
         [updateCurrency, selectedCurrency, currencyValue]
     );
@@ -70,11 +79,10 @@ export default function CurrencyChanger() {
                             <div className="flex items-center gap-2 text-sm text-[#2D3E5C]">
                                 <span className="whitespace-nowrap">1 EUR =</span>
                                 <Input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={rateInput}
-                                    onChange={(event) => setRateInput(Number(event.target.value) || 0)}
+                                    onChange={(event) => setRateInput(event.target.value)}
                                     className="h-8 w-[90px]"
                                 />
                                 <span className="whitespace-nowrap">INR</span>

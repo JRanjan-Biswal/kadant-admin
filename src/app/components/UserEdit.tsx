@@ -16,6 +16,7 @@ import { TbLockPassword } from "react-icons/tb";
 import { User } from "next-auth";
 import { useState } from "react";
 import { toast } from "sonner";
+import CurrencyChanger from "@/app/components/CurrencyChanger";
 
 interface UserEditProps {
     user: User;
@@ -195,6 +196,11 @@ export default function UserEdit({ user, isOpen, onOpenChange, onProfilePictureU
                                 Upload Image
                             </Button>
                         </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4 pb-4">
+                        <p className="text-base-4 font-semibold">Currency Settings</p>
+                        <CurrencyChanger />
                     </div>
 
                     <div className="flex flex-col gap-4 pb-4">

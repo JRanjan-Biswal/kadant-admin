@@ -8,13 +8,15 @@ import {
     useRef,
     useState,
 } from "react";
+import { getClientCurrency, updateClientCurrency } from "@/actions/currency-settings";
 
 export type SelectedCurrency = "EURO" | "INR";
 
 interface CurrencyContextValue {
     selectedCurrency: SelectedCurrency;
     currencyValue: number;
-    updateCurrency: (currency: SelectedCurrency, value: number) => void;
+    updateCurrency: (currency: SelectedCurrency, value: number) => Promise<void>;
+    setActiveClientID: (clientID: string | null) => void;
 }
 
 const DEFAULT_STATE: { selectedCurrency: SelectedCurrency; currencyValue: number } = {
@@ -29,6 +31,7 @@ export function CurrencySelectorProvider({ children }: { children: React.ReactNo
         DEFAULT_STATE.selectedCurrency
     );
     const [currencyValue, setCurrencyValue] = useState<number>(DEFAULT_STATE.currencyValue);
+    const [activeClientID, setActiveClientID] = useState<string | null>(null);
     const initialized = useRef(false);
 
     useEffect(() => {
@@ -62,8 +65,29 @@ export function CurrencySelectorProvider({ children }: { children: React.ReactNo
         return () => window.removeEventListener("storage", handleStorageChange);
     }, []);
 
+    useEffect(() => {
+        if (!activeClientID) return;
+        let cancelled = false;
+
+        getClientCurrency(activeClientID)
+            .then(({ selectedCurrency: currency, exchangeRate }) => {
+                if (cancelled) return;
+                setSelectedCurrency(currency);
+                setCurrencyValue(exchangeRate);
+                localStorage.setItem("selectedCurrency", currency);
+                localStorage.setItem("currencyValue", exchangeRate.toString());
+            })
+            .catch((error) => {
+                console.error("Failed to load client currency:", error);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeClientID]);
+
     const updateCurrency = useCallback(
-        (currency: SelectedCurrency, value: number) => {
+        async (currency: SelectedCurrency, value: number) => {
             if (currency === selectedCurrency && value === currencyValue) {
                 return;
             }
@@ -71,12 +95,18 @@ export function CurrencySelectorProvider({ children }: { children: React.ReactNo
             setCurrencyValue(value);
             localStorage.setItem("selectedCurrency", currency);
             localStorage.setItem("currencyValue", value.toString());
+
+            if (activeClientID) {
+                await updateClientCurrency(activeClientID, currency, value);
+            }
         },
-        [selectedCurrency, currencyValue]
+        [selectedCurrency, currencyValue, activeClientID]
     );
 
     return (
-        <CurrencyContext.Provider value={{ selectedCurrency, currencyValue, updateCurrency }}>
+        <CurrencyContext.Provider
+            value={{ selectedCurrency, currencyValue, updateCurrency, setActiveClientID }}
+        >
             {children}
         </CurrencyContext.Provider>
     );
