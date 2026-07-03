@@ -599,7 +599,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
 
                 {visibleRows.length > 0 && (
                     <div className="flex flex-wrap items-center justify-end gap-6 border-t border-[#607797]/40 bg-[#e5e7eb] px-5 py-4 text-sm">
-                        <TotalLabel label="New subtotal" value={formatMoney(totals.newCost)} />
+                        <TotalLabel label="New Unit Price Subtotal" value={formatMoney(totals.newCost)} />
                         <TotalLabel label="Repair subtotal" value={formatMoney(totals.repairCost)} />
                         <TotalLabel label="Total" value={formatMoney(totals.totalCost)} strong />
                     </div>
