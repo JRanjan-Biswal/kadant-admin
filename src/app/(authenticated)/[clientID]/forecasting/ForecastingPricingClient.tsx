@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Pencil, RefreshCw, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
+    fetchForecastingTotal,
     fetchInventoryForMachine,
     saveClientSparePart,
     type InventoryMachine,
@@ -125,7 +126,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
     const formatDisplayMoney = (value: number) => formatCurrency(value, currency.selectedCurrency);
     const [rowCache, setRowCache] = useState<Map<string, PricingRow[]>>(new Map());
     const loadedMachinesRef = useRef<Set<string>>(new Set());
-    const [loadedMachineCount, setLoadedMachineCount] = useState(0);
+    const [grandTotal, setGrandTotal] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState("");
@@ -180,7 +181,6 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                 part,
             }));
             loadedMachinesRef.current.add(machineId);
-            setLoadedMachineCount(loadedMachinesRef.current.size);
             setRowCache((prev) => new Map(prev).set(machineId, machineRows));
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load forecasting pricing");
@@ -197,6 +197,10 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         if (selectedMachine) void loadMachine(selectedMachine);
     }, [selectedMachine, loadMachine]);
 
+    useEffect(() => {
+        fetchForecastingTotal(clientID).then(setGrandTotal).catch(() => setGrandTotal(0));
+    }, [clientID]);
+
     const visibleRows = useMemo(() => {
         const machineRows = rowCache.get(selectedMachine) ?? [];
         const query = search.trim().toLowerCase();
@@ -207,14 +211,6 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                 .some((v) => String(v).toLowerCase().includes(query))
         );
     }, [rowCache, selectedMachine, search]);
-
-    const allCategoryTotal = useMemo(() => {
-        let total = 0;
-        rowCache.forEach((machineRows) => {
-            machineRows.forEach((row) => { total += rowMath(row.part).totalCost; });
-        });
-        return total;
-    }, [rowCache]);
 
     const totals = useMemo(() => {
         return visibleRows.reduce(
@@ -272,6 +268,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
             unitPriceNew: Math.max(0, convertToEurFromContext(draft.unitPriceNew, currency)),
             priceRepairPerPc: Math.max(0, convertToEurFromContext(draft.priceRepairPerPc, currency)),
         };
+        const oldMath = rowMath(row.part);
 
         try {
             const res = await saveClientSparePart(clientID, row.machine._id, row.part._id, {
@@ -290,6 +287,11 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                 );
                 return new Map(prev).set(row.machine._id, machineRows);
             });
+
+            const newRowTotal = nextDraft.nbNew * nextDraft.unitPriceNew + nextDraft.nbRepair * nextDraft.priceRepairPerPc;
+            const delta = newRowTotal - oldMath.totalCost;
+            setGrandTotal((prev) => (prev ?? 0) + delta);
+
             cancelEdit();
             toast.success("Forecasting pricing saved.");
         } catch (err) {
@@ -312,8 +314,8 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
 
             <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
                 <StatCard
-                    label={`All Forecast (${loadedMachineCount}/${machines.length})`}
-                    value={formatMoney(allCategoryTotal)}
+                    label="All Category Forecast"
+                    value={grandTotal === null ? "..." : formatMoney(grandTotal)}
                     accent
                 />
                 <StatCard label="Forecast Total" value={formatMoney(totals.totalCost)} accent />

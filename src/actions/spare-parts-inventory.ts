@@ -218,6 +218,17 @@ export async function fetchInventoryMachines(clientID: string): Promise<Inventor
         .filter((m) => m._id);
 }
 
+export async function fetchForecastingTotal(clientID: string): Promise<number> {
+    const token = await requireToken();
+    const res = await fetch(`${API}/client-machines/spare-parts/forecasting-total/${clientID}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return typeof data.total === "number" ? data.total : 0;
+}
+
 export async function fetchInventoryForMachine(
     clientID: string,
     machineID: string
