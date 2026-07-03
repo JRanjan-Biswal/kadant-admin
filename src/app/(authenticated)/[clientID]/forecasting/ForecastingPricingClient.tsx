@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Pencil, RefreshCw, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -33,7 +33,6 @@ import {
     convertToEurFromContext,
     formatCurrency,
 } from "@/lib/currencyChange";
-import CurrencyChanger from "@/app/components/CurrencyChanger";
 
 interface Props {
     clientID: string;
@@ -124,7 +123,9 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
     const currency = useCurrency();
     const formatMoney = (value: number) => convertAndFormatWithContext(value, currency);
     const formatDisplayMoney = (value: number) => formatCurrency(value, currency.selectedCurrency);
-    const [rows, setRows] = useState<PricingRow[]>([]);
+    const [rowCache, setRowCache] = useState<Map<string, PricingRow[]>>(new Map());
+    const loadedMachinesRef = useRef<Set<string>>(new Set());
+    const [loadedMachineCount, setLoadedMachineCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState("");
@@ -165,51 +166,55 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         }
     }, [filterMachines, selectedMachine]);
 
-    const reload = useCallback(async () => {
+    const loadMachine = useCallback(async (machineId: string, force = false) => {
+        if (!force && loadedMachinesRef.current.has(machineId)) return;
         setLoading(true);
         setError(null);
         try {
-            const allRows = await Promise.all(
-                machines.map(async (machine) => {
-                    const parts = await fetchInventoryForMachine(clientID, machine._id);
-                    return parts.map((part) => ({
-                        key: `${machine._id}:${part._id}`,
-                        machine,
-                        part,
-                    }));
-                })
-            );
-            setRows(allRows.flat());
+            const parts = await fetchInventoryForMachine(clientID, machineId);
+            const machine = machines.find((m) => m._id === machineId);
+            if (!machine) return;
+            const machineRows = parts.map((part) => ({
+                key: `${machineId}:${part._id}`,
+                machine,
+                part,
+            }));
+            loadedMachinesRef.current.add(machineId);
+            setLoadedMachineCount(loadedMachinesRef.current.size);
+            setRowCache((prev) => new Map(prev).set(machineId, machineRows));
         } catch (err) {
-            setRows([]);
             setError(err instanceof Error ? err.message : "Failed to load forecasting pricing");
         } finally {
             setLoading(false);
         }
     }, [clientID, machines]);
 
+    const reload = useCallback(() => {
+        if (selectedMachine) void loadMachine(selectedMachine, true);
+    }, [selectedMachine, loadMachine]);
+
     useEffect(() => {
-        void reload();
-    }, [reload]);
+        if (selectedMachine) void loadMachine(selectedMachine);
+    }, [selectedMachine, loadMachine]);
 
     const visibleRows = useMemo(() => {
+        const machineRows = rowCache.get(selectedMachine) ?? [];
         const query = search.trim().toLowerCase();
-        return rows.filter(({ machine, part }) => {
-            if (selectedCategory && machine.categoryId !== selectedCategory) return false;
-            if (selectedMachine && machine._id !== selectedMachine) return false;
-            if (!query) return true;
-            return [
-                machine.name,
-                machine.serialNumber,
-                machine.categoryName,
-                part.name,
-                part.klValue,
-                part.itemOnSpareSketch,
-            ]
+        if (!query) return machineRows;
+        return machineRows.filter(({ machine, part }) =>
+            [machine.name, machine.serialNumber, machine.categoryName, part.name, part.klValue, part.itemOnSpareSketch]
                 .filter(Boolean)
-                .some((value) => String(value).toLowerCase().includes(query));
+                .some((v) => String(v).toLowerCase().includes(query))
+        );
+    }, [rowCache, selectedMachine, search]);
+
+    const allCategoryTotal = useMemo(() => {
+        let total = 0;
+        rowCache.forEach((machineRows) => {
+            machineRows.forEach((row) => { total += rowMath(row.part).totalCost; });
         });
-    }, [rows, search, selectedCategory, selectedMachine]);
+        return total;
+    }, [rowCache]);
 
     const totals = useMemo(() => {
         return visibleRows.reduce(
@@ -279,11 +284,12 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                 throw new Error(res.error || "Failed to save forecasting pricing");
             }
 
-            setRows((prev) =>
-                prev.map((item) =>
+            setRowCache((prev) => {
+                const machineRows = (prev.get(row.machine._id) ?? []).map((item) =>
                     item.key === row.key ? updatePricingRow(item, nextDraft) : item
-                )
-            );
+                );
+                return new Map(prev).set(row.machine._id, machineRows);
+            });
             cancelEdit();
             toast.success("Forecasting pricing saved.");
         } catch (err) {
@@ -304,10 +310,15 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                 </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+                <StatCard
+                    label={`All Forecast (${loadedMachineCount}/${machines.length})`}
+                    value={formatMoney(allCategoryTotal)}
+                    accent
+                />
+                <StatCard label="Forecast Total" value={formatMoney(totals.totalCost)} accent />
                 <StatCard label="New Qty" value={formatNumber(totals.nbNew)} />
                 <StatCard label="Repair Qty" value={formatNumber(totals.nbRepair)} />
-                <StatCard label="Forecast Total" value={formatMoney(totals.totalCost)} accent />
                 <StatCard
                     label="Missing Prices"
                     value={formatNumber(totals.missingPriceRows)}
@@ -365,7 +376,6 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                         />
                     </div>
 
-                    <CurrencyChanger />
                 </div>
 
                 <Button
@@ -528,7 +538,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                                 />
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right font-bold text-[#2D3E5C]">
+                                        <TableCell className="text-right font-medium text-gray-900">
                                             {isEditing
                                                 ? formatDisplayMoney(
                                                       activeDraft.nbNew * activeDraft.unitPriceNew +
