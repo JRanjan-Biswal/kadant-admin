@@ -263,7 +263,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         setSavingKey(row.key);
         setError(null);
         const nextDraft = {
-            nbNew: Math.max(0, toNumber(draft.nbNew)),
+            nbNew: Math.min(1, Math.max(0, toNumber(draft.nbNew))),
             nbRepair: Math.max(0, toNumber(draft.nbRepair)),
             unitPriceNew: Math.max(0, convertToEurFromContext(draft.unitPriceNew, currency)),
             priceRepairPerPc: Math.max(0, convertToEurFromContext(draft.priceRepairPerPc, currency)),
@@ -495,6 +495,7 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                                 <NumberInput
                                                     value={activeDraft.nbNew}
                                                     onChange={(value) => setDraft({ ...activeDraft, nbNew: value })}
+                                                    max={1}
                                                 />
                                             ) : (
                                                 <span className="font-medium text-gray-900">{math.nbNew}</span>
@@ -642,17 +643,24 @@ function NumberInput({
     value,
     onChange,
     align = "center",
+    max,
 }: {
     value: number;
     onChange: (value: number) => void;
     align?: "center" | "right";
+    max?: number;
 }) {
+    const clamp = (n: number) => {
+        const withMin = Math.max(0, n);
+        return typeof max === "number" ? Math.min(max, withMin) : withMin;
+    };
     return (
         <Input
             type="number"
             min={0}
+            max={max}
             value={value}
-            onChange={(event) => onChange(Math.max(0, toNumber(event.target.value)))}
+            onChange={(event) => onChange(clamp(toNumber(event.target.value)))}
             className={`h-8 w-[110px] border-[#d1d5db] bg-white text-gray-900 ${
                 align === "right" ? "text-right" : "text-center"
             }`}
