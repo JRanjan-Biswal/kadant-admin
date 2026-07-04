@@ -49,6 +49,7 @@ function ScheduleRow({ n, onDismiss }: { n: ScheduleNotification; onDismiss: (id
                 </p>
                 <p className="text-muted-foreground text-xs mt-0.5">
                     {n.machineName && <span>{n.machineName} · </span>}
+                    {n.klValue && <span className="font-mono">{n.klValue} · </span>}
                     Week {n.week} · <span className={n.overdue ? "text-red-400" : ""}>{label}</span>
                 </p>
             </div>
@@ -74,6 +75,7 @@ function HealthRow({ n, onDismiss }: { n: HealthNotification; onDismiss: (id: st
                 </p>
                 <p className="text-muted-foreground text-xs mt-0.5">
                     {n.machineName && <span>{n.machineName} · </span>}
+                    {n.klValue && <span className="font-mono">{n.klValue} · </span>}
                     {n.totalRunningHours.toLocaleString()} / {n.lifetimeOfRotor.toLocaleString()} hrs
                     <span className="text-red-400"> (+{overBy.toLocaleString()} over)</span>
                 </p>
