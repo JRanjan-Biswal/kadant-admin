@@ -31,67 +31,105 @@ function saveDismissed(clientId: string, set: Set<string>) {
     localStorage.setItem(storageKey(clientId), JSON.stringify([...set]));
 }
 
-// ── Notification item rows ────────────────────────────────────────────────────
+// ── Notification cards ────────────────────────────────────────────────────────
 
 function ScheduleRow({ n, onDismiss }: { n: ScheduleNotification; onDismiss: (id: string) => void }) {
-    const label = n.overdue
-        ? `${Math.abs(n.daysUntil)}d overdue`
-        : n.daysUntil === 0
-        ? "due today"
-        : `in ${n.daysUntil}d`;
+    const timeLabel = n.daysUntil === 0 ? "Due today" : `In ${n.daysUntil}d`;
 
     return (
-        <div className="flex items-start gap-3 p-3 rounded-md bg-orange/10 border border-orange/20">
-            <span className="mt-1 w-2 h-2 rounded-full bg-orange flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-                <p className="text-orange text-sm font-semibold truncate" title={`${n.action}: ${n.sparePartName}`}>
-                    {n.action}: {n.sparePartName}
-                </p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                    {n.machineName && <span>{n.machineName} · </span>}
-                    {n.klValue && <span className="font-mono">{n.klValue} · </span>}
-                    Week {n.week} · <span className={n.overdue ? "text-red-400" : ""}>{label}</span>
-                </p>
+        <div className="rounded-lg border border-orange/25 bg-orange/[0.06] p-3 space-y-1.5">
+            {/* Row 1: action badge + time + dismiss */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange/20 text-orange uppercase tracking-wide">
+                        {n.action}
+                    </span>
+                    <span className="text-orange text-[11px] font-semibold shrink-0">
+                        · {timeLabel}
+                    </span>
+                </div>
+                <button
+                    onClick={() => onDismiss(n.id)}
+                    className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors"
+                    aria-label="Dismiss"
+                >
+                    <X size={13} />
+                </button>
             </div>
-            <button
-                onClick={() => onDismiss(n.id)}
-                className="shrink-0 text-muted-foreground hover:text-foreground cursor-pointer transition-colors mt-0.5"
-                aria-label="Dismiss"
+
+            {/* Row 2: part name — wraps up to 2 lines */}
+            <p
+                className="text-foreground text-[12px] font-medium leading-snug line-clamp-2"
+                title={n.sparePartName}
             >
-                <X size={14} />
-            </button>
+                {n.sparePartName}
+            </p>
+
+            {/* Row 3: machine · KL code · week */}
+            <div className="flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+                {n.machineName && <span className="truncate max-w-[160px]">{n.machineName}</span>}
+                {n.klValue && (
+                    <>
+                        <span className="opacity-40">·</span>
+                        <span className="font-mono text-muted-foreground">{n.klValue}</span>
+                    </>
+                )}
+                <span className="opacity-40">·</span>
+                <span>Wk {n.week}</span>
+            </div>
         </div>
     );
 }
 
 function HealthRow({ n, onDismiss }: { n: HealthNotification; onDismiss: (id: string) => void }) {
     const overBy = n.totalRunningHours - n.lifetimeOfRotor;
+
     return (
-        <div className="flex items-start gap-3 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-            <span className="mt-1 w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-                <p className="text-red-400 text-sm font-semibold truncate" title={`Period Exceeded: ${n.sparePartName}`}>
-                    Period Exceeded: {n.sparePartName}
-                </p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                    {n.machineName && <span>{n.machineName} · </span>}
-                    {n.klValue && <span className="font-mono">{n.klValue} · </span>}
-                    {n.totalRunningHours.toLocaleString()} / {n.lifetimeOfRotor.toLocaleString()} hrs
-                    <span className="text-red-400"> (+{overBy.toLocaleString()} over)</span>
-                </p>
+        <div className="rounded-lg border border-red-500/25 bg-red-500/[0.06] p-3 space-y-1.5">
+            {/* Row 1: badge + over amount + dismiss */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 uppercase tracking-wide">
+                        Period Exceeded
+                    </span>
+                    <span className="text-red-400 text-[11px] font-semibold shrink-0">
+                        · +{overBy.toLocaleString()} hrs
+                    </span>
+                </div>
+                <button
+                    onClick={() => onDismiss(n.id)}
+                    className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors"
+                    aria-label="Dismiss"
+                >
+                    <X size={13} />
+                </button>
             </div>
-            <button
-                onClick={() => onDismiss(n.id)}
-                className="shrink-0 text-muted-foreground hover:text-foreground cursor-pointer transition-colors mt-0.5"
-                aria-label="Dismiss"
+
+            {/* Row 2: part name */}
+            <p
+                className="text-foreground text-[12px] font-medium leading-snug line-clamp-2"
+                title={n.sparePartName}
             >
-                <X size={14} />
-            </button>
+                {n.sparePartName}
+            </p>
+
+            {/* Row 3: machine · KL code · hours */}
+            <div className="flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+                {n.machineName && <span className="truncate max-w-[140px]">{n.machineName}</span>}
+                {n.klValue && (
+                    <>
+                        <span className="opacity-40">·</span>
+                        <span className="font-mono">{n.klValue}</span>
+                    </>
+                )}
+                <span className="opacity-40">·</span>
+                <span>{n.totalRunningHours.toLocaleString()}/{n.lifetimeOfRotor.toLocaleString()} hrs</span>
+            </div>
         </div>
     );
 }
 
-// ── Panel (only rendered when clientID is present) ────────────────────────────
+// ── Panel ─────────────────────────────────────────────────────────────────────
 
 function NotificationsPanel({ clientID }: { clientID: string }) {
     const [schedules, setSchedules] = useState<ScheduleNotification[]>([]);
@@ -152,48 +190,61 @@ function NotificationsPanel({ clientID }: { clientID: string }) {
                 </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="bg-popover border-border w-[340px] max-h-[480px] overflow-y-auto p-4">
-                <p className="text-foreground uppercase font-semibold text-sm mb-4">
-                    Notifications
-                </p>
-
-                {loading ? (
-                    <p className="text-muted-foreground text-sm text-center py-6">Loading…</p>
-                ) : totalVisible === 0 ? (
-                    <p className="text-muted-foreground text-sm text-center py-6">
-                        No active notifications
-                    </p>
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        {visibleSchedules.length > 0 && (
-                            <div className="flex flex-col gap-2">
-                                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
-                                    This Week&apos;s Schedule
-                                </p>
-                                {visibleSchedules.map((n) => (
-                                    <ScheduleRow key={n.id} n={n} onDismiss={dismiss} />
-                                ))}
-                            </div>
-                        )}
-
-                        {visibleHealth.length > 0 && (
-                            <div className="flex flex-col gap-2">
-                                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
-                                    Health Alerts
-                                </p>
-                                {visibleHealth.map((n) => (
-                                    <HealthRow key={n.id} n={n} onDismiss={dismiss} />
-                                ))}
-                            </div>
+            <PopoverContent className="bg-popover border-border w-[380px] max-h-[520px] flex flex-col p-0 overflow-hidden">
+                {/* Sticky header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                    <div>
+                        <p className="text-foreground font-semibold text-sm">Notifications</p>
+                        {!loading && totalVisible > 0 && (
+                            <p className="text-muted-foreground text-[11px] mt-0.5">
+                                {totalVisible} active
+                            </p>
                         )}
                     </div>
-                )}
+                </div>
+
+                {/* Scrollable content */}
+                <div className="overflow-y-auto flex-1 px-4 py-3">
+                    {loading ? (
+                        <p className="text-muted-foreground text-sm text-center py-8">Loading…</p>
+                    ) : totalVisible === 0 ? (
+                        <p className="text-muted-foreground text-sm text-center py-8">
+                            No active notifications
+                        </p>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {visibleSchedules.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest">
+                                        This Week&apos;s Schedule
+                                        <span className="ml-1.5 text-orange font-bold">{visibleSchedules.length}</span>
+                                    </p>
+                                    {visibleSchedules.map((n) => (
+                                        <ScheduleRow key={n.id} n={n} onDismiss={dismiss} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {visibleHealth.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest">
+                                        Health Alerts
+                                        <span className="ml-1.5 text-red-400 font-bold">{visibleHealth.length}</span>
+                                    </p>
+                                    {visibleHealth.map((n) => (
+                                        <HealthRow key={n.id} n={n} onDismiss={dismiss} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </PopoverContent>
         </Popover>
     );
 }
 
-// ── Shell — only shows when on a [clientID] route ─────────────────────────────
+// ── Shell ─────────────────────────────────────────────────────────────────────
 
 export default function Notifications() {
     const params = useParams();
