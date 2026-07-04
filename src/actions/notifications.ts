@@ -44,18 +44,20 @@ export async function fetchWeekSchedules(clientID: string): Promise<ScheduleNoti
         );
         if (!res.ok) return [];
         const data = await res.json();
-        return (data.events || []).map((ev: Record<string, unknown>) => ({
-            id: `sched_${ev.clientMachineSparePartId}_w${ev.week}_${new Date(ev.dueDate as string).getFullYear()}`,
-            type: "schedule" as const,
-            sparePartName: ev.sparePartName as string,
-            machineName: ev.machineName as string,
-            klValue: ev.klValue as string,
-            action: ev.action as string,
-            week: ev.week as number,
-            daysUntil: ev.daysUntil as number,
-            overdue: ev.overdue as boolean,
-            dueDate: ev.dueDate as string,
-        }));
+        return (data.events || [])
+            .filter((ev: Record<string, unknown>) => !ev.overdue)
+            .map((ev: Record<string, unknown>) => ({
+                id: `sched_${ev.clientMachineSparePartId}_w${ev.week}_${new Date(ev.dueDate as string).getFullYear()}`,
+                type: "schedule" as const,
+                sparePartName: ev.sparePartName as string,
+                machineName: ev.machineName as string,
+                klValue: ev.klValue as string,
+                action: ev.action as string,
+                week: ev.week as number,
+                daysUntil: ev.daysUntil as number,
+                overdue: false,
+                dueDate: ev.dueDate as string,
+            }));
     } catch {
         return [];
     }
