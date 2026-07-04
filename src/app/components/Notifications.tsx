@@ -44,7 +44,7 @@ function ScheduleRow({ n, onDismiss }: { n: ScheduleNotification; onDismiss: (id
         <div className="flex items-start gap-3 p-3 rounded-md bg-orange/10 border border-orange/20">
             <span className="mt-1 w-2 h-2 rounded-full bg-orange flex-shrink-0" />
             <div className="flex-1 min-w-0">
-                <p className="text-orange text-sm font-semibold truncate">
+                <p className="text-orange text-sm font-semibold truncate" title={`${n.action}: ${n.sparePartName}`}>
                     {n.action}: {n.sparePartName}
                 </p>
                 <p className="text-muted-foreground text-xs mt-0.5">
@@ -69,7 +69,7 @@ function HealthRow({ n, onDismiss }: { n: HealthNotification; onDismiss: (id: st
         <div className="flex items-start gap-3 p-3 rounded-md bg-red-500/10 border border-red-500/20">
             <span className="mt-1 w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-                <p className="text-red-400 text-sm font-semibold truncate">
+                <p className="text-red-400 text-sm font-semibold truncate" title={`Period Exceeded: ${n.sparePartName}`}>
                     Period Exceeded: {n.sparePartName}
                 </p>
                 <p className="text-muted-foreground text-xs mt-0.5">
