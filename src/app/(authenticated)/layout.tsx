@@ -20,12 +20,14 @@ const lato = Lato({
     subsets: ["latin"],
     weight: ["100", "300", "400", "700", "900"],
     display: "swap",
+    variable: "--font-lato",
 });
 
 const montserrat = Montserrat({
     subsets: ["latin"],
     weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
     display: "swap",
+    variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
@@ -44,7 +46,7 @@ export default async function RootLayout({
     }
 
     return (
-        <html lang="en" className={`${lato.className} ${montserrat.className}`}>
+        <html lang="en" className={`${lato.variable} ${montserrat.variable} ${montserrat.className}`}>
             <body className="antialiased bg-background text-foreground">
                 <AuthProvider>
                     <SidebarProvider>
@@ -57,7 +59,7 @@ export default async function RootLayout({
                                         <Switch className="cursor-pointer data-[state=checked]:bg-orange" id="on-visit" disabled tabIndex={-1} />
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {/* <Notifications /> */}
+                                        <Notifications />
                                     </div>
                                 </header>
                                 <main className="bg-white min-h-[calc(100vh-4rem)]">
