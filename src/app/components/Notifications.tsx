@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { IoMdNotificationsOutline } from "react-icons/io";
@@ -114,6 +114,8 @@ function NotificationsPanel({ clientID }: { clientID: string }) {
             setLoading(false);
         }
     }, [clientID]);
+
+    useEffect(() => { loadData(); }, [loadData]);
 
     const dismiss = useCallback(
         (id: string) => {
