@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2, PackageSearch } from "lucide-react";
 import {
     fetchInventoryQueue,
     fetchInventoryForMachine,
@@ -90,8 +90,8 @@ const dateInputValue = (iso?: string | null) => {
 const partType = (part: InventorySparePart): "New" | "Rebuilt" =>
     part.clientMachineSparePart?.rotorType === "Rebuilt" ? "Rebuilt" : "New";
 
-const rebuildCount = (part: InventorySparePart): number =>
-    Math.max(0, Number(part.clientMachineSparePart?.rebuildsPossible) || 0);
+const rebuildCount = (part: InventorySparePart): number | null =>
+    part.clientMachineSparePart?.rebuildsPossible ?? null;
 
 const isActivePart = (part: InventorySparePart): boolean =>
     part.clientMachineSparePart?.isActive !== false;
@@ -223,7 +223,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     interface DraftRow {
         lifetimeText: string;
         rotorType: "New" | "Rebuilt";
-        rebuildsPossible: number;
+        rebuildsPossible: number | null;
     }
     const [editingId, setEditingId] = useState<string | null>(null);
     const [draft, setDraft] = useState<DraftRow | null>(null);
@@ -262,7 +262,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 {
                     lifetimeText,
                     rotorType,
-                    rebuildsPossible: Math.max(0, Number(draft.rebuildsPossible) || 0),
+                    rebuildsPossible: draft.rebuildsPossible === null ? null : Math.max(0, draft.rebuildsPossible),
                     rebuildLifetimeText: rotorType === "Rebuilt" ? lifetimeText : null,
                 }
             );
@@ -538,7 +538,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 lastServiceDate: replacementDate,
                 stockQuantity: Math.max(clientPart?.stockQuantity ?? 0, 1),
                 isActive: true,
-                rebuildsPossible: Math.max(0, Number(data.rebuildsPossible) || 0),
+                rebuildsPossible: data.rebuildsPossible === null ? null : Math.max(0, Number(data.rebuildsPossible) || 0),
                 rotorType: data.rotorType,
                 totalRunningHours: { value: 0, unit: clientPart?.totalRunningHours?.unit || "Hrs" },
                 exceededLife: { value: 0, unit: "Hrs" },
@@ -870,17 +870,18 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                 <Input
                                                     type="number"
                                                     min={0}
-                                                    value={draft!.rebuildsPossible}
+                                                    placeholder="No cap"
+                                                    value={draft!.rebuildsPossible ?? ""}
                                                     onChange={(event) =>
                                                         setDraft({
                                                             ...draft!,
-                                                            rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
+                                                            rebuildsPossible: event.target.value === "" ? null : Math.max(0, Number(event.target.value) || 0),
                                                         })
                                                     }
                                                     className="h-8 w-24 bg-white border-[#d1d5db] text-gray-900"
                                                 />
                                             ) : (
-                                                activeRebuildCount
+                                                activeRebuildCount ?? "No cap"
                                             )}
                                         </TableCell>
 
@@ -1038,7 +1039,7 @@ interface ReplacementFormData {
     serialNumber: string;
     lifetimeText: string;
     rotorType: "New" | "Rebuilt";
-    rebuildsPossible: number;
+    rebuildsPossible: number | null;
     notes: string;
     mediaUrls: string[];
 }
@@ -1111,28 +1112,28 @@ function QueueTable({
 
     return (
         <div className="flex flex-col">
-        <Table>
+        <Table className="table-fixed w-full">
             <TableHeader>
                 <TableRow className="border-[#607797] bg-[#e5e7eb]">
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider pl-5">
+                    <TableHead className="w-[190px] text-gray-900 font-semibold text-xs uppercase tracking-wider pl-5">
                         {tab === "replaced" ? "Old Spare Part" : "Part"}
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[140px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         Machine
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[120px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Source" : "Workflow"}
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[88px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Replaced On" : "Date"}
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[165px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Old Usage" : "Part Details"}
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[160px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "New Spare Part" : "Replacement"}
                     </TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider text-center">
+                    <TableHead className="w-[117px] text-gray-900 font-semibold text-xs uppercase tracking-wider text-center">
                         Actions
                     </TableHead>
                 </TableRow>
@@ -1185,97 +1186,116 @@ function QueueTable({
 
                         return (
                             <TableRow key={`${item.queueType}-${item.machine._id}-${item.part._id}-${replacementDate || clientPart?._id || ""}`} className="border-[#607797]/40 hover:bg-[#96A5BA]/20">
-                                <TableCell className="pl-5 max-w-[220px]">
+                                <TableCell className="pl-5 overflow-hidden">
                                     <div className="flex flex-col gap-0.5">
-                                        <span className="font-semibold text-gray-900 whitespace-normal break-words">
+                                        <span className="font-semibold text-gray-900 block truncate" title={oldPartName}>
                                             {oldPartName}
                                         </span>
                                         {oldPartKlValue && (
-                                            <span className="text-xs text-gray-500 font-mono">
+                                            <span className="text-xs text-gray-500 font-mono block truncate" title={oldPartKlValue}>
                                                 {oldPartKlValue}
                                             </span>
                                         )}
                                         {tab === "replaced" && entry?.oldSparePartInstallationDate && (
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-gray-500 whitespace-nowrap">
                                                 Installed {formatDate(entry.oldSparePartInstallationDate)}
                                             </span>
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     <div className="flex flex-col gap-0.5">
-                                        <span>{item.machine.name}</span>
+                                        <span className="block truncate" title={item.machine.name}>{item.machine.name}</span>
                                         {item.machine.serialNumber && (
-                                            <span className="text-xs text-gray-500">{item.machine.serialNumber}</span>
+                                            <span className="text-xs text-gray-500 block truncate" title={item.machine.serialNumber}>{item.machine.serialNumber}</span>
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="overflow-hidden">
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-sm font-medium text-gray-900">{workflowLabel}</span>
+                                        <span className="text-sm font-medium text-gray-900 block truncate" title={workflowLabel}>{workflowLabel}</span>
                                         <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses}`}>
                                             {status}
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm">
+                                <TableCell className="text-gray-700 text-sm whitespace-nowrap">
                                     {formatDate(queueDate(item))}
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {tab === "replaced" ? (
-                                        <div className="flex flex-col gap-0.5">
-                                            <span>Running - {oldRunningHours || "—"}</span>
-                                            <span className="text-gray-500">Lifetime - {oldLifetime || "—"}</span>
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Running</span>
+                                                <span className="font-medium text-gray-900 truncate" title={oldRunningHours || undefined}>{oldRunningHours || "—"}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Lifetime</span>
+                                                <span className="text-gray-700 truncate" title={oldLifetime || undefined}>{oldLifetime || "—"}</span>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col gap-0.5">
-                                            <span>Lifetime - {lifetimeDisplayText(item.part)}</span>
-                                            <span className="text-gray-500">
-                                                Type - {clientPart?.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
-                                            </span>
-                                            <span className="text-gray-500">
-                                                Rebuilds - {Math.max(0, Number(clientPart?.rebuildsPossible) || 0)}
-                                            </span>
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Lifetime</span>
+                                                <span className="font-medium text-gray-900 truncate" title={lifetimeDisplayText(item.part)}>{lifetimeDisplayText(item.part)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    clientPart?.rotorType === "Rebuilt"
+                                                        ? "bg-orange-500/20 text-orange-700"
+                                                        : "bg-green-500/20 text-green-700"
+                                                }`}>
+                                                    {clientPart?.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Rebuilds</span>
+                                                <span className="text-gray-700">{clientPart?.rebuildsPossible == null ? "No cap" : clientPart.rebuildsPossible}</span>
+                                            </div>
                                         </div>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm max-w-[260px]">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {tab === "replaced" ? (
                                         <div className="flex flex-col gap-0.5">
-                                            <span className="font-medium text-gray-900">
+                                            <span className="font-medium text-gray-900 block truncate" title={newPartName}>
                                                 {newPartName}
                                             </span>
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-gray-500 block truncate" title={[newPartKlValue, newSerialNumber].filter(Boolean).join(" · ") || "No reference added"}>
                                                 {[newPartKlValue, newSerialNumber].filter(Boolean).join(" · ") || "No reference added"}
                                                 {mediaCount > 0 ? ` · ${mediaCount} media` : ""}
                                             </span>
                                             {(entry?.newLifetimeText || clientPart?.replacementLifetimeText) && (
-                                                <span className="text-xs text-gray-500">
+                                                <span className="text-xs text-gray-500 block truncate" title={`Lifetime ${entry?.newLifetimeText || clientPart?.replacementLifetimeText}`}>
                                                     Lifetime {entry?.newLifetimeText || clientPart?.replacementLifetimeText}
                                                 </span>
                                             )}
                                         </div>
                                     ) : replacementDate ? (
                                         <div className="flex flex-col gap-0.5">
-                                            <span className="font-medium text-gray-900">
+                                            <span className="font-medium text-gray-900 whitespace-nowrap">
                                                 Replaced {formatDate(replacementDate)}
                                             </span>
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-gray-500 block truncate" title={newPartName}>
                                                 {newPartName}
                                                 {mediaCount > 0 ? ` · ${mediaCount} media` : ""}
                                             </span>
                                         </div>
                                     ) : (
-                                        <span className="text-gray-500">Pending replacement</span>
+                                        <span className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                            Pending replacement
+                                        </span>
                                     )}
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <button
                                         type="button"
                                         onClick={() => onReplacementClick(item)}
-                                        className="inline-flex items-center gap-1 text-[#d45815] hover:text-[#b8480f] text-xs font-semibold"
+                                        className="inline-flex items-center gap-1.5 rounded-md border border-[#d45815]/40 bg-[#d45815]/10 px-3 py-1.5 text-xs font-semibold text-[#d45815] transition-colors hover:bg-[#d45815]/20"
                                     >
-                                        <Pencil className="w-4 h-4" />
+                                        <Pencil className="h-3.5 w-3.5" />
                                         {tab === "replaced" ? "Edit Details" : replacementDate ? "Edit Replacement" : "Add Replacement"}
                                     </button>
                                 </TableCell>
@@ -1372,7 +1392,7 @@ function ReplacementModal({
         serialNumber: "",
         lifetimeText: "",
         rotorType: "New",
-        rebuildsPossible: 0,
+        rebuildsPossible: null,
         notes: "",
         mediaUrls: [],
     });
@@ -1398,7 +1418,7 @@ function ReplacementModal({
             rotorType:
                 clientPart?.rotorType ||
                 (target.queueType === "rebuild" ? "Rebuilt" : "New"),
-            rebuildsPossible: Math.max(0, Number(clientPart?.rebuildsPossible) || 0),
+            rebuildsPossible: clientPart?.rebuildsPossible ?? null,
             notes: clientPart?.replacementNotes || "",
             mediaUrls: clientPart?.replacementMediaUrls || [],
         });
@@ -1413,6 +1433,14 @@ function ReplacementModal({
             : target.queueType === "orderedNew"
             ? "ordered new"
             : "replacement history";
+
+    const isRebuildWorkflow = workflowLabel === "rebuild";
+
+    const getRebuildBlockLabel = (part: ReplacementOption): string | null => {
+        if (!isRebuildWorkflow || !part.isRebuildBlocked) return null;
+        if (part.isRebuildable === false || part.rebuildsPossible === 0) return "Not rebuildable";
+        return `Max rebuilds reached (${part.rebuildCount ?? 0}/${part.rebuildsPossible ?? 0})`;
+    };
 
     const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1440,6 +1468,7 @@ function ReplacementModal({
 
     const handleReplacementPartSelect = (optionID: string) => {
         const selected = replacementOptions.find((part) => part._id === optionID);
+        if (selected && isRebuildWorkflow && selected.isRebuildBlocked) return;
         setForm((prev) => ({
             ...prev,
             replacementOptionID: optionID,
@@ -1449,7 +1478,7 @@ function ReplacementModal({
             klValue: selected?.klValue || "",
             lifetimeText: selected?.lifetimeText || prev.lifetimeText,
             rotorType: selected?.rotorType || prev.rotorType,
-            rebuildsPossible: Math.max(0, Number(selected?.rebuildsPossible ?? prev.rebuildsPossible) || 0),
+            rebuildsPossible: selected?.rebuildsPossible ?? prev.rebuildsPossible ?? null,
         }));
     };
 
@@ -1524,28 +1553,76 @@ function ReplacementModal({
                                 ))}
                             </select>
                         </label>
-                        <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                            Spare part
-                            <select
-                                value={form.replacementOptionID}
-                                onChange={(event) => handleReplacementPartSelect(event.target.value)}
-                                disabled={saving || replacementOptionsLoading}
-                                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#d45815] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                <option value="">
-                                    {replacementOptionsLoading ? "Loading spare parts..." : "Manual entry"}
-                                </option>
-                                {replacementOptions.map((part) => (
-                                    <option key={part._id} value={part._id}>
-                                        {[
-                                            part.name,
-                                            part.klValue ? `KL ${part.klValue}` : null,
-                                            part.sourceMachine?.name,
-                                        ].filter(Boolean).join(" - ")}
+                        <div className="col-span-2 flex flex-col gap-1.5">
+                            <span className="text-sm text-[#6b7280]">Spare part</span>
+                            <div className="flex gap-2">
+                                <select
+                                    value={form.replacementOptionID}
+                                    onChange={(event) => handleReplacementPartSelect(event.target.value)}
+                                    disabled={saving || replacementOptionsLoading}
+                                    className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#d45815] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <option value="">
+                                        {replacementOptionsLoading ? "Loading spare parts..." : "— Manual entry"}
                                     </option>
-                                ))}
-                            </select>
-                        </label>
+                                    {replacementOptions.map((part) => {
+                                        const blockLabel = getRebuildBlockLabel(part);
+                                        return (
+                                            <option
+                                                key={part._id}
+                                                value={part._id}
+                                                disabled={!!blockLabel}
+                                            >
+                                                {[
+                                                    part.name,
+                                                    part.klValue ? `· KL ${part.klValue}` : null,
+                                                    part.sourceMachine?.name ? `· ${part.sourceMachine.name}` : null,
+                                                    blockLabel ? `— ${blockLabel}` : null,
+                                                ].filter(Boolean).join(" ")}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                {form.replacementOptionID && (
+                                    <button
+                                        type="button"
+                                        disabled={saving}
+                                        onClick={() => {
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                replacementOptionID: "",
+                                                replacementSparePartID: "",
+                                                replacementSourceMachineID: "",
+                                            }));
+                                        }}
+                                        title="Clear selection — switch to manual entry"
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#C5D1DC] bg-white text-[#607797] hover:border-red-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                            {form.replacementOptionID && (() => {
+                                const sel = replacementOptions.find((p) => p._id === form.replacementOptionID);
+                                if (!sel) return null;
+                                return (
+                                    <div className="flex flex-wrap items-center gap-2 rounded-md border border-[#d45815]/30 bg-[#fff7f4] px-3 py-2 text-xs">
+                                        <span className="font-medium text-[#2D3E5C]">{sel.name}</span>
+                                        {sel.klValue && (
+                                            <span className="rounded bg-[#d45815] px-1.5 py-0.5 font-mono font-semibold text-white">
+                                                KL {sel.klValue}
+                                            </span>
+                                        )}
+                                        {sel.sourceMachine?.name && (
+                                            <span className="text-[#6b7280]">· {sel.sourceMachine.name}</span>
+                                        )}
+                                        {sel.sourceMachine?.serialNumber && (
+                                            <span className="text-[#6b7280]">· {sel.sourceMachine.serialNumber}</span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                        </div>
                         <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 text-xs text-[#6b7280]">
                             <span>
                                 {replacementOptionsMeta.total > 0
@@ -1588,36 +1665,66 @@ function ReplacementModal({
                             </div>
                         </div>
                     </div>
-                    <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Part name
-                        <Input
-                            value={form.partName}
-                            onChange={(event) => setForm({ ...form, partName: event.target.value })}
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        KL code
-                        <Input
-                            value={form.klValue}
-                            onChange={(event) => setForm({ ...form, klValue: event.target.value })}
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Serial / reference
-                        <Input
-                            value={form.serialNumber}
-                            onChange={(event) => setForm({ ...form, serialNumber: event.target.value })}
-                            placeholder="Optional"
-                        />
-                    </label>
-                    <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Lifetime for installed part
-                        <Input
-                            value={form.lifetimeText}
-                            onChange={(event) => setForm({ ...form, lifetimeText: event.target.value })}
-                            placeholder="e.g. 3 Months or 1 Year"
-                        />
-                    </label>
+                    <div className={`col-span-2 grid grid-cols-2 gap-3 rounded-md border p-3 transition-colors ${
+                        form.replacementOptionID
+                            ? "border-[#C5D1DC] bg-[#F8FAFC]"
+                            : "border-dashed border-[#d45815] bg-[#fff7f4]"
+                    }`}>
+                        <div className="col-span-2 flex items-center gap-2">
+                            {form.replacementOptionID ? (
+                                <>
+                                    <PackageSearch className="h-3.5 w-3.5 text-[#607797]" />
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-[#607797]">Part details</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Pencil className="h-3.5 w-3.5 text-[#d45815]" />
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-[#d45815]">Manual entry</span>
+                                </>
+                            )}
+                        </div>
+                        <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            Part name
+                            <Input
+                                value={form.partName}
+                                onChange={(event) => setForm({ ...form, partName: event.target.value })}
+                                className="bg-white"
+                            />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            KL code
+                            <Input
+                                value={form.klValue}
+                                onChange={(event) => setForm({ ...form, klValue: event.target.value })}
+                                className="bg-white font-mono"
+                            />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            Serial / reference
+                            <Input
+                                value={form.serialNumber}
+                                onChange={(event) => setForm({ ...form, serialNumber: event.target.value })}
+                                placeholder="Optional"
+                                className="bg-white"
+                            />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            Lifetime for installed part
+                            <Input
+                                value={form.lifetimeText}
+                                onChange={(event) => setForm({ ...form, lifetimeText: event.target.value })}
+                                placeholder="e.g. 3 Months or 1 Year"
+                                className="bg-white"
+                            />
+                        </label>
+                    </div>
+
+                    <div className="col-span-2 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-[#C5D1DC]" />
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">Replacement details</span>
+                        <div className="h-px flex-1 bg-[#C5D1DC]" />
+                    </div>
+
                     <div className="col-span-2 flex items-center justify-between rounded-md border border-[#C5D1DC] px-3 py-2">
                         <span className="text-sm font-medium text-[#2D3E5C]">Rebuilt part</span>
                         <Switch
@@ -1629,15 +1736,16 @@ function ReplacementModal({
                         />
                     </div>
                     <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Rebuilds possible
+                        Rebuilds possible (blank = no cap, 0 = blocked)
                         <Input
                             type="number"
                             min={0}
-                            value={form.rebuildsPossible}
+                            placeholder="No cap"
+                            value={form.rebuildsPossible ?? ""}
                             onChange={(event) =>
                                 setForm({
                                     ...form,
-                                    rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
+                                    rebuildsPossible: event.target.value === "" ? null : Math.max(0, Number(event.target.value) || 0),
                                 })
                             }
                         />
