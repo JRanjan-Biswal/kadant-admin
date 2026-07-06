@@ -801,6 +801,8 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                 const isEditing = editingId === part._id && draft !== null;
                                 const activePartType = partType(part);
                                 const activeRebuildCount = rebuildCount(part);
+                                const actualRebuildsDone = (part.clientMachineSparePart?.replacementHistory || [])
+                                    .filter((h) => h.source === "Rebuild").length;
                                 const active = isActivePart(part);
                                 const activeSaving = activeSavingId === part._id;
 
@@ -841,16 +843,29 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
                                         <TableCell>
                                             {isEditing ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Switch
-                                                        checked={draft!.rotorType === "Rebuilt"}
-                                                        onCheckedChange={(checked) =>
-                                                            setDraft({ ...draft!, rotorType: checked ? "Rebuilt" : "New" })
-                                                        }
-                                                    />
-                                                    <span className="text-sm text-gray-900">
-                                                        {draft!.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
-                                                    </span>
+                                                <div className="inline-flex rounded-full border border-[#d1d5db] overflow-hidden text-xs font-medium">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDraft({ ...draft!, rotorType: "New" })}
+                                                        className={`cursor-pointer px-3 py-1 transition-colors ${
+                                                            draft!.rotorType !== "Rebuilt"
+                                                                ? "bg-green-500/20 text-green-700"
+                                                                : "bg-white text-gray-400 hover:bg-gray-50"
+                                                        }`}
+                                                    >
+                                                        New
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDraft({ ...draft!, rotorType: "Rebuilt" })}
+                                                        className={`cursor-pointer px-3 py-1 border-l border-[#d1d5db] transition-colors ${
+                                                            draft!.rotorType === "Rebuilt"
+                                                                ? "bg-orange-500/20 text-orange-700"
+                                                                : "bg-white text-gray-400 hover:bg-gray-50"
+                                                        }`}
+                                                    >
+                                                        Rebuilt
+                                                    </button>
                                                 </div>
                                             ) : (
                                                 <span
@@ -881,7 +896,16 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                     className="h-8 w-24 bg-white border-[#d1d5db] text-gray-900"
                                                 />
                                             ) : (
-                                                activeRebuildCount ?? "No cap"
+                                                <span className={`font-medium ${
+                                                    activeRebuildCount !== null && actualRebuildsDone >= activeRebuildCount
+                                                        ? "text-red-600"
+                                                        : "text-gray-700"
+                                                }`}>
+                                                    {actualRebuildsDone}
+                                                    <span className="font-normal text-gray-400">
+                                                        {" / "}{activeRebuildCount ?? "∞"}
+                                                    </span>
+                                                </span>
                                             )}
                                         </TableCell>
 
@@ -894,19 +918,20 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                 type="button"
                                                 disabled={activeSaving}
                                                 onClick={() => toggleInventoryActive(part, !active)}
-                                                className={`inline-flex min-w-[82px] items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                className={`cursor-pointer inline-flex min-w-[88px] items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                                                     active
-                                                        ? "border-[#00a82d]/40 bg-[#00a82d]/20 text-[#007a22] hover:bg-[#00a82d]/30"
-                                                        : "border-[#bf1e21]/40 bg-[#bf1e21]/15 text-[#9f1d20] hover:bg-[#bf1e21]/25"
+                                                        ? "border-[#00a82d]/60 bg-[#00a82d]/20 text-[#007a22] hover:bg-[#00a82d]/30"
+                                                        : "border-[#bf1e21]/60 bg-[#bf1e21]/15 text-[#9f1d20] hover:bg-[#bf1e21]/25"
                                                 }`}
-                                                title={active ? "Mark inactive" : "Mark active"}
+                                                title={active ? "Click to mark inactive" : "Click to mark active"}
                                             >
                                                 {activeSaving ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : active ? (
-                                                    "Active"
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
                                                 ) : (
-                                                    "Inactive"
+                                                    <>
+                                                        {active ? "Active" : "Inactive"}
+                                                        <RefreshCw className="h-2.5 w-2.5 opacity-50" />
+                                                    </>
                                                 )}
                                             </button>
                                         </TableCell>
@@ -1115,25 +1140,25 @@ function QueueTable({
         <Table className="table-fixed w-full">
             <TableHeader>
                 <TableRow className="border-[#607797] bg-[#e5e7eb]">
-                    <TableHead className="w-[190px] text-gray-900 font-semibold text-xs uppercase tracking-wider pl-5">
+                    <TableHead className="w-[20%] text-gray-900 font-semibold text-xs uppercase tracking-wider pl-5">
                         {tab === "replaced" ? "Old Spare Part" : "Part"}
                     </TableHead>
-                    <TableHead className="w-[140px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[14%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         Machine
                     </TableHead>
-                    <TableHead className="w-[120px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[12%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Source" : "Workflow"}
                     </TableHead>
-                    <TableHead className="w-[88px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[8%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Replaced On" : "Date"}
                     </TableHead>
-                    <TableHead className="w-[165px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[17%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Old Usage" : "Part Details"}
                     </TableHead>
-                    <TableHead className="w-[160px] text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                    <TableHead className="w-[16%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "New Spare Part" : "Replacement"}
                     </TableHead>
-                    <TableHead className="w-[117px] text-gray-900 font-semibold text-xs uppercase tracking-wider text-center">
+                    <TableHead className="w-[13%] text-gray-900 font-semibold text-xs uppercase tracking-wider text-center">
                         Actions
                     </TableHead>
                 </TableRow>
@@ -1187,60 +1212,60 @@ function QueueTable({
                         return (
                             <TableRow key={`${item.queueType}-${item.machine._id}-${item.part._id}-${replacementDate || clientPart?._id || ""}`} className="border-[#607797]/40 hover:bg-[#96A5BA]/20">
                                 <TableCell className="pl-5 overflow-hidden">
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="font-semibold text-gray-900 block truncate" title={oldPartName}>
+                                    <div className="flex flex-col gap-0.5 w-full min-w-0">
+                                        <span className="font-semibold text-gray-900 break-words">
                                             {oldPartName}
                                         </span>
                                         {oldPartKlValue && (
-                                            <span className="text-xs text-gray-500 font-mono block truncate" title={oldPartKlValue}>
+                                            <span className="text-xs text-gray-500 font-mono break-all">
                                                 {oldPartKlValue}
                                             </span>
                                         )}
                                         {tab === "replaced" && entry?.oldSparePartInstallationDate && (
-                                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                                            <span className="text-xs text-gray-500 break-words">
                                                 Installed {formatDate(entry.oldSparePartInstallationDate)}
                                             </span>
                                         )}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-gray-700 text-sm overflow-hidden">
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="block truncate" title={item.machine.name}>{item.machine.name}</span>
+                                    <div className="flex flex-col gap-0.5 w-full min-w-0">
+                                        <span className="break-words">{item.machine.name}</span>
                                         {item.machine.serialNumber && (
-                                            <span className="text-xs text-gray-500 block truncate" title={item.machine.serialNumber}>{item.machine.serialNumber}</span>
+                                            <span className="text-xs text-gray-500 break-all">{item.machine.serialNumber}</span>
                                         )}
                                     </div>
                                 </TableCell>
                                 <TableCell className="overflow-hidden">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-sm font-medium text-gray-900 block truncate" title={workflowLabel}>{workflowLabel}</span>
+                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                        <span className="text-sm font-medium text-gray-900 break-words">{workflowLabel}</span>
                                         <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses}`}>
                                             {status}
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm whitespace-nowrap">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {formatDate(queueDate(item))}
                                 </TableCell>
                                 <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {tab === "replaced" ? (
-                                        <div className="flex flex-col gap-1.5">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Running</span>
-                                                <span className="font-medium text-gray-900 truncate" title={oldRunningHours || undefined}>{oldRunningHours || "—"}</span>
+                                        <div className="flex flex-col gap-1.5 w-full min-w-0">
+                                            <div className="flex items-start gap-2">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Running</span>
+                                                <span className="font-medium text-gray-900 break-words min-w-0">{oldRunningHours || "—"}</span>
                                             </div>
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Lifetime</span>
-                                                <span className="text-gray-700 truncate" title={oldLifetime || undefined}>{oldLifetime || "—"}</span>
+                                            <div className="flex items-start gap-2">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Lifetime</span>
+                                                <span className="text-gray-700 break-words min-w-0">{oldLifetime || "—"}</span>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col gap-1.5">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Lifetime</span>
-                                                <span className="font-medium text-gray-900 truncate" title={lifetimeDisplayText(item.part)}>{lifetimeDisplayText(item.part)}</span>
+                                        <div className="flex flex-col gap-1.5 w-full min-w-0">
+                                            <div className="flex items-start gap-2">
+                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Lifetime</span>
+                                                <span className="font-medium text-gray-900 break-words min-w-0">{lifetimeDisplayText(item.part)}</span>
                                             </div>
-                                            <div className="flex items-center gap-2 min-w-0">
+                                            <div className="flex items-center gap-2">
                                                 <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
                                                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                                     clientPart?.rotorType === "Rebuilt"
@@ -1250,35 +1275,46 @@ function QueueTable({
                                                     {clientPart?.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 min-w-0">
+                                            <div className="flex items-center gap-2">
                                                 <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Rebuilds</span>
-                                                <span className="text-gray-700">{clientPart?.rebuildsPossible == null ? "No cap" : clientPart.rebuildsPossible}</span>
+                                                {(() => {
+                                                    const done = (clientPart?.replacementHistory || []).filter((h) => h.source === "Rebuild").length;
+                                                    const max = clientPart?.rebuildsPossible ?? null;
+                                                    const isMaxed = max !== null && done >= max;
+                                                    return (
+                                                        <span className={`font-medium ${isMaxed ? "text-red-600" : "text-gray-700"}`}>
+                                                            {done}
+                                                            <span className="font-normal text-gray-400">{" / "}{max ?? "∞"}</span>
+                                                            {isMaxed && <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Max</span>}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     )}
                                 </TableCell>
                                 <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {tab === "replaced" ? (
-                                        <div className="flex flex-col gap-0.5">
-                                            <span className="font-medium text-gray-900 block truncate" title={newPartName}>
+                                        <div className="flex flex-col gap-0.5 w-full min-w-0">
+                                            <span className="font-medium text-gray-900 break-words">
                                                 {newPartName}
                                             </span>
-                                            <span className="text-xs text-gray-500 block truncate" title={[newPartKlValue, newSerialNumber].filter(Boolean).join(" · ") || "No reference added"}>
+                                            <span className="text-xs text-gray-500 break-words">
                                                 {[newPartKlValue, newSerialNumber].filter(Boolean).join(" · ") || "No reference added"}
                                                 {mediaCount > 0 ? ` · ${mediaCount} media` : ""}
                                             </span>
                                             {(entry?.newLifetimeText || clientPart?.replacementLifetimeText) && (
-                                                <span className="text-xs text-gray-500 block truncate" title={`Lifetime ${entry?.newLifetimeText || clientPart?.replacementLifetimeText}`}>
+                                                <span className="text-xs text-gray-500 break-words">
                                                     Lifetime {entry?.newLifetimeText || clientPart?.replacementLifetimeText}
                                                 </span>
                                             )}
                                         </div>
                                     ) : replacementDate ? (
-                                        <div className="flex flex-col gap-0.5">
-                                            <span className="font-medium text-gray-900 whitespace-nowrap">
+                                        <div className="flex flex-col gap-0.5 w-full min-w-0">
+                                            <span className="font-medium text-gray-900">
                                                 Replaced {formatDate(replacementDate)}
                                             </span>
-                                            <span className="text-xs text-gray-500 block truncate" title={newPartName}>
+                                            <span className="text-xs text-gray-500 break-words">
                                                 {newPartName}
                                                 {mediaCount > 0 ? ` · ${mediaCount} media` : ""}
                                             </span>
@@ -1289,7 +1325,7 @@ function QueueTable({
                                         </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-center">
+                                <TableCell className="text-center overflow-hidden">
                                     <button
                                         type="button"
                                         onClick={() => onReplacementClick(item)}
