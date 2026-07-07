@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2, Trash2 } from "lucide-react";
 import {
     fetchInventoryQueue,
     fetchInventoryForMachine,
@@ -27,6 +27,7 @@ import {
     saveSparePart,
     saveClientSparePart,
     deleteClientSparePart,
+    installRebuiltSparePart,
     type InventoryQueueItem,
     type InventoryQueueType,
     type InventoryMachine,
@@ -215,6 +216,10 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const [error, setError] = useState<string | null>(null);
     const [replacementTarget, setReplacementTarget] = useState<InventoryQueueItem | null>(null);
     const [replacementSaving, setReplacementSaving] = useState(false);
+    const [installTarget, setInstallTarget] = useState<InventoryQueueItem | null>(null);
+    const [installSaving, setInstallSaving] = useState(false);
+    const [installDate, setInstallDate] = useState("");
+    const [installNotes, setInstallNotes] = useState("");
     const [replacementOptions, setReplacementOptions] = useState<ReplacementOption[]>([]);
     const [replacementOptionsLoading, setReplacementOptionsLoading] = useState(false);
     const [replacementOptionsPage, setReplacementOptionsPage] = useState(1);
@@ -250,6 +255,11 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const [saving, setSaving] = useState(false);
     const [activeSavingId, setActiveSavingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [warningDialog, setWarningDialog] = useState<{
+        title: string;
+        message: string;
+        onProceed: () => void;
+    } | null>(null);
 
     const startEdit = (part: InventorySparePart) => {
         setEditingId(part._id);
@@ -276,34 +286,54 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             setError(`Lifetime "${draft.lifetimeText.trim()}" needs a unit. ${LIFETIME_HINT}`);
             return;
         }
-        setSaving(true);
-        setError(null);
-        try {
-            const lifetimeText = draft.lifetimeText.trim();
-            const rotorType = draft.partType === "New" ? "New" : "Rebuilt";
-            const clientRes = await saveClientSparePart(
-                clientID,
-                selectedMachine,
-                part._id,
-                {
-                    lifetimeText,
-                    partType: draft.partType,
-                    rebuildsPossible: Math.max(0, draft.rebuildsPossible),
-                    rebuildLifetimeText: rotorType === "Rebuilt" ? lifetimeText : null,
-                }
-            );
-            if (!clientRes.ok) {
-                setError(clientRes.error || "Failed to save inventory row");
-                return;
-            }
 
-            cancelEdit();
-            await reload();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to save");
-        } finally {
-            setSaving(false);
+        const draftSnapshot = { ...draft };
+
+        const perform = async () => {
+            setSaving(true);
+            setError(null);
+            try {
+                const lifetimeText = draftSnapshot.lifetimeText.trim();
+                const rotorType = draftSnapshot.partType === "New" ? "New" : "Rebuilt";
+                const clientRes = await saveClientSparePart(
+                    clientID,
+                    selectedMachine,
+                    part._id,
+                    {
+                        lifetimeText,
+                        partType: draftSnapshot.partType,
+                        rebuildsPossible: Math.max(0, draftSnapshot.rebuildsPossible),
+                        rebuildLifetimeText: rotorType === "Rebuilt" ? lifetimeText : null,
+                    }
+                );
+                if (!clientRes.ok) {
+                    setError(clientRes.error || "Failed to save inventory row");
+                    return;
+                }
+                cancelEdit();
+                await reload();
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to save");
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        const currentType = partType(part);
+        if (
+            currentType === "Sent to Rebuild" &&
+            draftSnapshot.partType !== "Sent to Rebuild" &&
+            !part.clientMachineSparePart?.replacementDate
+        ) {
+            setWarningDialog({
+                title: "Replacement Not Recorded",
+                message: `"${part.name}" is marked as 'Sent to Rebuild' with no replacement recorded. Changing the part type may cause gaps in rebuild tracking.`,
+                onProceed: () => { void perform(); },
+            });
+            return;
         }
+
+        await perform();
     };
 
     // Delete is only offered on Retired parts (they can never be reused).
@@ -331,22 +361,36 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
     const toggleInventoryActive = async (part: InventorySparePart, nextActive: boolean) => {
         if (!selectedMachine) return;
-        setActiveSavingId(part._id);
-        setError(null);
-        try {
-            const res = await saveClientSparePart(clientID, selectedMachine, part._id, {
-                isActive: nextActive,
-            });
-            if (!res.ok) {
-                setError(res.error || "Failed to update active status");
-                return;
+
+        const perform = async () => {
+            setActiveSavingId(part._id);
+            setError(null);
+            try {
+                const res = await saveClientSparePart(clientID, selectedMachine, part._id, {
+                    isActive: nextActive,
+                });
+                if (!res.ok) {
+                    setError(res.error || "Failed to update active status");
+                    return;
+                }
+                await reload();
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to update active status");
+            } finally {
+                setActiveSavingId(null);
             }
-            await reload();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update active status");
-        } finally {
-            setActiveSavingId(null);
+        };
+
+        if (nextActive && partType(part) === "Sent to Rebuild" && !part.clientMachineSparePart?.replacementDate) {
+            setWarningDialog({
+                title: "Replacement Pending",
+                message: `"${part.name}" is currently sent for rebuild with no replacement recorded. Consider adding a replacement from the Rebuild tab first.`,
+                onProceed: () => { void perform(); },
+            });
+            return;
         }
+
+        await perform();
     };
 
     const openScheduleEditor = (part: InventorySparePart) => {
@@ -645,6 +689,36 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             setError(err instanceof Error ? err.message : "Failed to save replacement details");
         } finally {
             setReplacementSaving(false);
+        }
+    };
+
+    const handleInstallSave = async () => {
+        if (!installTarget) return;
+        setInstallSaving(true);
+        setError(null);
+        try {
+            const res = await installRebuiltSparePart(
+                clientID,
+                installTarget.machine._id,
+                installTarget.part._id,
+                {
+                    replacementDate: installDate || new Date().toISOString().slice(0, 10),
+                    replacementNotes: installNotes.trim() || undefined,
+                    replacementSource: "Rebuild",
+                }
+            );
+            if (!res.ok) throw new Error(res.error || "Failed to install rebuilt spare part");
+            setInstallTarget(null);
+            setInstallDate("");
+            setInstallNotes("");
+            await Promise.all([
+                reload(),
+                activeQueueType ? loadQueue(activeQueueType, queuePages[activeQueueType]) : Promise.resolve(),
+            ]);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to install rebuilt spare part");
+        } finally {
+            setInstallSaving(false);
         }
     };
 
@@ -1064,6 +1138,11 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                         pagination={queueMeta}
                         onPageChange={handleQueuePageChange}
                         onReplacementClick={setReplacementTarget}
+                        onInstallClick={(item) => {
+                            setInstallTarget(item);
+                            setInstallDate(new Date().toISOString().slice(0, 10));
+                            setInstallNotes("");
+                        }}
                     />
                 )}
             </div>
@@ -1115,6 +1194,117 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 }}
                 onSave={handleReplacementSave}
             />
+
+            {installTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
+                    <div className="w-full max-w-[420px] rounded-[10px] border border-[#607797]/40 bg-white shadow-xl">
+                        <div className="flex items-start gap-3 border-b border-[#C5D1DC] px-5 py-4">
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-base font-bold text-[#2D3E5C]">Install Rebuilt Part</h2>
+                                <p className="text-sm text-[#6b7280] mt-0.5">
+                                    <span className="font-semibold text-[#2D3E5C]">{installTarget.part.name}</span>
+                                    {" "}will be installed. The currently active part on{" "}
+                                    <span className="font-semibold text-[#2D3E5C]">{installTarget.machine.name}</span>
+                                    {" "}will be sent for rebuild or retired.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => { if (!installSaving) setInstallTarget(null); }}
+                                className="rounded-md p-1 text-[#607797] hover:bg-[#DFE6EC] transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="flex flex-col gap-4 px-5 py-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                    Installation Date
+                                </label>
+                                <Input
+                                    type="date"
+                                    value={installDate}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setInstallDate(e.target.value)}
+                                    className="h-9"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                    Notes <span className="font-normal normal-case text-gray-400">(optional)</span>
+                                </label>
+                                <textarea
+                                    value={installNotes}
+                                    onChange={(e) => setInstallNotes(e.target.value)}
+                                    rows={2}
+                                    placeholder="Any notes about this installation…"
+                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 border-t border-[#C5D1DC] px-5 py-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setInstallTarget(null)}
+                                disabled={installSaving}
+                                className="border-[#607797] bg-[#DFE6EC] text-gray-900 hover:bg-[#d3dde8]"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleInstallSave}
+                                disabled={installSaving}
+                                className="bg-[#d45815] hover:bg-[#b83d0f] text-white"
+                            >
+                                {installSaving ? (
+                                    <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Installing…</>
+                                ) : (
+                                    "Install"
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {warningDialog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
+                    <div className="w-full max-w-[440px] rounded-[10px] border border-amber-300 bg-white shadow-xl">
+                        <div className="flex items-start gap-3 border-b border-amber-200 px-5 py-4">
+                            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-base font-bold text-[#2D3E5C]">{warningDialog.title}</h2>
+                                <p className="text-sm text-[#6b7280] mt-1">{warningDialog.message}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setWarningDialog(null)}
+                                className="rounded-md p-1 text-[#607797] hover:bg-[#DFE6EC] transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="flex justify-end gap-3 px-5 py-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setWarningDialog(null)}
+                                className="border-[#607797] bg-[#DFE6EC] text-gray-900 hover:bg-[#d3dde8]"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    const onProceed = warningDialog.onProceed;
+                                    setWarningDialog(null);
+                                    onProceed();
+                                }}
+                                className="bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                            >
+                                Proceed Anyway
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1177,6 +1367,13 @@ function metricText(metric?: { value: number; unit: string } | null) {
     return `${metric.value} ${metric.unit || ""}`.trim();
 }
 
+function isRebuiltInStock(item: InventoryQueueItem): boolean {
+    const cp = item.part.clientMachineSparePart;
+    if (!cp) return false;
+    const type = cp.partType || (cp.rebuildStatus === "Rebuilt" ? "Rebuilt" : null);
+    return type === "Rebuilt" && cp.isActive === false;
+}
+
 function QueueTable({
     items,
     loading,
@@ -1184,6 +1381,7 @@ function QueueTable({
     pagination,
     onPageChange,
     onReplacementClick,
+    onInstallClick,
 }: {
     items: InventoryQueueItem[];
     loading: boolean;
@@ -1191,6 +1389,7 @@ function QueueTable({
     pagination: { page: number; limit: number; total: number; totalPages: number };
     onPageChange: (page: number) => void;
     onReplacementClick: (item: InventoryQueueItem) => void;
+    onInstallClick: (item: InventoryQueueItem) => void;
 }) {
     const emptyText =
         tab === "replaced"
@@ -1395,14 +1594,24 @@ function QueueTable({
                                     )}
                                 </TableCell>
                                 <TableCell className="text-center overflow-hidden whitespace-normal">
-                                    <button
-                                        type="button"
-                                        onClick={() => onReplacementClick(item)}
-                                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#d45815]/40 bg-[#d45815]/10 px-3 py-1.5 text-xs font-semibold text-[#d45815] transition-colors hover:bg-[#d45815]/20 whitespace-normal text-center w-full"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        {tab === "replaced" ? "Edit Details" : replacementDate ? "Edit Replacement" : "Add Replacement"}
-                                    </button>
+                                    {tab !== "replaced" && isRebuiltInStock(item) ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onInstallClick(item)}
+                                            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-green-600/40 bg-green-600/10 px-3 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-600/20 whitespace-normal text-center w-full"
+                                        >
+                                            Install
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => onReplacementClick(item)}
+                                            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#d45815]/40 bg-[#d45815]/10 px-3 py-1.5 text-xs font-semibold text-[#d45815] transition-colors hover:bg-[#d45815]/20 whitespace-normal text-center w-full"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            {tab === "replaced" ? "Edit Details" : replacementDate ? "Edit Replacement" : "Add Replacement"}
+                                        </button>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         );
@@ -1929,12 +2138,7 @@ function ReplacementModal({
                             />
                         </label>
                         <div className="col-span-2 flex items-center justify-between rounded-md border border-[#e5c9bb] bg-white px-3 py-2">
-                            <div>
-                                <p className="text-sm font-medium text-[#2D3E5C]">Is rebuild part?</p>
-                                <p className="text-xs text-[#6b7280]">
-                                    Turn on if this warehouse part can be rebuilt / has been rebuilt before.
-                                </p>
-                            </div>
+                            <p className="text-sm font-medium text-[#2D3E5C]">Is rebuild part?</p>
                             <Switch
                                 checked={form.isRebuildPart}
                                 onCheckedChange={(checked) =>
@@ -1946,19 +2150,35 @@ function ReplacementModal({
                                     })
                                 }
                                 disabled={saving}
+                                className="data-[state=unchecked]:bg-gray-300"
                             />
                         </div>
+                        <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            Rebuild threshold (max rebuilds)
+                            <Input
+                                type="number"
+                                min={1}
+                                value={form.rebuildsPossible}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
+                                    })
+                                }
+                                className="bg-white"
+                            />
+                        </label>
                         {form.isRebuildPart && (
-                            <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                                Rebuild threshold (max rebuilds)
+                            <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                                Current rebuild count
                                 <Input
                                     type="number"
-                                    min={1}
-                                    value={form.rebuildsPossible}
+                                    min={0}
+                                    value={form.currentRebuildCount}
                                     onChange={(event) =>
                                         setForm({
                                             ...form,
-                                            rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
+                                            currentRebuildCount: Math.max(0, Number(event.target.value) || 0),
                                         })
                                     }
                                     className="bg-white"
@@ -2020,12 +2240,6 @@ function ReplacementModal({
                     </div>
                     )}
 
-                    <div className="col-span-2 flex items-center gap-3">
-                        <div className="h-px flex-1 bg-[#C5D1DC]" />
-                        <span className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">Replacement details</span>
-                        <div className="h-px flex-1 bg-[#C5D1DC]" />
-                    </div>
-
                     <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
                         Notes
                         <textarea
@@ -2036,50 +2250,6 @@ function ReplacementModal({
                             placeholder="Add installation notes, rebuild notes, or order reference details."
                         />
                     </label>
-                    {entryMode === "inventory" && (
-                    <div className="col-span-2 flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-[#6b7280]">Replacement media</span>
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-[#607797] bg-[#DFE6EC] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#e5e7eb]">
-                                <Upload className="h-4 w-4" />
-                                {uploading ? "Uploading..." : "Upload"}
-                                <input
-                                    type="file"
-                                    accept="image/*,video/*"
-                                    onChange={handleUpload}
-                                    disabled={uploading || saving}
-                                    className="hidden"
-                                />
-                            </label>
-                        </div>
-                        {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
-                        {form.mediaUrls.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {form.mediaUrls.map((url, index) => (
-                                    <div key={`${url}-${index}`} className="flex max-w-[200px] items-center gap-2 rounded-md border border-[#C5D1DC] bg-[#F8FAFC] px-2 py-1 text-xs text-gray-700">
-                                        <span className="truncate">{url.split("/").pop() || `Media ${index + 1}`}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    mediaUrls: prev.mediaUrls.filter((_, i) => i !== index),
-                                                }))
-                                            }
-                                            className="text-[#bf1e21]"
-                                        >
-                                            <X className="h-3.5 w-3.5" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="rounded-md border border-dashed border-[#C5D1DC] px-3 py-4 text-center text-sm text-[#6b7280]">
-                                No replacement media added yet.
-                            </p>
-                        )}
-                    </div>
-                    )}
                 </div>
 
                 <div className="flex items-center justify-end gap-3 border-t border-[#C5D1DC] px-5 py-4">

@@ -382,6 +382,32 @@ export async function saveClientSparePart(
     return { ok: true };
 }
 
+export async function installRebuiltSparePart(
+    clientID: string,
+    machineID: string,
+    sparePartID: string,
+    updates: { replacementDate?: string; replacementNotes?: string; replacementSource?: string }
+): Promise<{ ok: boolean; error?: string }> {
+    const token = await requireToken();
+    const res = await fetch(`${API}/client-machines/spare-parts/install-rebuilt`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ clientID, machineID, sparePartID, updates }),
+    });
+    if (!res.ok) {
+        let msg = "Failed to install rebuilt spare part";
+        try {
+            const j = await res.json();
+            msg = j.message || msg;
+        } catch {}
+        return { ok: false, error: msg };
+    }
+    return { ok: true };
+}
+
 export async function deleteClientSparePart(
     clientID: string,
     machineID: string,
