@@ -187,6 +187,9 @@ interface SparePartLite {
     name: string;
     klValue?: string;
     optimalStateVideoUrl?: string | null;
+    isRebuildable?: boolean;
+    rebuildCount?: number;
+    rebuildsPossible?: number;
 }
 
 interface NewMachineIssue {
@@ -436,12 +439,24 @@ export default function AddVisitDataModal({
                     ? data.spareParts
                     : [];
                 setSpareParts(
-                    list.map((p: SparePartLite) => ({
-                        _id: p._id,
-                        name: p.name,
-                        klValue: p.klValue,
-                        optimalStateVideoUrl: p.optimalStateVideoUrl ?? null,
-                    }))
+                    list.map(
+                        (
+                            p: SparePartLite & {
+                                clientMachineSparePart?: {
+                                    rebuildCount?: number;
+                                    rebuildsPossible?: number;
+                                } | null;
+                            }
+                        ) => ({
+                            _id: p._id,
+                            name: p.name,
+                            klValue: p.klValue,
+                            optimalStateVideoUrl: p.optimalStateVideoUrl ?? null,
+                            isRebuildable: p.isRebuildable !== false,
+                            rebuildCount: p.clientMachineSparePart?.rebuildCount ?? 0,
+                            rebuildsPossible: p.clientMachineSparePart?.rebuildsPossible ?? 0,
+                        })
+                    )
                 );
             } catch {
                 setSpareParts([]);
@@ -781,11 +796,65 @@ export default function AddVisitDataModal({
         [machineIssues]
     );
 
+    // Why "Send to Rebuild" is unavailable for the selected part, or null if allowed.
+    const getRebuildBlockReason = (sparePartId: string): string | null => {
+        const sp = spareParts.find((p) => p._id === sparePartId);
+        if (!sp) return null;
+        if (sp.isRebuildable === false) return "This part is not rebuildable";
+        const count = sp.rebuildCount ?? 0;
+        const cap = sp.rebuildsPossible ?? 0;
+        if (count >= cap) {
+            return cap === 0
+                ? "Rebuilds possible is 0 — this part cannot be sent to rebuild"
+                : `Rebuild limit reached (${count}/${cap})`;
+        }
+        return null;
+    };
+
     const handleAddMachineIssue = async () => {
         if (addingIssue) return;
         if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status || !newIssue.actionNeeded) {
             toast.error("Select machine, spare part, status, and action needed");
             return;
+        }
+        if (newIssue.actionNeeded === "Send to Rebuild") {
+            const blockReason = getRebuildBlockReason(newIssue.sparePartId);
+            if (blockReason) {
+                toast.error(blockReason);
+                return;
+            }
+        }
+
+        // Mark the spare part inactive and place it in the correct queue immediately.
+        if (
+            (newIssue.actionNeeded === "Send to Rebuild" || newIssue.actionNeeded === "Order New") &&
+            newIssue.sparePartId &&
+            newIssue.machineId
+        ) {
+            const isSendToRebuild = newIssue.actionNeeded === "Send to Rebuild";
+            fetch(`/api/clients/${clientID}/client-machines/spare-parts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    clientID,
+                    machineID: newIssue.machineId,
+                    sparePartID: newIssue.sparePartId,
+                    updates: isSendToRebuild
+                        ? {
+                              isActive: false,
+                              isSentToRebuild: true,
+                              rebuildStatus: "Sent to Rebuild",
+                              partType: "Sent to Rebuild",
+                              rebuildSentDate: new Date().toISOString(),
+                          }
+                        : {
+                              isActive: false,
+                              isOrderedNew: true,
+                              orderNewStatus: "Ordered New",
+                              orderNewRequestedDate: new Date().toISOString(),
+                          },
+                }),
+            }).catch(() => {/* silent — visit flow continues regardless */});
         }
 
         setAddingIssue(true);
@@ -1733,6 +1802,12 @@ export default function AddVisitDataModal({
                                                     sparePartId: value,
                                                     sparePartName: sp?.name || "",
                                                     subPartPhotos: {},
+                                                    // Rebuild may not be allowed for the newly selected part
+                                                    actionNeeded:
+                                                        p.actionNeeded === "Send to Rebuild" &&
+                                                        getRebuildBlockReason(value)
+                                                            ? ""
+                                                            : p.actionNeeded,
                                                 }));
                                                 setSubParts([]);
                                                 setSelectedSubPartIds([]);
@@ -1941,18 +2016,30 @@ export default function AddVisitDataModal({
                                             {ACTION_OPTIONS.map((opt) => {
                                                 const selected =
                                                     newIssue.actionNeeded === opt.value;
+                                                const rebuildBlockReason =
+                                                    opt.value === "Send to Rebuild" && newIssue.sparePartId
+                                                        ? getRebuildBlockReason(newIssue.sparePartId)
+                                                        : null;
+                                                const blocked = !!rebuildBlockReason;
                                                 return (
                                                     <button
                                                         key={opt.value}
                                                         type="button"
-                                                        onClick={() =>
+                                                        disabled={blocked}
+                                                        title={rebuildBlockReason || undefined}
+                                                        onClick={() => {
+                                                            if (blocked) return;
                                                             setNewIssue((p) => ({
                                                                 ...p,
                                                                 actionNeeded: opt.value,
-                                                            }))
-                                                        }
+                                                            }));
+                                                        }}
                                                         className={`px-4 py-2 rounded-[10px] text-sm font-medium transition-all ${
-                                                            selected ? opt.active : opt.idle
+                                                            blocked
+                                                                ? "bg-[#f3f4f6] border border-[#e5e7eb] text-[#9ca3af] cursor-not-allowed line-through"
+                                                                : selected
+                                                                ? opt.active
+                                                                : opt.idle
                                                         }`}
                                                     >
                                                         {opt.value}
@@ -1960,6 +2047,13 @@ export default function AddVisitDataModal({
                                                 );
                                             })}
                                         </div>
+                                        {newIssue.sparePartId &&
+                                            (() => {
+                                                const reason = getRebuildBlockReason(newIssue.sparePartId);
+                                                return reason ? (
+                                                    <p className="text-xs text-red-600">{reason}</p>
+                                                ) : null;
+                                            })()}
                                     </div>
 
                                     {/* Hidden file inputs for sub-part photos */}

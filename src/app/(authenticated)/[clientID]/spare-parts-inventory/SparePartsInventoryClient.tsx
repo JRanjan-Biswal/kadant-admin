@@ -1778,9 +1778,7 @@ function ReplacementModal({
         }
         // Retired parts have reached their rebuild cap and can never be reused.
         if (part.isRetired || part.partType === "Retired") return "Retired";
-        if (!isRebuildWorkflow || !part.isRebuildBlocked) return null;
-        if (part.isRebuildable === false || part.rebuildsPossible === 0) return "Not rebuildable";
-        return `Max rebuilds reached (${part.rebuildCount ?? 0}/${part.rebuildsPossible ?? 0})`;
+        return null;
     };
 
     const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
