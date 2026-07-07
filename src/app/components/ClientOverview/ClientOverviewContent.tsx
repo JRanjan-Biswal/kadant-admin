@@ -284,6 +284,7 @@ interface SparePartWithStatus extends SparePart {
     isActive?: boolean;
     rotorType?: "New" | "Rebuilt";
     rebuildsPossible?: number;
+    rebuildCount?: number;
     rebuildLifetime?: { value: number; unit: string };
     rebuildLifetimeText?: string | null;
     rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
@@ -798,6 +799,7 @@ export default function ClientOverviewContent({
                     isActive: clientSparePart?.isActive !== undefined ? clientSparePart.isActive : true,
                     rotorType: clientSparePart?.rotorType,
                     rebuildsPossible: clientSparePart?.rebuildsPossible ?? 0,
+                    rebuildCount: clientSparePart?.rebuildCount ?? 0,
                     rebuildLifetime: clientSparePart?.rebuildLifetime,
                     rebuildLifetimeText: clientSparePart?.rebuildLifetimeText || null,
                     rebuildStatus: clientSparePart?.rebuildStatus,
@@ -1248,7 +1250,9 @@ export default function ClientOverviewContent({
                                                         <tbody className="bg-[#DFE6EC]">
                                                             {(category.machines ?? []).map((machine, index) => {
                                                                 const isMachineOpen = expandedMachine === machine._id;
-                                                                const spareParts = machineSpareParts[machine._id] ?? [];
+                                                                const spareParts = [...(machineSpareParts[machine._id] ?? [])].sort(
+                                                                    (a, b) => (b.isActive !== false ? 1 : 0) - (a.isActive !== false ? 1 : 0)
+                                                                );
                                                                 const isLoading = loadingSpareParts[machine._id];
                                                                 return (
                                                                     <Fragment key={machine._id}>
@@ -1351,6 +1355,8 @@ export default function ClientOverviewContent({
                                                                                                                 const activeSavingKey = `${machine._id}:${sparePart._id}`;
                                                                                                                 const activeSaving = activeSparePartSavingKey === activeSavingKey;
                                                                                                                 const isSparePartActive = sparePart.isActive !== false;
+                                                                                                                const rebuildsDone = sparePart.rebuildCount ?? 0;
+                                                                                                                const rebuildsMax = sparePart.rebuildsPossible ?? 0;
                                                                                                                 return (
                                                                                                                     <tr key={sparePart._id} className="bg-white hover:bg-[#f8fafc]">
                                                                                                                         <td className="px-4 py-3 text-sm font-semibold text-[#374151]">{spIndex + 1}</td>
@@ -1364,9 +1370,11 @@ export default function ClientOverviewContent({
                                                                                                                                     <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#334155]">
                                                                                                                                         Type: {sparePart.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
                                                                                                                                     </Badge>
-                                                                                                                                    <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f8fafc] px-2 py-0.5 text-[10px] font-semibold text-[#475569]">
-                                                                                                                                        Rebuilds: {sparePart.rebuildsPossible ?? 0}
+                                                                                                                                    {rebuildsMax > 0 && (
+                                                                                                                                    <Badge className={`w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${rebuildsDone >= rebuildsMax ? "border-[#fb923c]/40 bg-[#fed7aa] text-[#c2410c]" : "border-[#64748b]/30 bg-[#f8fafc] text-[#475569]"}`}>
+                                                                                                                                        Rebuilds: {rebuildsDone}/{rebuildsMax}
                                                                                                                                     </Badge>
+                                                                                                                                    )}
                                                                                                                                     {(sparePart.isSentToRebuild || (sparePart.rebuildStatus && sparePart.rebuildStatus !== "None")) && (
                                                                                                                                         <Badge className="w-fit rounded-full border border-[#fb923c]/40 bg-[#fed7aa] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c]">
                                                                                                                                             Rebuild: {sparePart.rebuildStatus || "Sent"}

@@ -19,13 +19,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2, PackageSearch } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Upload, RefreshCw, Save, X, Loader2, Trash2 } from "lucide-react";
 import {
     fetchInventoryQueue,
     fetchInventoryForMachine,
     fetchReplacementOptions,
     saveSparePart,
     saveClientSparePart,
+    deleteClientSparePart,
     type InventoryQueueItem,
     type InventoryQueueType,
     type InventoryMachine,
@@ -34,6 +35,7 @@ import {
     type ReplacementHistoryEntry,
     type ReplacementOption,
 } from "@/actions/spare-parts-inventory";
+import { isValidLifetimeText, LIFETIME_HINT } from "@/lib/lifetime";
 import MaintenanceScheduleEditor from "./MaintenanceScheduleEditor";
 
 interface Props {
@@ -87,11 +89,28 @@ const dateInputValue = (iso?: string | null) => {
     return d.toISOString().slice(0, 10);
 };
 
-const partType = (part: InventorySparePart): "New" | "Rebuilt" =>
-    part.clientMachineSparePart?.rotorType === "Rebuilt" ? "Rebuilt" : "New";
+type PartType = "New" | "Sent to Rebuild" | "Rebuilt" | "Retired";
 
-const rebuildCount = (part: InventorySparePart): number | null =>
-    part.clientMachineSparePart?.rebuildsPossible ?? null;
+// The part's lifecycle. Reads the new partType field; falls back to deriving it
+// from legacy fields for rows saved before the field existed.
+const partType = (part: InventorySparePart): PartType => {
+    const cp = part.clientMachineSparePart;
+    if (cp?.partType) return cp.partType;
+    if (cp?.isSentToRebuild || cp?.rebuildStatus === "Sent to Rebuild") return "Sent to Rebuild";
+    if (cp?.rebuildStatus === "Rebuilt" || cp?.rebuildStatus === "In Stock") return "Rebuilt";
+    if (cp?.rotorType === "Rebuilt") return "Rebuilt";
+    return "New";
+};
+
+const PART_TYPE_BADGE: Record<PartType, string> = {
+    New: "bg-green-500/20 text-green-700",
+    "Sent to Rebuild": "bg-amber-500/20 text-amber-700",
+    Rebuilt: "bg-orange-500/20 text-orange-700",
+    Retired: "bg-gray-400/30 text-gray-600",
+};
+
+const rebuildCount = (part: InventorySparePart): number =>
+    part.clientMachineSparePart?.rebuildsPossible ?? 0;
 
 const isActivePart = (part: InventorySparePart): boolean =>
     part.clientMachineSparePart?.isActive !== false;
@@ -223,12 +242,14 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     interface DraftRow {
         lifetimeText: string;
         rotorType: "New" | "Rebuilt";
-        rebuildsPossible: number | null;
+        partType: PartType;
+        rebuildsPossible: number;
     }
     const [editingId, setEditingId] = useState<string | null>(null);
     const [draft, setDraft] = useState<DraftRow | null>(null);
     const [saving, setSaving] = useState(false);
     const [activeSavingId, setActiveSavingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const startEdit = (part: InventorySparePart) => {
         setEditingId(part._id);
@@ -238,7 +259,8 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 part.clientMachineSparePart?.rebuildLifetimeText ||
                 part.lifetimeText ||
                 "",
-            rotorType: partType(part),
+            rotorType: partType(part) === "New" ? "New" : "Rebuilt",
+            partType: partType(part),
             rebuildsPossible: rebuildCount(part),
         });
     };
@@ -250,19 +272,23 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
     const saveInline = async (part: InventorySparePart) => {
         if (!draft || !selectedMachine) return;
+        if (!isValidLifetimeText(draft.lifetimeText)) {
+            setError(`Lifetime "${draft.lifetimeText.trim()}" needs a unit. ${LIFETIME_HINT}`);
+            return;
+        }
         setSaving(true);
         setError(null);
         try {
             const lifetimeText = draft.lifetimeText.trim();
-            const rotorType = draft.rotorType === "Rebuilt" ? "Rebuilt" : "New";
+            const rotorType = draft.partType === "New" ? "New" : "Rebuilt";
             const clientRes = await saveClientSparePart(
                 clientID,
                 selectedMachine,
                 part._id,
                 {
                     lifetimeText,
-                    rotorType,
-                    rebuildsPossible: draft.rebuildsPossible === null ? null : Math.max(0, draft.rebuildsPossible),
+                    partType: draft.partType,
+                    rebuildsPossible: Math.max(0, draft.rebuildsPossible),
                     rebuildLifetimeText: rotorType === "Rebuilt" ? lifetimeText : null,
                 }
             );
@@ -277,6 +303,29 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             setError(err instanceof Error ? err.message : "Failed to save");
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Delete is only offered on Retired parts (they can never be reused).
+    const handleDeletePart = async (part: InventorySparePart) => {
+        if (!selectedMachine) return;
+        const confirmed = window.confirm(
+            `Delete retired part "${part.name}" (KL ${part.klValue || "—"})? This removes it from this machine's inventory and cannot be undone.`
+        );
+        if (!confirmed) return;
+        setDeletingId(part._id);
+        setError(null);
+        try {
+            const res = await deleteClientSparePart(clientID, selectedMachine, part._id);
+            if (!res.ok) {
+                setError(res.error || "Failed to delete spare part");
+                return;
+            }
+            await reload();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to delete spare part");
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -497,6 +546,10 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
     const handleReplacementSave = async (data: ReplacementFormData) => {
         if (!replacementTarget) return;
+        if (!isValidLifetimeText(data.lifetimeText)) {
+            setError(`Lifetime "${data.lifetimeText.trim()}" needs a unit. ${LIFETIME_HINT}`);
+            return;
+        }
         setReplacementSaving(true);
         setError(null);
         try {
@@ -538,8 +591,20 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 lastServiceDate: replacementDate,
                 stockQuantity: Math.max(clientPart?.stockQuantity ?? 0, 1),
                 isActive: true,
-                rebuildsPossible: data.rebuildsPossible === null ? null : Math.max(0, Number(data.rebuildsPossible) || 0),
-                rotorType: data.rotorType,
+                // Inventory pick: the API row-swap uses the selected part's own
+                // count/cap. Manual entry: send the rebuild fields the user typed so
+                // the newly created part carries its declared history.
+                ...(data.replacementSparePartID
+                    ? {}
+                    : {
+                          isRebuildable: data.isRebuildPart,
+                          rebuildsPossible: data.isRebuildPart
+                              ? Math.max(0, Number(data.rebuildsPossible) || 0)
+                              : 0,
+                          currentRebuildCount: data.isRebuildPart
+                              ? Math.max(0, Number(data.currentRebuildCount) || 0)
+                              : 0,
+                      }),
                 totalRunningHours: { value: 0, unit: clientPart?.totalRunningHours?.unit || "Hrs" },
                 exceededLife: { value: 0, unit: "Hrs" },
                 statusOverride: null,
@@ -801,8 +866,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                 const isEditing = editingId === part._id && draft !== null;
                                 const activePartType = partType(part);
                                 const activeRebuildCount = rebuildCount(part);
-                                const actualRebuildsDone = (part.clientMachineSparePart?.replacementHistory || [])
-                                    .filter((h) => h.source === "Rebuild").length;
+                                const actualRebuildsDone = part.clientMachineSparePart?.rebuildCount ?? 0;
                                 const active = isActivePart(part);
                                 const activeSaving = activeSavingId === part._id;
 
@@ -843,37 +907,21 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
 
                                         <TableCell>
                                             {isEditing ? (
-                                                <div className="inline-flex rounded-full border border-[#d1d5db] overflow-hidden text-xs font-medium">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDraft({ ...draft!, rotorType: "New" })}
-                                                        className={`cursor-pointer px-3 py-1 transition-colors ${
-                                                            draft!.rotorType !== "Rebuilt"
-                                                                ? "bg-green-500/20 text-green-700"
-                                                                : "bg-white text-gray-400 hover:bg-gray-50"
-                                                        }`}
-                                                    >
-                                                        New
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDraft({ ...draft!, rotorType: "Rebuilt" })}
-                                                        className={`cursor-pointer px-3 py-1 border-l border-[#d1d5db] transition-colors ${
-                                                            draft!.rotorType === "Rebuilt"
-                                                                ? "bg-orange-500/20 text-orange-700"
-                                                                : "bg-white text-gray-400 hover:bg-gray-50"
-                                                        }`}
-                                                    >
-                                                        Rebuilt
-                                                    </button>
-                                                </div>
+                                                <select
+                                                    value={draft!.partType}
+                                                    onChange={(event) =>
+                                                        setDraft({ ...draft!, partType: event.target.value as PartType })
+                                                    }
+                                                    className="h-8 rounded-md border border-[#d1d5db] bg-white px-2 text-xs font-medium text-gray-900 outline-none focus:border-[#d45815]"
+                                                >
+                                                    <option value="New">New</option>
+                                                    <option value="Sent to Rebuild">Sent to Rebuild</option>
+                                                    <option value="Rebuilt">Rebuilt</option>
+                                                    <option value="Retired">Retired</option>
+                                                </select>
                                             ) : (
                                                 <span
-                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                                        activePartType === "Rebuilt"
-                                                            ? "bg-orange-500/20 text-orange-700"
-                                                            : "bg-green-500/20 text-green-700"
-                                                    }`}
+                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${PART_TYPE_BADGE[activePartType]}`}
                                                 >
                                                     {activePartType}
                                                 </span>
@@ -885,27 +933,29 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                 <Input
                                                     type="number"
                                                     min={0}
-                                                    placeholder="No cap"
-                                                    value={draft!.rebuildsPossible ?? ""}
+                                                    placeholder="0 = blocked"
+                                                    value={draft!.rebuildsPossible}
                                                     onChange={(event) =>
                                                         setDraft({
                                                             ...draft!,
-                                                            rebuildsPossible: event.target.value === "" ? null : Math.max(0, Number(event.target.value) || 0),
+                                                            rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
                                                         })
                                                     }
                                                     className="h-8 w-24 bg-white border-[#d1d5db] text-gray-900"
                                                 />
                                             ) : (
-                                                <span className={`font-medium ${
-                                                    activeRebuildCount !== null && actualRebuildsDone >= activeRebuildCount
-                                                        ? "text-red-600"
-                                                        : "text-gray-700"
-                                                }`}>
-                                                    {actualRebuildsDone}
-                                                    <span className="font-normal text-gray-400">
-                                                        {" / "}{activeRebuildCount ?? "∞"}
+                                                (activeRebuildCount ?? 0) === 0 ? (
+                                                    <span className="font-medium text-gray-400">0</span>
+                                                ) : (
+                                                    <span className={`font-medium ${
+                                                        actualRebuildsDone >= activeRebuildCount!
+                                                            ? "text-red-600"
+                                                            : "text-gray-700"
+                                                    }`}>
+                                                        {actualRebuildsDone}
+                                                        <span className="font-normal text-gray-400">{" / "}{activeRebuildCount}</span>
                                                     </span>
-                                                </span>
+                                                )
                                             )}
                                         </TableCell>
 
@@ -981,6 +1031,21 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                             <CalendarDays className="w-4 h-4" />
                                                             <span className="text-xs font-medium">Schedule</span>
                                                         </button>
+                                                        {activePartType === "Retired" && (
+                                                            <button
+                                                                onClick={() => handleDeletePart(part)}
+                                                                disabled={deletingId === part._id}
+                                                                className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                                                                title="Delete retired spare part"
+                                                            >
+                                                                {deletingId === part._id ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                )}
+                                                                <span className="text-xs font-medium">Delete</span>
+                                                            </button>
+                                                        )}
                                                     </>
                                                 )}
                                             </div>
@@ -1064,7 +1129,10 @@ interface ReplacementFormData {
     serialNumber: string;
     lifetimeText: string;
     rotorType: "New" | "Rebuilt";
-    rebuildsPossible: number | null;
+    // Manual-entry rebuild fields (a warehouse part may already be rebuilt N times).
+    isRebuildPart: boolean;
+    rebuildsPossible: number;
+    currentRebuildCount: number;
     notes: string;
     mediaUrls: string[];
 }
@@ -1211,7 +1279,7 @@ function QueueTable({
 
                         return (
                             <TableRow key={`${item.queueType}-${item.machine._id}-${item.part._id}-${replacementDate || clientPart?._id || ""}`} className="border-[#607797]/40 hover:bg-[#96A5BA]/20">
-                                <TableCell className="pl-5 overflow-hidden">
+                                <TableCell className="pl-5 overflow-hidden whitespace-normal">
                                     <div className="flex flex-col gap-0.5 w-full min-w-0">
                                         <span className="font-semibold text-gray-900 break-words">
                                             {oldPartName}
@@ -1228,7 +1296,7 @@ function QueueTable({
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm overflow-hidden">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden whitespace-normal">
                                     <div className="flex flex-col gap-0.5 w-full min-w-0">
                                         <span className="break-words">{item.machine.name}</span>
                                         {item.machine.serialNumber && (
@@ -1236,7 +1304,7 @@ function QueueTable({
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="overflow-hidden">
+                                <TableCell className="overflow-hidden whitespace-normal">
                                     <div className="flex flex-col gap-1 w-full min-w-0">
                                         <span className="text-sm font-medium text-gray-900 break-words">{workflowLabel}</span>
                                         <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses}`}>
@@ -1247,7 +1315,7 @@ function QueueTable({
                                 <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {formatDate(queueDate(item))}
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm overflow-hidden">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden whitespace-normal">
                                     {tab === "replaced" ? (
                                         <div className="flex flex-col gap-1.5 w-full min-w-0">
                                             <div className="flex items-start gap-2">
@@ -1278,13 +1346,14 @@ function QueueTable({
                                             <div className="flex items-center gap-2">
                                                 <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Rebuilds</span>
                                                 {(() => {
-                                                    const done = (clientPart?.replacementHistory || []).filter((h) => h.source === "Rebuild").length;
-                                                    const max = clientPart?.rebuildsPossible ?? null;
-                                                    const isMaxed = max !== null && done >= max;
+                                                    const done = clientPart?.rebuildCount ?? 0;
+                                                    const max = clientPart?.rebuildsPossible ?? 0;
+                                                    if (max === 0) return <span className="font-medium text-gray-400">0</span>;
+                                                    const isMaxed = done >= max;
                                                     return (
                                                         <span className={`font-medium ${isMaxed ? "text-red-600" : "text-gray-700"}`}>
                                                             {done}
-                                                            <span className="font-normal text-gray-400">{" / "}{max ?? "∞"}</span>
+                                                            <span className="font-normal text-gray-400">{" / "}{max}</span>
                                                             {isMaxed && <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Max</span>}
                                                         </span>
                                                     );
@@ -1293,7 +1362,7 @@ function QueueTable({
                                         </div>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-gray-700 text-sm overflow-hidden">
+                                <TableCell className="text-gray-700 text-sm overflow-hidden whitespace-normal">
                                     {tab === "replaced" ? (
                                         <div className="flex flex-col gap-0.5 w-full min-w-0">
                                             <span className="font-medium text-gray-900 break-words">
@@ -1325,11 +1394,11 @@ function QueueTable({
                                         </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-center overflow-hidden">
+                                <TableCell className="text-center overflow-hidden whitespace-normal">
                                     <button
                                         type="button"
                                         onClick={() => onReplacementClick(item)}
-                                        className="inline-flex items-center gap-1.5 rounded-md border border-[#d45815]/40 bg-[#d45815]/10 px-3 py-1.5 text-xs font-semibold text-[#d45815] transition-colors hover:bg-[#d45815]/20"
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#d45815]/40 bg-[#d45815]/10 px-3 py-1.5 text-xs font-semibold text-[#d45815] transition-colors hover:bg-[#d45815]/20 whitespace-normal text-center w-full"
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
                                         {tab === "replaced" ? "Edit Details" : replacementDate ? "Edit Replacement" : "Add Replacement"}
@@ -1428,23 +1497,32 @@ function ReplacementModal({
         serialNumber: "",
         lifetimeText: "",
         rotorType: "New",
-        rebuildsPossible: null,
+        isRebuildPart: false,
+        rebuildsPossible: 0,
+        currentRebuildCount: 0,
         notes: "",
         mediaUrls: [],
     });
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    // One source for the replacement part at a time: pick from inventory OR type manually.
+    const [entryMode, setEntryMode] = useState<"inventory" | "manual">("inventory");
+    const [manualKlError, setManualKlError] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open || !target) return;
+        setEntryMode("inventory");
+        setManualKlError(null);
+        setFormError(null);
         const clientPart = target.part.clientMachineSparePart;
         setForm({
             replacementDate: dateInputValue(clientPart?.replacementDate),
             replacementOptionID: "",
             replacementSparePartID: clientPart?.replacementSparePart || "",
             replacementSourceMachineID: "",
-            partName: clientPart?.replacementPartName || target.part.name || "",
-            klValue: clientPart?.replacementPartKlValue || target.part.klValue || "",
+            partName: clientPart?.replacementPartName || "",
+            klValue: clientPart?.replacementPartKlValue || "",
             serialNumber: clientPart?.replacementPartSerialNumber || "",
             lifetimeText:
                 clientPart?.replacementLifetimeText ||
@@ -1454,7 +1532,9 @@ function ReplacementModal({
             rotorType:
                 clientPart?.rotorType ||
                 (target.queueType === "rebuild" ? "Rebuilt" : "New"),
-            rebuildsPossible: clientPart?.rebuildsPossible ?? null,
+            isRebuildPart: (clientPart?.rebuildsPossible ?? 0) > 0,
+            rebuildsPossible: clientPart?.rebuildsPossible ?? 0,
+            currentRebuildCount: clientPart?.rebuildCount ?? 0,
             notes: clientPart?.replacementNotes || "",
             mediaUrls: clientPart?.replacementMediaUrls || [],
         });
@@ -1472,7 +1552,23 @@ function ReplacementModal({
 
     const isRebuildWorkflow = workflowLabel === "rebuild";
 
-    const getRebuildBlockLabel = (part: ReplacementOption): string | null => {
+    // Why an inventory option cannot be picked as the replacement, or null if selectable.
+    const getOptionBlockLabel = (part: ReplacementOption): string | null => {
+        // Cannot replace a part with itself.
+        if (part.replacementSparePartID === target.part._id) return "Same part";
+        // An installed (active) part cannot be pulled from inventory — only free stock.
+        // The record being replaced is its own row, so exclude it from this rule.
+        if (
+            part.isActive &&
+            !(
+                part.replacementSparePartID === target.part._id &&
+                part.replacementSourceMachineID === target.machine._id
+            )
+        ) {
+            return "Currently installed";
+        }
+        // Retired parts have reached their rebuild cap and can never be reused.
+        if (part.isRetired || part.partType === "Retired") return "Retired";
         if (!isRebuildWorkflow || !part.isRebuildBlocked) return null;
         if (part.isRebuildable === false || part.rebuildsPossible === 0) return "Not rebuildable";
         return `Max rebuilds reached (${part.rebuildCount ?? 0}/${part.rebuildsPossible ?? 0})`;
@@ -1502,9 +1598,26 @@ function ReplacementModal({
         }
     };
 
+    // Manual entry must not duplicate a part that already exists in inventory
+    // under the same KL code — except the part being replaced itself (a rebuilt
+    // part legitimately comes back under its own KL). This is a best-effort
+    // check against the loaded options; the API enforces it authoritatively.
+    const checkManualKlDuplicate = (klValue: string): string | null => {
+        const normalized = klValue.trim().toUpperCase();
+        if (!normalized) return null;
+        const ownKl = (target.part.klValue || "").trim().toUpperCase();
+        if (normalized === ownKl) return null;
+        const duplicate = replacementOptions.find(
+            (part) => (part.klValue || "").trim().toUpperCase() === normalized
+        );
+        return duplicate
+            ? `KL ${normalized} already exists in inventory (${duplicate.name}) — select it from inventory instead`
+            : null;
+    };
+
     const handleReplacementPartSelect = (optionID: string) => {
         const selected = replacementOptions.find((part) => part._id === optionID);
-        if (selected && isRebuildWorkflow && selected.isRebuildBlocked) return;
+        if (selected && getOptionBlockLabel(selected)) return;
         setForm((prev) => ({
             ...prev,
             replacementOptionID: optionID,
@@ -1514,7 +1627,7 @@ function ReplacementModal({
             klValue: selected?.klValue || "",
             lifetimeText: selected?.lifetimeText || prev.lifetimeText,
             rotorType: selected?.rotorType || prev.rotorType,
-            rebuildsPossible: selected?.rebuildsPossible ?? prev.rebuildsPossible ?? null,
+            // The selected part keeps its own rebuild cap — never copied onto this record.
         }));
     };
 
@@ -1547,6 +1660,53 @@ function ReplacementModal({
                             onChange={(event) => setForm({ ...form, replacementDate: event.target.value })}
                         />
                     </label>
+                    <div className="col-span-2 flex rounded-md border border-[#C5D1DC] p-1">
+                        <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                                setEntryMode("inventory");
+                                setManualKlError(null);
+                            }}
+                            className={`flex-1 rounded px-3 py-2 text-sm font-semibold transition-colors ${
+                                entryMode === "inventory"
+                                    ? "bg-[#2D3E5C] text-white"
+                                    : "bg-transparent text-[#6b7280] hover:bg-[#F8FAFC]"
+                            }`}
+                        >
+                            Select from inventory
+                        </button>
+                        <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                                setEntryMode("manual");
+                                setForm((prev) => {
+                                    const originalImages = [
+                                        target.part.imageUrl,
+                                        ...(target.part.imageUrls ?? []),
+                                    ].filter((url, idx, arr): url is string =>
+                                        !!url && arr.indexOf(url) === idx
+                                    );
+                                    return {
+                                        ...prev,
+                                        replacementOptionID: "",
+                                        replacementSparePartID: "",
+                                        replacementSourceMachineID: "",
+                                        mediaUrls: prev.mediaUrls.length ? prev.mediaUrls : originalImages,
+                                    };
+                                });
+                            }}
+                            className={`flex-1 rounded px-3 py-2 text-sm font-semibold transition-colors ${
+                                entryMode === "manual"
+                                    ? "bg-[#d45815] text-white"
+                                    : "bg-transparent text-[#6b7280] hover:bg-[#fff7f4]"
+                            }`}
+                        >
+                            Manual entry
+                        </button>
+                    </div>
+                    {entryMode === "inventory" && (
                     <div className="col-span-2 grid grid-cols-2 gap-3 rounded-md border border-[#C5D1DC] bg-[#F8FAFC] p-3">
                         <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
                             Search inventory
@@ -1590,52 +1750,71 @@ function ReplacementModal({
                             </select>
                         </label>
                         <div className="col-span-2 flex flex-col gap-1.5">
-                            <span className="text-sm text-[#6b7280]">Spare part</span>
-                            <div className="flex gap-2">
-                                <select
-                                    value={form.replacementOptionID}
-                                    onChange={(event) => handleReplacementPartSelect(event.target.value)}
-                                    disabled={saving || replacementOptionsLoading}
-                                    className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#d45815] disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <option value="">
-                                        {replacementOptionsLoading ? "Loading spare parts..." : "— Manual entry"}
-                                    </option>
-                                    {replacementOptions.map((part) => {
-                                        const blockLabel = getRebuildBlockLabel(part);
-                                        return (
-                                            <option
-                                                key={part._id}
-                                                value={part._id}
-                                                disabled={!!blockLabel}
-                                            >
-                                                {[
-                                                    part.name,
-                                                    part.klValue ? `· KL ${part.klValue}` : null,
-                                                    part.sourceMachine?.name ? `· ${part.sourceMachine.name}` : null,
-                                                    blockLabel ? `— ${blockLabel}` : null,
-                                                ].filter(Boolean).join(" ")}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-[#6b7280]">
+                                    Spare part
+                                    {replacementOptionsLoading && <span className="ml-2 text-xs text-[#d45815]">Searching…</span>}
+                                    {!replacementOptionsLoading && replacementOptions.length > 0 && (
+                                        <span className="ml-2 text-xs text-[#9ca3af]">{replacementOptions.length} found</span>
+                                    )}
+                                </span>
                                 {form.replacementOptionID && (
                                     <button
                                         type="button"
                                         disabled={saving}
-                                        onClick={() => {
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                replacementOptionID: "",
-                                                replacementSparePartID: "",
-                                                replacementSourceMachineID: "",
-                                            }));
-                                        }}
-                                        title="Clear selection — switch to manual entry"
-                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#C5D1DC] bg-white text-[#607797] hover:border-red-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                                        onClick={() => setForm((prev) => ({ ...prev, replacementOptionID: "", replacementSparePartID: "", replacementSourceMachineID: "" }))}
+                                        className="text-xs text-[#607797] hover:text-red-500 disabled:opacity-50"
                                     >
-                                        <X className="h-4 w-4" />
+                                        Clear
                                     </button>
+                                )}
+                            </div>
+                            <div className="max-h-44 overflow-y-auto rounded-md border border-[#C5D1DC] bg-white">
+                                {replacementOptionsLoading ? (
+                                    <div className="flex items-center justify-center gap-2 py-6 text-sm text-[#9ca3af]">
+                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d45815] border-t-transparent" />
+                                        Loading…
+                                    </div>
+                                ) : replacementOptions.length === 0 ? (
+                                    <div className="py-6 text-center text-sm text-[#9ca3af]">
+                                        {search.trim() ? `No parts found for "${search.trim()}"` : "No spare parts available"}
+                                    </div>
+                                ) : (
+                                    replacementOptions.map((part) => {
+                                        const blockLabel = getOptionBlockLabel(part);
+                                        const isSelected = form.replacementOptionID === part._id;
+                                        const isBlocked = !!blockLabel;
+                                        return (
+                                            <button
+                                                key={part._id}
+                                                type="button"
+                                                disabled={isBlocked || saving}
+                                                onClick={() => !isBlocked && handleReplacementPartSelect(part._id)}
+                                                className={`flex w-full flex-col gap-0.5 border-b border-[#f3f4f6] px-3 py-2.5 text-left last:border-b-0 transition-colors
+                                                    ${isSelected ? "bg-[#fff7f4]" : isBlocked ? "cursor-not-allowed bg-[#f9fafb] opacity-60" : "hover:bg-[#f8fafc] cursor-pointer"}`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={`text-sm font-medium ${isSelected ? "text-[#d45815]" : "text-[#111827]"}`}>
+                                                        {part.name}
+                                                    </span>
+                                                    {isBlocked && (
+                                                        <span className="shrink-0 rounded-full bg-[#fee2e2] px-2 py-0.5 text-[10px] font-semibold text-[#b91c1c]">
+                                                            {blockLabel}
+                                                        </span>
+                                                    )}
+                                                    {isSelected && !isBlocked && (
+                                                        <span className="shrink-0 rounded-full bg-[#d45815] px-2 py-0.5 text-[10px] font-semibold text-white">
+                                                            Selected
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2 text-[11px] text-[#6b7280]">
+                                                    {part.klValue && <span>KL {part.klValue}</span>}
+                                                    {part.sourceMachine?.name && <span>· {part.sourceMachine.name}</span>}
+                                                </div>
+                                            </button>
+                                        );
+                                    })
                                 )}
                             </div>
                             {form.replacementOptionID && (() => {
@@ -1701,23 +1880,12 @@ function ReplacementModal({
                             </div>
                         </div>
                     </div>
-                    <div className={`col-span-2 grid grid-cols-2 gap-3 rounded-md border p-3 transition-colors ${
-                        form.replacementOptionID
-                            ? "border-[#C5D1DC] bg-[#F8FAFC]"
-                            : "border-dashed border-[#d45815] bg-[#fff7f4]"
-                    }`}>
+                    )}
+                    {entryMode === "manual" && (
+                    <div className="col-span-2 grid grid-cols-2 gap-3 rounded-md border border-dashed border-[#d45815] bg-[#fff7f4] p-3">
                         <div className="col-span-2 flex items-center gap-2">
-                            {form.replacementOptionID ? (
-                                <>
-                                    <PackageSearch className="h-3.5 w-3.5 text-[#607797]" />
-                                    <span className="text-xs font-semibold uppercase tracking-wider text-[#607797]">Part details</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Pencil className="h-3.5 w-3.5 text-[#d45815]" />
-                                    <span className="text-xs font-semibold uppercase tracking-wider text-[#d45815]">Manual entry</span>
-                                </>
-                            )}
+                            <Pencil className="h-3.5 w-3.5 text-[#d45815]" />
+                            <span className="text-xs font-semibold uppercase tracking-wider text-[#d45815]">Manual entry</span>
                         </div>
                         <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
                             Part name
@@ -1731,9 +1899,16 @@ function ReplacementModal({
                             KL code
                             <Input
                                 value={form.klValue}
-                                onChange={(event) => setForm({ ...form, klValue: event.target.value })}
-                                className="bg-white font-mono"
+                                onChange={(event) => {
+                                    setManualKlError(null);
+                                    setForm({ ...form, klValue: event.target.value });
+                                }}
+                                onBlur={() => setManualKlError(checkManualKlDuplicate(form.klValue))}
+                                className={`bg-white font-mono ${manualKlError ? "border-red-500" : ""}`}
                             />
+                            {manualKlError && (
+                                <span className="text-xs text-red-600">{manualKlError}</span>
+                            )}
                         </label>
                         <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
                             Serial / reference
@@ -1753,7 +1928,97 @@ function ReplacementModal({
                                 className="bg-white"
                             />
                         </label>
+                        <div className="col-span-2 flex items-center justify-between rounded-md border border-[#e5c9bb] bg-white px-3 py-2">
+                            <div>
+                                <p className="text-sm font-medium text-[#2D3E5C]">Is rebuild part?</p>
+                                <p className="text-xs text-[#6b7280]">
+                                    Turn on if this warehouse part can be rebuilt / has been rebuilt before.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={form.isRebuildPart}
+                                onCheckedChange={(checked) =>
+                                    setForm({
+                                        ...form,
+                                        isRebuildPart: checked,
+                                        rebuildsPossible: checked ? Math.max(1, form.rebuildsPossible) : 0,
+                                        currentRebuildCount: checked ? form.currentRebuildCount : 0,
+                                    })
+                                }
+                                disabled={saving}
+                            />
+                        </div>
+                        {form.isRebuildPart && (
+                            <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                                Rebuild threshold (max rebuilds)
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    value={form.rebuildsPossible}
+                                    onChange={(event) =>
+                                        setForm({
+                                            ...form,
+                                            rebuildsPossible: Math.max(0, Number(event.target.value) || 0),
+                                        })
+                                    }
+                                    className="bg-white"
+                                />
+                            </label>
+                        )}
+                        <div className="col-span-2 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-[#6b7280]">
+                                    Images
+                                    {form.mediaUrls.length > 0 && (
+                                        <span className="ml-1 text-xs text-[#9ca3af]">({form.mediaUrls.length})</span>
+                                    )}
+                                </span>
+                                <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[#607797] bg-[#DFE6EC] px-2.5 py-1.5 text-xs font-semibold text-gray-900 hover:bg-[#e5e7eb] ${(uploading || saving) ? "pointer-events-none opacity-50" : ""}`}>
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {uploading ? "Uploading…" : "Upload"}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleUpload}
+                                        disabled={uploading || saving}
+                                        className="hidden"
+                                    />
+                                </label>
+                            </div>
+                            {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+                            {form.mediaUrls.length === 0 ? (
+                                <p className="rounded-md border border-dashed border-[#C5D1DC] py-3 text-center text-xs italic text-[#9ca3af]">
+                                    No images — upload to add one.
+                                </p>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {form.mediaUrls.map((url, index) => (
+                                        <div key={`${url}-${index}`} className="relative">
+                                            <img
+                                                src={url}
+                                                alt=""
+                                                className="h-16 w-16 rounded-md border border-[#C5D1DC] object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                disabled={saving}
+                                                onClick={() =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        mediaUrls: prev.mediaUrls.filter((_, i) => i !== index),
+                                                    }))
+                                                }
+                                                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 disabled:opacity-50"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
+                    )}
 
                     <div className="col-span-2 flex items-center gap-3">
                         <div className="h-px flex-1 bg-[#C5D1DC]" />
@@ -1761,31 +2026,6 @@ function ReplacementModal({
                         <div className="h-px flex-1 bg-[#C5D1DC]" />
                     </div>
 
-                    <div className="col-span-2 flex items-center justify-between rounded-md border border-[#C5D1DC] px-3 py-2">
-                        <span className="text-sm font-medium text-[#2D3E5C]">Rebuilt part</span>
-                        <Switch
-                            checked={form.rotorType === "Rebuilt"}
-                            onCheckedChange={(checked) =>
-                                setForm({ ...form, rotorType: checked ? "Rebuilt" : "New" })
-                            }
-                            disabled={saving}
-                        />
-                    </div>
-                    <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Rebuilds possible (blank = no cap, 0 = blocked)
-                        <Input
-                            type="number"
-                            min={0}
-                            placeholder="No cap"
-                            value={form.rebuildsPossible ?? ""}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    rebuildsPossible: event.target.value === "" ? null : Math.max(0, Number(event.target.value) || 0),
-                                })
-                            }
-                        />
-                    </label>
                     <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
                         Notes
                         <textarea
@@ -1796,6 +2036,7 @@ function ReplacementModal({
                             placeholder="Add installation notes, rebuild notes, or order reference details."
                         />
                     </label>
+                    {entryMode === "inventory" && (
                     <div className="col-span-2 flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-3">
                             <span className="text-sm text-[#6b7280]">Replacement media</span>
@@ -1838,9 +2079,13 @@ function ReplacementModal({
                             </p>
                         )}
                     </div>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-end gap-3 border-t border-[#C5D1DC] px-5 py-4">
+                    {formError && (
+                        <p className="mr-auto text-sm text-red-600">{formError}</p>
+                    )}
                     <Button
                         type="button"
                         variant="ghost"
@@ -1852,7 +2097,22 @@ function ReplacementModal({
                     <Button
                         type="button"
                         disabled={saving || uploading}
-                        onClick={() => onSave(form)}
+                        onClick={() => {
+                            setFormError(null);
+                            if (entryMode === "manual") {
+                                const klError = checkManualKlDuplicate(form.klValue);
+                                if (klError) {
+                                    setManualKlError(klError);
+                                    setFormError(klError);
+                                    return;
+                                }
+                            }
+                            if (entryMode === "inventory" && !form.replacementOptionID) {
+                                setFormError("Select a spare part from inventory, or switch to manual entry.");
+                                return;
+                            }
+                            onSave(form);
+                        }}
                         className="bg-[#d45815] text-white hover:bg-[#b8480f]"
                     >
                         {saving ? "Saving..." : "Save Replacement"}

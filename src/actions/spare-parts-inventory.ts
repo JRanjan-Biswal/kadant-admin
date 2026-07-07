@@ -76,7 +76,13 @@ export interface ReplacementOption {
     imageUrls?: string[];
     optimalStateVideoUrl?: string | null;
     rotorType?: "New" | "Rebuilt";
-    rebuildsPossible?: number;
+    rebuildsPossible?: number | null;
+    isRebuildable?: boolean;
+    rebuildCount?: number;
+    partType?: "New" | "Sent to Rebuild" | "Rebuilt" | "Retired";
+    isRebuildBlocked?: boolean;
+    isActive?: boolean;
+    isRetired?: boolean;
     sourceMachine?: {
         _id: string;
         name: string;
@@ -98,7 +104,9 @@ export interface InventorySparePart {
     priceRepairPerPc: { value: number; priceUnit: string };
     maintenanceSchedule: MaintenanceScheduleEntry[];
     imageUrl: string | null;
+    imageUrls?: string[];
     machines: string[];
+    isRebuildable?: boolean;
     updatedAt?: string;
     clientMachineSparePart: {
         _id?: string;
@@ -115,7 +123,9 @@ export interface InventorySparePart {
         sparePartInstallationDate?: string | null;
         lastServiceDate?: string | null;
         rotorType?: "New" | "Rebuilt";
-        rebuildsPossible?: number;
+        partType?: "New" | "Sent to Rebuild" | "Rebuilt" | "Retired";
+        rebuildsPossible?: number | null;
+        rebuildCount?: number;
         rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
         isSentToRebuild?: boolean;
         rebuildSentDate?: string | null;
@@ -318,6 +328,7 @@ export async function saveSparePart(
         priceRepairPerPc: { value: number; priceUnit: string };
         maintenanceSchedule: MaintenanceScheduleEntry[];
         machines: string[];
+        isRebuildable: boolean;
     }>
 ): Promise<{ ok: boolean; error?: string }> {
     const token = await requireToken();
@@ -362,6 +373,31 @@ export async function saveClientSparePart(
     });
     if (!res.ok) {
         let msg = "Failed to save inventory row";
+        try {
+            const j = await res.json();
+            msg = j.message || msg;
+        } catch {}
+        return { ok: false, error: msg };
+    }
+    return { ok: true };
+}
+
+export async function deleteClientSparePart(
+    clientID: string,
+    machineID: string,
+    sparePartID: string
+): Promise<{ ok: boolean; error?: string }> {
+    const token = await requireToken();
+    const res = await fetch(`${API}/client-machines/spare-parts/retired`, {
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ clientID, machineID, sparePartID }),
+    });
+    if (!res.ok) {
+        let msg = "Failed to delete spare part";
         try {
             const j = await res.json();
             msg = j.message || msg;

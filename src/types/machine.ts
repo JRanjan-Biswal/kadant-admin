@@ -161,6 +161,7 @@ export interface ClientMachineSparePart {
     };
     rotorType?: "New" | "Rebuilt";
     rebuildsPossible?: number;
+    rebuildCount?: number;
     rebuildLifetime?: { value: number; unit: string };
     rebuildLifetimeText?: string | null;
     rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
