@@ -55,37 +55,37 @@ export default function Home() {
       {/* Background Slider */}
       <FullScreenSlider />
 
-      {/* Left Panel */}
-      <div className="md:w-1/2 xl:w-[55%] px-[40px] py-[50px] flex flex-col gap-[10px] h-full items-start justify-between relative z-[1]">
-        <Image
-          alt="logo"
-          className=""
-          src="/kadant-logo-black.svg"
-          width={185}
-          height={30}
-          priority
-        />
-        <div className="flex flex-col gap-[10px] justify-end">
-          <div className="font-lato font-black text-[#1d1d1d] leading-[100%] text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic">
-            <p className="mb-0">From machine health alerts,</p>
-            <p>to client service schedules</p>
-          </div>
-          <p className="font-montserrat font-normal leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full text-[#1d1d1d]">
-            Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
-          </p>
+      {/* Logo — Figma: left 5.28%, top 8.33% of 1440x960 frame */}
+      <Image
+        alt="logo"
+        className="absolute left-[5.28%] top-[8.33%] z-[1]"
+        src="/kadant-logo-black.svg"
+        width={185}
+        height={30}
+        priority
+      />
+
+      {/* Marketing Text — Figma: left 76px (5.28%), top 736px (76.67%), w 593px, gap 14px */}
+      <div className="absolute left-[5.28%] top-[76.67%] w-[593px] max-w-[45%] flex flex-col gap-[14px] z-[6]">
+        <div className="font-lato font-black antialiased text-[#1d1d1d] leading-none text-[36px] xl:text-[38px] [@media(min-width:1440px)]:text-[48px] not-italic whitespace-nowrap">
+          <p className="mb-0">From machine health alerts,</p>
+          <p>to client service schedules</p>
         </div>
+        <p className="font-lato font-semibold leading-[1.35] text-[16px] md:text-[18px] w-full md:w-[556.586px] max-w-full text-[#1d1d1d]">
+          Monitor machine health, manage client schedules, and keep operations running smoothly, all from one dashboard.
+        </p>
       </div>
 
       {/* Form Container with Gradient Background */}
-      <div className="absolute inset-0 flex items-center justify-end z-10 pr-8 md:pr-16 lg:pr-24">
+      <div className="absolute inset-0 flex items-center justify-end z-10 pr-[6.25%]">
         <div className="glassmorphic-login-container">
-          <div className="w-[443px] flex flex-col gap-[36px]">
+          <div className="w-[443px] flex flex-col gap-[50px]">
             {/* Header */}
             <div className="flex flex-col gap-[10px]">
               <h2 className="text-[32px] font-bold font-montserrat text-[#1d1d1d] leading-[normal] text-nowrap">
                 Admin Portal
               </h2>
-              <p className="text-[14px] font-medium font-montserrat text-[#607797] leading-[1.35]">
+              <p className="text-[18px] font-semibold font-montserrat text-[#1d1d1d] leading-[1.35]">
                 Log in to view assigned cases
               </p>
             </div>
@@ -143,7 +143,7 @@ export default function Home() {
                 disabled={isLoading}
                 variant="default"
                 size="lg"
-                className="w-full mt-[0px] lg:h-[50px] h-[40px] cursor-pointer bg-[#d45815] hover:bg-[#c04d12] font-semibold text-[16px]"
+                className="w-full mt-[0px] lg:h-[60px] h-[48px] cursor-pointer bg-[#d45815] hover:bg-[#c04d12] font-semibold text-[18px]"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -154,10 +154,10 @@ export default function Home() {
 
               {/* Login to Client Link - Bottom */}
               <div className="flex items-center justify-start gap-[5px] p-[10px]">
-                <BiUser color="#1d1d1d" size={24} />
+                <BiUser color="#2d3e5c" size={24} />
                 <Link
                   href="https://machine-health.vercel.app/"
-                  className="text-[#1d1d1d] text-base leading-[24px] font-montserrat font-semibold hover:underline"
+                  className="text-[#2d3e5c] text-base leading-[24px] font-montserrat font-semibold hover:underline"
                 >
                   Login to Client
                 </Link>

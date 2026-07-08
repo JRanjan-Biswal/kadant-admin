@@ -33,7 +33,15 @@ export interface HealthNotification {
     lifetimeOfRotor: number;
 }
 
-export type AppNotification = ScheduleNotification | HealthNotification;
+export interface RetiredNotification {
+    id: string;
+    type: "retired";
+    sparePartName: string;
+    machineName: string;
+    klValue: string;
+}
+
+export type AppNotification = ScheduleNotification | HealthNotification | RetiredNotification;
 
 export async function fetchWeekSchedules(clientID: string): Promise<ScheduleNotification[]> {
     try {
@@ -68,6 +76,21 @@ export async function fetchHealthAlerts(clientID: string): Promise<HealthNotific
         const token = await requireToken();
         const res = await fetch(
             `${API}/maintenance-schedule/admin/health-alerts/${encodeURIComponent(clientID)}`,
+            { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.alerts || [];
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchRetiredAlerts(clientID: string): Promise<RetiredNotification[]> {
+    try {
+        const token = await requireToken();
+        const res = await fetch(
+            `${API}/maintenance-schedule/admin/retired-alerts/${encodeURIComponent(clientID)}`,
             { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) return [];

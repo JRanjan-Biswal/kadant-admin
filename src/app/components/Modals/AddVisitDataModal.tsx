@@ -72,6 +72,17 @@ const ACTION_OPTIONS: { value: string; idle: string; active: string }[] = [
     },
 ];
 
+// A maxed-out part (rebuildCount >= rebuildsPossible, cap > 0) can no longer be
+// sent to rebuild or ordered new as a normal cycle — the only offered action is
+// to retire it, which surfaces a reminder in the Order New tab to create a
+// replacement spare part from Visit Details.
+const RETIRE_ACTION_OPTION: { value: string; idle: string; active: string } = {
+    value: "Retire",
+    idle: "bg-[#f3f4f6] border border-[#d1d5db] text-[#6b7280]",
+    active:
+        "bg-[#1f2937] border border-[#1f2937] text-white ring-2 ring-offset-1 ring-[#1f2937]",
+};
+
 const STATUS_TEXT_STYLES: Record<string, string> = {
     "Critical Failure": "text-[#dc2626]",
     "Needs Repair": "text-[#f59e0b]",
@@ -83,6 +94,7 @@ const ACTION_PILL_STYLES: Record<string, string> = {
     "Send to Rebuild":
         "bg-[#fed7aa] border border-[#fb923c] text-[#c2410c]",
     "Order New": "bg-[#fee2e2] border border-[#dc2626] text-[#991b1b]",
+    Retire: "bg-[#e5e7eb] border border-[#4b5563] text-[#1f2937]",
 };
 
 function isVideoUrl(url: string): boolean {
@@ -811,6 +823,16 @@ export default function AddVisitDataModal({
         return null;
     };
 
+    // A maxed part (cap > 0 and completed rebuilds >= cap) can never be sent to
+    // rebuild or ordered new again as a normal cycle — it must be retired.
+    const isSparePartMaxed = (sparePartId: string): boolean => {
+        const sp = spareParts.find((p) => p._id === sparePartId);
+        if (!sp) return false;
+        const count = sp.rebuildCount ?? 0;
+        const cap = sp.rebuildsPossible ?? 0;
+        return cap > 0 && count >= cap;
+    };
+
     const handleAddMachineIssue = async () => {
         if (addingIssue) return;
         if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status || !newIssue.actionNeeded) {
@@ -827,11 +849,14 @@ export default function AddVisitDataModal({
 
         // Mark the spare part inactive and place it in the correct queue immediately.
         if (
-            (newIssue.actionNeeded === "Send to Rebuild" || newIssue.actionNeeded === "Order New") &&
+            (newIssue.actionNeeded === "Send to Rebuild" ||
+                newIssue.actionNeeded === "Order New" ||
+                newIssue.actionNeeded === "Retire") &&
             newIssue.sparePartId &&
             newIssue.machineId
         ) {
             const isSendToRebuild = newIssue.actionNeeded === "Send to Rebuild";
+            const isRetire = newIssue.actionNeeded === "Retire";
             fetch(`/api/clients/${clientID}/client-machines/spare-parts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -839,7 +864,17 @@ export default function AddVisitDataModal({
                     clientID,
                     machineID: newIssue.machineId,
                     sparePartID: newIssue.sparePartId,
-                    updates: isSendToRebuild
+                    updates: isRetire
+                        ? {
+                              partType: "Retired",
+                              isActive: false,
+                              isSentToRebuild: false,
+                              rebuildStatus: "None",
+                              isOrderedNew: true,
+                              orderNewStatus: "Ordered New",
+                              orderNewRequestedDate: new Date().toISOString(),
+                          }
+                        : isSendToRebuild
                         ? {
                               isActive: false,
                               isSentToRebuild: true,
@@ -1802,12 +1837,19 @@ export default function AddVisitDataModal({
                                                     sparePartId: value,
                                                     sparePartName: sp?.name || "",
                                                     subPartPhotos: {},
-                                                    // Rebuild may not be allowed for the newly selected part
-                                                    actionNeeded:
-                                                        p.actionNeeded === "Send to Rebuild" &&
-                                                        getRebuildBlockReason(value)
-                                                            ? ""
-                                                            : p.actionNeeded,
+                                                    // Rebuild may not be allowed for the newly selected part,
+                                                    // and a maxed part only offers "Retire" (a non-maxed part
+                                                    // never offers "Retire") — drop a now-invalid selection.
+                                                    actionNeeded: isSparePartMaxed(value)
+                                                        ? p.actionNeeded === "Retire"
+                                                            ? p.actionNeeded
+                                                            : ""
+                                                        : p.actionNeeded === "Retire"
+                                                        ? ""
+                                                        : p.actionNeeded === "Send to Rebuild" &&
+                                                          getRebuildBlockReason(value)
+                                                        ? ""
+                                                        : p.actionNeeded,
                                                 }));
                                                 setSubParts([]);
                                                 setSelectedSubPartIds([]);
@@ -2013,7 +2055,10 @@ export default function AddVisitDataModal({
                                             Action Needed *
                                         </Label>
                                         <div className="flex flex-wrap gap-3">
-                                            {ACTION_OPTIONS.map((opt) => {
+                                            {(newIssue.sparePartId && isSparePartMaxed(newIssue.sparePartId)
+                                                ? [RETIRE_ACTION_OPTION]
+                                                : ACTION_OPTIONS
+                                            ).map((opt) => {
                                                 const selected =
                                                     newIssue.actionNeeded === opt.value;
                                                 const rebuildBlockReason =

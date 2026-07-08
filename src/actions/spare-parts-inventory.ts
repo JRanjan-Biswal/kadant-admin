@@ -171,6 +171,10 @@ export interface InventoryQueueItem {
     queueType: InventoryQueueType;
     machine: InventoryMachine;
     part: InventorySparePart;
+    /** Stable unique id for a single replacementHistory entry (only set for the
+     * "replaced" queue, which now emits one item per swap rather than one per
+     * row). Falls back to a composite key when absent. */
+    id?: string;
 }
 
 export interface InventoryQueueResponse {

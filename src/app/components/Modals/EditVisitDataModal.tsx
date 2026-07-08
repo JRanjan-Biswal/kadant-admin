@@ -120,6 +120,9 @@ export default function EditVisitDataModal({
         originalName?: string;
         optimalStateVideoUrl?: string | null;
         parts?: { _id: string; name: string; imageUrl?: string }[];
+        isRebuildable?: boolean;
+        rebuildCount?: number;
+        rebuildsPossible?: number;
     }[]>([]);
     const [loadingSpareParts, setLoadingSpareParts] = useState(false);
     const [newMachineIssue, setNewMachineIssue] = useState({
@@ -271,12 +274,15 @@ export default function EditVisitDataModal({
             }
             const data = await res.json();
             const list = data.spareParts ?? (Array.isArray(data) ? data : []);
-            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null }) => ({
+            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null; isRebuildable?: boolean; clientMachineSparePart?: { rebuildCount?: number; rebuildsPossible?: number } | null }) => ({
                 _id: sp._id,
                 name: (sp.name ?? sp.originalName ?? "") as string,
                 originalName: sp.originalName ?? sp.name,
                 optimalStateVideoUrl: sp.optimalStateVideoUrl ?? null,
                 parts: (sp.parts ?? []) as { _id: string; name: string; imageUrl?: string }[],
+                isRebuildable: sp.isRebuildable !== false,
+                rebuildCount: sp.clientMachineSparePart?.rebuildCount ?? 0,
+                rebuildsPossible: sp.clientMachineSparePart?.rebuildsPossible ?? 0,
             })));
         } catch {
             setSpareParts([]);
@@ -1644,21 +1650,51 @@ export default function EditVisitDataModal({
                                         {/* Action Needed */}
                                         <div className="flex flex-col gap-2">
                                             <Label className="text-gray-900 text-[14px]">Action Needed</Label>
-                                            <Select
-                                                value={newMachineIssue.actionNeeded}
-                                                onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, actionNeeded: v }))}
-                                            >
-                                                <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
-                                                    <SelectValue placeholder="Select action" />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
-                                                    {ACTION_NEEDED_OPTIONS.map((opt) => (
-                                                        <SelectItem key={opt} value={opt} className="text-gray-900 hover:bg-[#d1d5db]">
-                                                            {opt}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            {(() => {
+                                                const sp = spareParts.find((s) => s._id === newMachineIssue.sparePartId);
+                                                let rebuildBlockReason: string | null = null;
+                                                if (sp) {
+                                                    if (sp.isRebuildable === false) {
+                                                        rebuildBlockReason = "This part is not rebuildable";
+                                                    } else if ((sp.rebuildCount ?? 0) >= (sp.rebuildsPossible ?? 0)) {
+                                                        rebuildBlockReason =
+                                                            (sp.rebuildsPossible ?? 0) === 0
+                                                                ? "Rebuilds possible is 0 — this part cannot be sent to rebuild"
+                                                                : `Rebuild limit reached (${sp.rebuildCount ?? 0}/${sp.rebuildsPossible ?? 0})`;
+                                                    }
+                                                }
+                                                return (
+                                                    <>
+                                                        <Select
+                                                            value={newMachineIssue.actionNeeded}
+                                                            onValueChange={(v) => setNewMachineIssue((p) => ({ ...p, actionNeeded: v }))}
+                                                        >
+                                                            <SelectTrigger className="bg-white border border-[#d1d5db] w-full !h-[50px] rounded-[10px] text-gray-900 text-[14px] focus:ring-0">
+                                                                <SelectValue placeholder="Select action" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
+                                                                {ACTION_NEEDED_OPTIONS.map((opt) => {
+                                                                    const blocked = opt === "Send to Rebuild" && !!rebuildBlockReason;
+                                                                    return (
+                                                                        <SelectItem
+                                                                            key={opt}
+                                                                            value={opt}
+                                                                            disabled={blocked}
+                                                                            className="text-gray-900 hover:bg-[#d1d5db] data-[disabled]:opacity-50"
+                                                                        >
+                                                                            {opt}
+                                                                            {blocked ? " — unavailable" : ""}
+                                                                        </SelectItem>
+                                                                    );
+                                                                })}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {rebuildBlockReason && (
+                                                            <p className="text-xs text-red-600">{rebuildBlockReason}</p>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                         {/* Hidden file inputs */}
                                         <input ref={sparePartInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleNewSparePartMediaSelect} />

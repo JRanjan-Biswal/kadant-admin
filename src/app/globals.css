@@ -8,6 +8,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-lato: var(--font-lato), sans-serif;
+  --font-montserrat: var(--font-montserrat), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -242,7 +244,7 @@
   background-color: #ffffff;
   border: 1px solid #607797;
   border-radius: 6px;
-  height: 51px;
+  height: 57px;
   padding: 0 20px;
   color: #2d3e5c;
   font-size: 18px;
@@ -251,7 +253,7 @@
   box-shadow: none;
 }
 .login-input::placeholder {
-  color: #9CA3AF;
+  color: #2d3e5c;
 }
 .login-input:focus-visible {
   outline: none;
@@ -269,10 +271,8 @@ input.hide-native-date-icon::-webkit-outer-spin-button {
 }
 
 /* Full Screen Swiper Pagination */
-.fullscreen-swiper .swiper-pagination {
-  bottom: 15px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+.fullscreen-swiper .swiper-pagination,
+.login-slider-pagination {
   width: auto !important;
   display: flex;
   gap: 12px;
@@ -281,7 +281,21 @@ input.hide-native-date-icon::-webkit-outer-spin-button {
   z-index: 15;
 }
 
-.fullscreen-swiper .swiper-pagination-bullet {
+.login-slider-pagination {
+  position: absolute;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  bottom: 15px !important;
+}
+
+.fullscreen-swiper .swiper-pagination {
+  bottom: 15px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.fullscreen-swiper .swiper-pagination-bullet,
+.login-slider-pagination .swiper-pagination-bullet {
   width: 10px;
   height: 10px;
   background: rgba(0, 30, 102, 0.35);
@@ -292,12 +306,14 @@ input.hide-native-date-icon::-webkit-outer-spin-button {
   border: 2px solid rgba(0, 30, 102, 0.2);
 }
 
-.fullscreen-swiper .swiper-pagination-bullet:hover {
+.fullscreen-swiper .swiper-pagination-bullet:hover,
+.login-slider-pagination .swiper-pagination-bullet:hover {
   background: rgba(0, 30, 102, 0.6);
   transform: scale(1.2);
 }
 
-.fullscreen-swiper .swiper-pagination-bullet-active {
+.fullscreen-swiper .swiper-pagination-bullet-active,
+.login-slider-pagination .swiper-pagination-bullet-active {
   width: 32px;
   height: 10px;
   background: #001E66;

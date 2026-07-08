@@ -5,14 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video, ChevronRight, Package } from "lucide-react";
+import { Upload, Trash2, Plus, Loader2, X, Pencil, MapPin, Video, ChevronRight, Package, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import MachineImageMapper, { type MachinePosition } from "./MachineImageMapper";
 import { AddMachineFormModal, AddSparePartFormModal } from "./AddEntityModals";
 import DeleteConfirmModal from "@/app/components/Modals/DeleteConfirmModal";
 import ImageUploadModal from "./ImageUploadModal";
 import VideoUploadModal from "./VideoUploadModal";
 import { uploadEntityImageDirect } from "@/lib/uploadImage";
+import { isValidLifetimeText, LIFETIME_HINT } from "@/lib/lifetime";
+
+/**
+ * Wraps one draggable row (machine or spare part). Renders the sortable
+ * container div and hands the drag-handle props to the child via render prop
+ * so the grip can live inside the row's existing header.
+ */
+function SortableRow({
+    id,
+    className,
+    children,
+}: {
+    id: string;
+    className?: string;
+    children: (handle: Pick<ReturnType<typeof useSortable>, "attributes" | "listeners">) => React.ReactNode;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        position: isDragging ? "relative" : undefined,
+        zIndex: isDragging ? 10 : undefined,
+    };
+    return (
+        <div ref={setNodeRef} style={style} className={className}>
+            {children({ attributes, listeners })}
+        </div>
+    );
+}
 
 /** Image upload with optional existing URL, compact mode, and remove (X) overlay. */
 const ImageUploadBox = memo(function ImageUploadBox({
@@ -293,6 +327,7 @@ interface SparePartRow {
     lifetimeText: string;
     rotorType: "New" | "Rebuilt";
     rebuildsPossible: number;
+    isRebuildable: boolean;
     isActive: boolean;
     lastServiceDate: string;
     sparePartInstallationDate: string;
@@ -435,6 +470,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             lifetimeText: sp.lifetimeText ?? "",
             rotorType: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New",
             rebuildsPossible: Math.max(0, Number(sp.rebuildsPossible) || 0),
+            isRebuildable: (sp as { isRebuildable?: boolean }).isRebuildable !== false,
             isActive: sp.isActive !== false,
             lastServiceDate: toDateInputValue(sp.lastServiceDate),
             sparePartInstallationDate: toDateInputValue(sp.sparePartInstallationDate),
@@ -478,7 +514,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 galleryImages: [],
                 deletedGalleryImageNames: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -496,7 +532,7 @@ const defaultMachineRow = (): MachineRow => ({
     galleryImages: [],
     deletedGalleryImageNames: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -544,7 +580,7 @@ export default function AddCategoryMachineFlow({
             galleryImages: [],
             deletedGalleryImageNames: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -560,7 +596,7 @@ export default function AddCategoryMachineFlow({
     // are unchanged and whose user hasn't picked a new image/video, so a
     // single image upload doesn't fan out into N spare-part PUTs.
     type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
-    type BaselineSparePart = { name: string; klValue: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string };
+    type BaselineSparePart = { name: string; klValue: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string };
     type BaselinePart = { name: string };
     const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
     const sparePartBaselineRef = useRef<Map<string, BaselineSparePart>>(new Map());
@@ -589,6 +625,7 @@ export default function AddCategoryMachineFlow({
                         lifetimeText: sp.lifetimeText || "",
                         rotorType: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New",
                         rebuildsPossible: Math.max(0, Number(sp.rebuildsPossible) || 0),
+                        isRebuildable: sp.isRebuildable !== false,
                         isActive: sp.isActive !== false,
                         lastServiceDate: sp.lastServiceDate || "",
                         sparePartInstallationDate: sp.sparePartInstallationDate || "",
@@ -630,6 +667,7 @@ export default function AddCategoryMachineFlow({
             (sp.lifetimeText || "") !== b.lifetimeText ||
             (sp.rotorType || "New") !== b.rotorType ||
             Math.max(0, Number(sp.rebuildsPossible) || 0) !== b.rebuildsPossible ||
+            (sp.isRebuildable !== false) !== b.isRebuildable ||
             (sp.isActive !== false) !== b.isActive ||
             (sp.lastServiceDate || "") !== b.lastServiceDate ||
             (sp.sparePartInstallationDate || "") !== b.sparePartInstallationDate
@@ -656,6 +694,60 @@ export default function AddCategoryMachineFlow({
 
     const [machinePositions, setMachinePositions] = useState<MachinePosition[]>([]);
     const [showImageMapper, setShowImageMapper] = useState(false);
+
+    // Drag-to-reorder for machines and spare parts (mirrors category reordering).
+    const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    const persistMachineOrder = useCallback((rows: MachineRow[]) => {
+        const ids = rows.map((m) => m.createdId).filter((x): x is string => !!x);
+        if (ids.length < 2) return;
+        fetch("/api/machines/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineIds: ids }),
+        })
+            .then((res) => { if (!res.ok) toast.error("Failed to save machine order."); })
+            .catch(() => toast.error("Failed to save machine order."));
+    }, []);
+
+    const handleMachineDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        setMachines((prev) => {
+            const oldIndex = prev.findIndex((m) => m.id === active.id);
+            const newIndex = prev.findIndex((m) => m.id === over.id);
+            if (oldIndex < 0 || newIndex < 0) return prev;
+            const reordered = arrayMove(prev, oldIndex, newIndex);
+            persistMachineOrder(reordered);
+            return reordered;
+        });
+    }, [persistMachineOrder]);
+
+    const persistSparePartOrder = useCallback((rows: SparePartRow[]) => {
+        const ids = rows.map((s) => s.createdId).filter((x): x is string => !!x);
+        if (ids.length < 2) return;
+        fetch("/api/machines/spare-parts/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sparePartIds: ids }),
+        })
+            .then((res) => { if (!res.ok) toast.error("Failed to save spare part order."); })
+            .catch(() => toast.error("Failed to save spare part order."));
+    }, []);
+
+    const handleSparePartDragEnd = useCallback((machineRowId: string, event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        setMachines((prev) => prev.map((m) => {
+            if (m.id !== machineRowId) return m;
+            const oldIndex = m.spareParts.findIndex((s) => s.id === active.id);
+            const newIndex = m.spareParts.findIndex((s) => s.id === over.id);
+            if (oldIndex < 0 || newIndex < 0) return m;
+            const reordered = arrayMove(m.spareParts, oldIndex, newIndex);
+            persistSparePartOrder(reordered);
+            return { ...m, spareParts: reordered };
+        }));
+    }, [persistSparePartOrder]);
 
     const savedMachines = machines.filter((m) => m.createdId);
     const hasCategoryImage = !!(categoryImageUrl || categoryImage);
@@ -876,6 +968,9 @@ export default function AddCategoryMachineFlow({
 
     const saveClientSparePartDetails = useCallback(async (machineId: string, sparePartId: string, sp: SparePartRow) => {
         if (!clientID) return;
+        if (!isValidLifetimeText(sp.lifetimeText)) {
+            throw new Error(`Lifetime "${sp.lifetimeText.trim()}" needs a unit. ${LIFETIME_HINT}`);
+        }
 
         const body: Record<string, unknown> = {
             sparePartID: sparePartId,
@@ -895,7 +990,7 @@ export default function AddCategoryMachineFlow({
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || "Failed to update spare-part dates");
+            throw new Error(err.message || err.error || "Failed to update spare-part dates");
         }
     }, [clientID]);
 
@@ -1452,7 +1547,7 @@ export default function AddCategoryMachineFlow({
         try {
             const baseline = sp.createdId ? sparePartBaselineRef.current.get(sp.createdId) : undefined;
             const lifetimeText = sp.lifetimeText.trim();
-            const payload: Record<string, string> = { name, klValue };
+            const payload: Record<string, unknown> = { name, klValue, isRebuildable: sp.isRebuildable !== false };
             if (lifetimeText || (baseline && baseline.lifetimeText !== (sp.lifetimeText || ""))) {
                 payload.lifetimeText = lifetimeText;
             }
@@ -1660,7 +1755,7 @@ export default function AddCategoryMachineFlow({
                 const res = await fetch("/api/machines/spare-parts", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, klValue, lifetimeText: sp.lifetimeText.trim(), machineID: machine.createdId }),
+                    body: JSON.stringify({ name, klValue, lifetimeText: sp.lifetimeText.trim(), machineID: machine.createdId, isRebuildable: sp.isRebuildable !== false }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -1713,6 +1808,7 @@ export default function AddCategoryMachineFlow({
                                       lifetimeText: "",
                                       rotorType: "New",
                                       rebuildsPossible: 0,
+                                      isRebuildable: true,
                                       isActive: true,
                                       lastServiceDate: "",
                                       sparePartInstallationDate: "",
@@ -2353,11 +2449,15 @@ export default function AddCategoryMachineFlow({
                             <p className="text-xs text-[#9ca3af]">Use &ldquo;+ Add Machine&rdquo; above to add one</p>
                         </div>
                     ) : (
-                    machines.map((m) => {
+                    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleMachineDragEnd}>
+                    <SortableContext items={machines.map((mm) => mm.id)} strategy={verticalListSortingStrategy}>
+                    {machines.map((m) => {
                         const isMachineOpen = openMachines[m.id] ?? !m.createdId;
                         const isFocusedMachine = !!focusTarget?.machineId && (m.createdId === focusTarget.machineId || m.id === focusTarget.machineId);
                         return (
-                        <div key={m.id} className="flex flex-col gap-3">
+                        <SortableRow key={m.id} id={m.id} className="flex flex-col gap-3">
+                        {(dragHandle) => (
+                        <>
                         <div
                             ref={isFocusedMachine && !focusTarget?.sparePartId ? focusTargetRef : undefined}
                             className={`bg-white border border-[#96A5BA] rounded-[10px] overflow-hidden ${isFocusedMachine && !focusTarget?.sparePartId ? "ring-2 ring-[#d45815]/40" : ""}`}
@@ -2368,6 +2468,16 @@ export default function AddCategoryMachineFlow({
                                 className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] cursor-pointer select-none"
                             >
                                 <span className="flex items-center gap-2 min-w-0">
+                                    <button
+                                        type="button"
+                                        {...dragHandle.attributes}
+                                        {...dragHandle.listeners}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 text-[#9ca3af] hover:text-[#374151] shrink-0"
+                                        title="Drag to reorder"
+                                    >
+                                        <GripVertical className="w-4 h-4" />
+                                    </button>
                                     <ChevronRight className={`w-4 h-4 text-gray-900 shrink-0 transition-transform ${isMachineOpen ? "rotate-90" : ""}`} />
                                     <span className="text-gray-900 text-sm font-semibold truncate">{m.name ? `Machine — ${m.name}` : "Machine"}</span>
                                 </span>
@@ -2544,12 +2654,15 @@ export default function AddCategoryMachineFlow({
                                             Add Spare Part
                                         </Button>
                                     </div>
+                                    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleSparePartDragEnd(m.id, e)}>
+                                    <SortableContext items={m.spareParts.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                                     {m.spareParts.map((sp) => {
                                         const isSpOpen = openSpareParts[sp.id] ?? !sp.createdId;
                                         const isFocusedSparePart = !!focusTarget?.sparePartId && (sp.createdId === focusTarget.sparePartId || sp.id === focusTarget.sparePartId);
                                         return (
+                                        <SortableRow key={sp.id} id={sp.id}>
+                                        {(dragHandle) => (
                                         <div
-                                            key={sp.id}
                                             ref={isFocusedSparePart ? focusTargetRef : undefined}
                                             className={`bg-white border border-[#96A5BA] rounded-[8px] overflow-hidden ${isFocusedSparePart ? "ring-2 ring-[#d45815]/40" : ""}`}
                                         >
@@ -2559,6 +2672,16 @@ export default function AddCategoryMachineFlow({
                                                 className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#DFE6EC] to-transparent border-b border-[#607797] cursor-pointer select-none"
                                             >
                                                 <span className="flex items-center gap-2 min-w-0">
+                                                    <button
+                                                        type="button"
+                                                        {...dragHandle.attributes}
+                                                        {...dragHandle.listeners}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="cursor-grab active:cursor-grabbing p-0.5 -ml-0.5 text-[#9ca3af] hover:text-[#374151] shrink-0"
+                                                        title="Drag to reorder"
+                                                    >
+                                                        <GripVertical className="w-3.5 h-3.5" />
+                                                    </button>
                                                     <ChevronRight className={`w-3.5 h-3.5 text-gray-900 shrink-0 transition-transform ${isSpOpen ? "rotate-90" : ""}`} />
                                                     <span className="text-gray-900 text-xs font-semibold truncate">{sp.name ? `Spare Part — ${sp.name}` : "Spare Part"}</span>
                                                 </span>
@@ -2589,8 +2712,9 @@ export default function AddCategoryMachineFlow({
                                             </div>
                                             {isSpOpen && (
                                             <div className="p-3 flex flex-col gap-3">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
-                                                <div className="flex flex-col gap-1">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                {/* Row 1: Name (wide) · KL Value · Lifetime · Rebuild Part */}
+                                                <div className="col-span-2 md:col-span-2 flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Spare Part Name</Label>
                                                     <Input
                                                         value={sp.name}
@@ -2617,6 +2741,7 @@ export default function AddCategoryMachineFlow({
                                                         className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
                                                     />
                                                 </div>
+                                                {/* Row 2: Rebuild Part · Rebuilds Possible · Is Rebuildable · Active */}
                                                 <div className="flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Rebuild Part</Label>
                                                     <div className="h-[36px] rounded-[6px] border border-[#d1d5db] bg-white px-2 flex items-center justify-between gap-2">
@@ -2641,6 +2766,19 @@ export default function AddCategoryMachineFlow({
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
+                                                    <Label className="text-[#6b7280] text-[11px]">Is Rebuildable</Label>
+                                                    <div className="h-[36px] rounded-[6px] border border-[#d1d5db] bg-white px-2 flex items-center justify-between gap-2">
+                                                        <span className="text-gray-900 text-[12px]">
+                                                            {sp.isRebuildable !== false ? "Yes" : "No"}
+                                                        </span>
+                                                        <Switch
+                                                            checked={sp.isRebuildable !== false}
+                                                            onCheckedChange={(checked) => updateSparePart(m.id, sp.id, "isRebuildable", checked)}
+                                                            className="data-[state=checked]:bg-[#d45815]"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Active</Label>
                                                     <div className="h-[36px] rounded-[6px] border border-[#d1d5db] bg-white px-2 flex items-center justify-between gap-2">
                                                         <span className="text-gray-900 text-[12px]">
@@ -2653,6 +2791,7 @@ export default function AddCategoryMachineFlow({
                                                         />
                                                     </div>
                                                 </div>
+                                                {/* Row 3: Installation Date · Last Service Date */}
                                                 <div className="flex flex-col gap-1">
                                                     <Label className="text-[#6b7280] text-[11px]">Installation Date</Label>
                                                     <Input
@@ -2859,13 +2998,21 @@ export default function AddCategoryMachineFlow({
                                             </div>
                                             )}
                                         </div>
+                                        )}
+                                        </SortableRow>
                                         );
                                     })}
+                                    </SortableContext>
+                                    </DndContext>
                                 </div>
                             )}
-                        </div>
+                        </>
+                        )}
+                        </SortableRow>
                         );
-                    })
+                    })}
+                    </SortableContext>
+                    </DndContext>
                     )}
                 </div>
             )}

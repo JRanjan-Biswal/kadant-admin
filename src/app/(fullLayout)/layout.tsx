@@ -7,12 +7,14 @@ const lato = Lato({
   subsets: ["latin"],
   weight: ["100", "300", "400", "700", "900"],
   display: "swap",
+  variable: "--font-lato",
 });
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   display: "swap",
+  variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${lato.className} ${montserrat.className}`}>
+    <html lang="en" className={`${lato.variable} ${montserrat.variable} ${montserrat.className}`}>
       <body className="antialiased">
         {children}
         <Toaster />

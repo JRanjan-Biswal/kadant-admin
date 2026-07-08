@@ -9,8 +9,10 @@ import { X } from "lucide-react";
 import {
     fetchWeekSchedules,
     fetchHealthAlerts,
+    fetchRetiredAlerts,
     type ScheduleNotification,
     type HealthNotification,
+    type RetiredNotification,
 } from "@/actions/notifications";
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
@@ -81,6 +83,58 @@ function ScheduleRow({ n, onDismiss }: { n: ScheduleNotification; onDismiss: (id
     );
 }
 
+function RetiredRow({ n, onDismiss, clientID }: { n: RetiredNotification; onDismiss: (id: string) => void; clientID: string }) {
+    return (
+        <div className="rounded-lg border border-gray-400/30 bg-gray-500/[0.06] p-3 space-y-1.5">
+            {/* Row 1: badge + dismiss */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-400/20 text-gray-600 uppercase tracking-wide">
+                        Retired
+                    </span>
+                    <span className="text-gray-500 text-[11px] font-semibold shrink-0">
+                        · Needs replacement
+                    </span>
+                </div>
+                <button
+                    onClick={() => onDismiss(n.id)}
+                    className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors"
+                    aria-label="Dismiss"
+                >
+                    <X size={13} />
+                </button>
+            </div>
+
+            {/* Row 2: part name */}
+            <p
+                className="text-foreground text-[12px] font-medium leading-snug line-clamp-2"
+                title={n.sparePartName}
+            >
+                {n.sparePartName}
+            </p>
+
+            {/* Row 3: machine · KL code · link */}
+            <div className="flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+                {n.machineName && <span className="truncate max-w-[140px]">{n.machineName}</span>}
+                {n.klValue && (
+                    <>
+                        <span className="opacity-40">·</span>
+                        <span className="font-mono">{n.klValue}</span>
+                    </>
+                )}
+            </div>
+
+            {/* Row 4: link to Order New queue */}
+            <a
+                href={`/${clientID}/spare-parts-inventory?tab=orderedNew`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2D3E5C] underline underline-offset-2 hover:opacity-75 transition-opacity"
+            >
+                Go to Order New →
+            </a>
+        </div>
+    );
+}
+
 function HealthRow({ n, onDismiss }: { n: HealthNotification; onDismiss: (id: string) => void }) {
     const overBy = n.totalRunningHours - n.lifetimeOfRotor;
 
@@ -134,6 +188,7 @@ function HealthRow({ n, onDismiss }: { n: HealthNotification; onDismiss: (id: st
 function NotificationsPanel({ clientID }: { clientID: string }) {
     const [schedules, setSchedules] = useState<ScheduleNotification[]>([]);
     const [healthAlerts, setHealthAlerts] = useState<HealthNotification[]>([]);
+    const [retiredAlerts, setRetiredAlerts] = useState<RetiredNotification[]>([]);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
     const fetchedRef = useRef(false);
@@ -144,12 +199,14 @@ function NotificationsPanel({ clientID }: { clientID: string }) {
         setLoading(true);
         setDismissed(getDismissed(clientID));
         try {
-            const [sched, health] = await Promise.all([
+            const [sched, health, retired] = await Promise.all([
                 fetchWeekSchedules(clientID),
                 fetchHealthAlerts(clientID),
+                fetchRetiredAlerts(clientID),
             ]);
             setSchedules(sched);
             setHealthAlerts(health);
+            setRetiredAlerts(retired);
         } finally {
             setLoading(false);
         }
@@ -171,7 +228,8 @@ function NotificationsPanel({ clientID }: { clientID: string }) {
 
     const visibleSchedules = schedules.filter((n) => !dismissed.has(n.id));
     const visibleHealth = healthAlerts.filter((n) => !dismissed.has(n.id));
-    const totalVisible = visibleSchedules.length + visibleHealth.length;
+    const visibleRetired = retiredAlerts.filter((n) => !dismissed.has(n.id));
+    const totalVisible = visibleSchedules.length + visibleHealth.length + visibleRetired.length;
 
     return (
         <Popover onOpenChange={(open) => { if (open) loadData(); }}>
@@ -233,6 +291,18 @@ function NotificationsPanel({ clientID }: { clientID: string }) {
                                     </p>
                                     {visibleHealth.map((n) => (
                                         <HealthRow key={n.id} n={n} onDismiss={dismiss} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {visibleRetired.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest">
+                                        Retired — Needs Replacement
+                                        <span className="ml-1.5 text-gray-500 font-bold">{visibleRetired.length}</span>
+                                    </p>
+                                    {visibleRetired.map((n) => (
+                                        <RetiredRow key={n.id} n={n} onDismiss={dismiss} clientID={clientID} />
                                     ))}
                                 </div>
                             )}

@@ -777,8 +777,9 @@ export default function ClientOverviewContent({
                     : 100;
                 const status = getSparePartStatusFromHours(totalRunningHours, lifetimeValue);
                 const replacementInstalled = Boolean(
-                    clientSparePart?.replacementDate ||
-                    clientSparePart?.replacementRecordedAt
+                    (clientSparePart?.replacementDate ||
+                        clientSparePart?.replacementRecordedAt) &&
+                    clientSparePart?.isActive !== false
                 );
                 const activeDisplayName =
                     replacementInstalled

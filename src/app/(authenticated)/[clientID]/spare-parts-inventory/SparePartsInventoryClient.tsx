@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useState, useEffect, useCallback, useMemo, type ChangeEvent } from "react";
 import {
     Table,
@@ -641,10 +642,12 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 ...(data.replacementSparePartID
                     ? {}
                     : {
-                          isRebuildable: data.isRebuildPart,
-                          rebuildsPossible: data.isRebuildPart
-                              ? Math.max(0, Number(data.rebuildsPossible) || 0)
-                              : 0,
+                          // Threshold is always taken from the form — a brand-new part can
+                          // still be rebuildable. The "Is rebuild part?" toggle only decides
+                          // whether a prior rebuild COUNT is carried; rebuildability derives
+                          // from the threshold, not the toggle.
+                          rebuildsPossible: Math.max(0, Number(data.rebuildsPossible) || 0),
+                          isRebuildable: Math.max(0, Number(data.rebuildsPossible) || 0) > 0,
                           currentRebuildCount: data.isRebuildPart
                               ? Math.max(0, Number(data.currentRebuildCount) || 0)
                               : 0,
@@ -1132,6 +1135,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 </Table>
                 ) : (
                     <QueueTable
+                        clientID={clientID}
                         items={queueItems}
                         loading={queueLoading}
                         tab={activeTab}
@@ -1202,10 +1206,27 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-base font-bold text-[#2D3E5C]">Install Rebuilt Part</h2>
                                 <p className="text-sm text-[#6b7280] mt-0.5">
-                                    <span className="font-semibold text-[#2D3E5C]">{installTarget.part.name}</span>
-                                    {" "}will be installed. The currently active part on{" "}
-                                    <span className="font-semibold text-[#2D3E5C]">{installTarget.machine.name}</span>
-                                    {" "}will be sent for rebuild or retired.
+                                    Installing{" "}
+                                    <span className="font-semibold text-[#2D3E5C]">
+                                        {installTarget.part.name}
+                                        {installTarget.part.klValue ? ` (${installTarget.part.klValue})` : ""}
+                                    </span>
+                                    {" "}onto{" "}
+                                    <span className="font-semibold text-[#2D3E5C]">{installTarget.machine.name}</span>.
+                                    {installTarget.part.clientMachineSparePart?.replacementPartName ? (
+                                        <>
+                                            {" "}This removes{" "}
+                                            <span className="font-semibold text-[#2D3E5C]">
+                                                {installTarget.part.clientMachineSparePart.replacementPartName}
+                                                {installTarget.part.clientMachineSparePart.replacementPartKlValue
+                                                    ? ` (${installTarget.part.clientMachineSparePart.replacementPartKlValue})`
+                                                    : ""}
+                                            </span>
+                                            , which is currently active, and moves it to inactive stock (still available for reuse).
+                                        </>
+                                    ) : (
+                                        " The currently active part will be moved to inactive stock and stay available for reuse."
+                                    )}
                                 </p>
                             </div>
                             <button
@@ -1370,11 +1391,15 @@ function metricText(metric?: { value: number; unit: string } | null) {
 function isRebuiltInStock(item: InventoryQueueItem): boolean {
     const cp = item.part.clientMachineSparePart;
     if (!cp) return false;
+    if (item.queueType !== "rebuild") return false;            // never in Order New / Replaced tabs
     const type = cp.partType || (cp.rebuildStatus === "Rebuilt" ? "Rebuilt" : null);
-    return type === "Rebuilt" && cp.isActive === false;
+    if (type !== "Rebuilt" || cp.isActive !== false) return false;
+    if (cp.rebuildStatus !== "Rebuilt" && cp.rebuildStatus !== "In Stock") return false;  // displaced parts (rebuildStatus "None") are not install candidates
+    return true;
 }
 
 function QueueTable({
+    clientID,
     items,
     loading,
     tab,
@@ -1383,6 +1408,7 @@ function QueueTable({
     onReplacementClick,
     onInstallClick,
 }: {
+    clientID: string;
     items: InventoryQueueItem[];
     loading: boolean;
     tab: InventoryTab;
@@ -1419,9 +1445,11 @@ function QueueTable({
                     <TableHead className="w-[8%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "Replaced On" : "Date"}
                     </TableHead>
+                    {tab !== "replaced" && (
                     <TableHead className="w-[17%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
-                        {tab === "replaced" ? "Old Usage" : "Part Details"}
+                        Part Details
                     </TableHead>
+                    )}
                     <TableHead className="w-[16%] text-gray-900 font-semibold text-xs uppercase tracking-wider">
                         {tab === "replaced" ? "New Spare Part" : "Replacement"}
                     </TableHead>
@@ -1433,13 +1461,13 @@ function QueueTable({
             <TableBody>
                 {loading ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                        <TableCell colSpan={tab === "replaced" ? 6 : 7} className="text-center py-12 text-gray-500">
                             Loading tracked spare parts…
                         </TableCell>
                     </TableRow>
                 ) : items.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                        <TableCell colSpan={tab === "replaced" ? 6 : 7} className="text-center py-12 text-gray-500">
                             {emptyText}
                         </TableCell>
                     </TableRow>
@@ -1453,7 +1481,15 @@ function QueueTable({
                                 ? entry.mediaUrls
                                 : clientPart?.replacementMediaUrls || [];
                         const mediaCount = mediaUrls.length;
-                        const replacementDate = entry?.replacementDate || clientPart?.replacementDate;
+                        // For the Rebuild / Ordered New queues, "has a replacement" must reflect the
+                        // CURRENT cycle only — the part's own replacementDate. Falling back to the latest
+                        // replacementHistory entry made a part that was rebuilt once and then re-sent to
+                        // rebuild (a fresh cycle, no replacement chosen yet) look already-replaced
+                        // ("Edit Replacement"/"Replaced"). History is only correct for the Replaced tab.
+                        const replacementDate =
+                            item.queueType === "replaced"
+                                ? entry?.replacementDate || clientPart?.replacementDate
+                                : clientPart?.replacementDate;
                         const workflowLabel = queueWorkflowLabel(item);
                         const oldPartName = tab === "replaced" ? entry?.oldPartName || item.part.name : item.part.name;
                         const oldPartKlValue = tab === "replaced" ? entry?.oldPartKlValue || item.part.klValue : item.part.klValue;
@@ -1477,7 +1513,7 @@ function QueueTable({
                                 : "bg-blue-500/20 text-blue-700";
 
                         return (
-                            <TableRow key={`${item.queueType}-${item.machine._id}-${item.part._id}-${replacementDate || clientPart?._id || ""}`} className="border-[#607797]/40 hover:bg-[#96A5BA]/20">
+                            <TableRow key={item.id || `${item.queueType}-${item.machine._id}-${item.part._id}-${replacementDate || clientPart?._id || ""}`} className="border-[#607797]/40 hover:bg-[#96A5BA]/20">
                                 <TableCell className="pl-5 overflow-hidden whitespace-normal">
                                     <div className="flex flex-col gap-0.5 w-full min-w-0">
                                         <span className="font-semibold text-gray-900 break-words">
@@ -1514,53 +1550,42 @@ function QueueTable({
                                 <TableCell className="text-gray-700 text-sm overflow-hidden">
                                     {formatDate(queueDate(item))}
                                 </TableCell>
+                                {tab !== "replaced" && (
                                 <TableCell className="text-gray-700 text-sm overflow-hidden whitespace-normal">
-                                    {tab === "replaced" ? (
-                                        <div className="flex flex-col gap-1.5 w-full min-w-0">
-                                            <div className="flex items-start gap-2">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Running</span>
-                                                <span className="font-medium text-gray-900 break-words min-w-0">{oldRunningHours || "—"}</span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Lifetime</span>
-                                                <span className="text-gray-700 break-words min-w-0">{oldLifetime || "—"}</span>
-                                            </div>
+                                    <div className="flex flex-col gap-1.5 w-full min-w-0">
+                                        <div className="flex items-start gap-2">
+                                            <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Lifetime</span>
+                                            <span className="font-medium text-gray-900 break-words min-w-0">{lifetimeDisplayText(item.part)}</span>
                                         </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-1.5 w-full min-w-0">
-                                            <div className="flex items-start gap-2">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400 pt-0.5">Lifetime</span>
-                                                <span className="font-medium text-gray-900 break-words min-w-0">{lifetimeDisplayText(item.part)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
-                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                    clientPart?.rotorType === "Rebuilt"
-                                                        ? "bg-orange-500/20 text-orange-700"
-                                                        : "bg-green-500/20 text-green-700"
-                                                }`}>
-                                                    {clientPart?.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Rebuilds</span>
-                                                {(() => {
-                                                    const done = clientPart?.rebuildCount ?? 0;
-                                                    const max = clientPart?.rebuildsPossible ?? 0;
-                                                    if (max === 0) return <span className="font-medium text-gray-400">0</span>;
-                                                    const isMaxed = done >= max;
-                                                    return (
-                                                        <span className={`font-medium ${isMaxed ? "text-red-600" : "text-gray-700"}`}>
-                                                            {done}
-                                                            <span className="font-normal text-gray-400">{" / "}{max}</span>
-                                                            {isMaxed && <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Max</span>}
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
+                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                clientPart?.rotorType === "Rebuilt"
+                                                    ? "bg-orange-500/20 text-orange-700"
+                                                    : "bg-green-500/20 text-green-700"
+                                            }`}>
+                                                {clientPart?.rotorType === "Rebuilt" ? "Rebuilt" : "New"}
+                                            </span>
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-14 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Rebuilds</span>
+                                            {(() => {
+                                                const done = clientPart?.rebuildCount ?? 0;
+                                                const max = clientPart?.rebuildsPossible ?? 0;
+                                                if (max === 0) return <span className="font-medium text-gray-400">0</span>;
+                                                const isMaxed = done >= max;
+                                                return (
+                                                    <span className={`font-medium ${isMaxed ? "text-red-600" : "text-gray-700"}`}>
+                                                        {done}
+                                                        <span className="font-normal text-gray-400">{" / "}{max}</span>
+                                                        {isMaxed && <span className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">Max</span>}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
                                 </TableCell>
+                                )}
                                 <TableCell className="text-gray-700 text-sm overflow-hidden whitespace-normal">
                                     {tab === "replaced" ? (
                                         <div className="flex flex-col gap-0.5 w-full min-w-0">
@@ -2143,7 +2168,8 @@ function ReplacementModal({
                                     setForm({
                                         ...form,
                                         isRebuildPart: checked,
-                                        rebuildsPossible: checked ? Math.max(1, form.rebuildsPossible) : 0,
+                                        // Keep the user's threshold regardless of the toggle — it
+                                        // only governs whether a prior rebuild count is carried.
                                         currentRebuildCount: checked ? form.currentRebuildCount : 0,
                                     })
                                 }

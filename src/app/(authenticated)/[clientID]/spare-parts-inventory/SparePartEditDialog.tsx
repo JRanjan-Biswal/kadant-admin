@@ -26,6 +26,7 @@ interface Props {
             deliveryTimeText: string;
             unitPriceNew: number;
             priceRepairPerPc: number;
+            isRebuildable: boolean;
         };
         client: {
             clientItemNumber: string;
@@ -56,6 +57,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
         deliveryTimeText: "",
         unitPriceNew: 0,
         priceRepairPerPc: 0,
+        isRebuildable: true,
         clientItemNumber: "",
         qtySelected: 0,
         stockQuantity: 0,
@@ -64,7 +66,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
         lastOrderRefKL: "",
         lastOrderRefClient: "",
         rotorType: "New" as "New" | "Rebuilt",
-        rebuildsPossible: 0,
+        rebuildsPossible: "0" as string, // "0" = blocked, "5" = max 5
         rebuildStatus: "None" as "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock",
         rebuildDeliveryTimeText: "",
         rebuildLifetimeText: "",
@@ -81,6 +83,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                 deliveryTimeText: parseDeliveryWeeks(sparePart.deliveryTime),
                 unitPriceNew: sparePart.unitPriceNew?.value || 0,
                 priceRepairPerPc: sparePart.priceRepairPerPc?.value || 0,
+                isRebuildable: sparePart.isRebuildable !== false,
                 clientItemNumber: sparePart.clientMachineSparePart?.clientItemNumber || "",
                 qtySelected: sparePart.clientMachineSparePart?.qtySelected || 0,
                 stockQuantity: sparePart.clientMachineSparePart?.stockQuantity || 0,
@@ -89,7 +92,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                 lastOrderRefKL: sparePart.clientMachineSparePart?.lastOrderRefKL || "",
                 lastOrderRefClient: sparePart.clientMachineSparePart?.lastOrderRefClient || "",
                 rotorType: sparePart.clientMachineSparePart?.rotorType || "New",
-                rebuildsPossible: Math.max(0, Number(sparePart.clientMachineSparePart?.rebuildsPossible) || 0),
+                rebuildsPossible: String(sparePart.clientMachineSparePart?.rebuildsPossible ?? 0),
                 rebuildStatus: sparePart.clientMachineSparePart?.rebuildStatus || "None",
                 rebuildDeliveryTimeText: parseDeliveryWeeks(sparePart.clientMachineSparePart?.rebuildDeliveryTime),
                 rebuildLifetimeText: sparePart.clientMachineSparePart?.rebuildLifetimeText || "",
@@ -109,6 +112,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                     deliveryTimeText: form.deliveryTimeText.trim(),
                     unitPriceNew: Number(form.unitPriceNew) || 0,
                     priceRepairPerPc: Number(form.priceRepairPerPc) || 0,
+                    isRebuildable: form.isRebuildable,
                 },
                 client: {
                     clientItemNumber: form.clientItemNumber.trim(),
@@ -250,6 +254,30 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                         </p>
                     </div>
 
+                    <div className="col-span-2 flex items-center justify-between rounded-md border border-[#C5D1DC] bg-[#F8FAFC] px-3 py-2">
+                        <div>
+                            <p className="text-sm font-medium text-gray-900">Rebuildable</p>
+                            <p className="text-xs text-[#6b7280]">
+                                {form.isRebuildable
+                                    ? "Rebuild option is available for this part"
+                                    : "Rebuild option is hidden — part cannot be rebuilt"}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setForm({ ...form, isRebuildable: !form.isRebuildable })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                form.isRebuildable ? "bg-[#d45815]" : "bg-gray-300"
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                    form.isRebuildable ? "translate-x-6" : "translate-x-1"
+                                }`}
+                            />
+                        </button>
+                    </div>
+
                     <Field label="Rotor type">
                         <select
                             value={form.rotorType}
@@ -260,15 +288,16 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                             <option value="Rebuilt">Rebuilt</option>
                         </select>
                     </Field>
-                    <Field label="Rebuilds possible">
+                    <Field label="Rebuilds possible (0 = blocked)">
                         <Input
                             type="number"
                             min={0}
                             value={form.rebuildsPossible}
+                            placeholder="No cap"
                             onChange={(e) =>
                                 setForm({
                                     ...form,
-                                    rebuildsPossible: Math.max(0, Number(e.target.value) || 0),
+                                    rebuildsPossible: e.target.value,
                                 })
                             }
                         />
