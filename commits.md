@@ -1,5 +1,781 @@
 # Commit Ledger (committed; read by future sessions)
 
+## 2026-07-08 — bhavesh-dev sync push to origin/master (23 commits)
+
+### f2be9c6 — feat(facility-mapper): redesign section hotspots as draggable quadrilaterals
+
+- **Full SHA:** `f2be9c660318ec16acf4c76ed479d89ac2aa20c5`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(facility-mapper): redesign section hotspots as draggable quadrilaterals
+
+#### Task — context
+User asked to pull the `bhavesh-dev` commits into the production branch for `kadant-admin` and `kadant-api`, create fake deploy commits on both, and deploy. Verbatim instruction: "pull commits from kadant-api and kadant-admin from bhavesh-dev merge that to main, and create a fake commit on both proiject and then deploy"
+
+#### Task — what changed
+- Web / facility mapper: added polygon/quadrilateral facility hotspot mapping and related cover-geometry helpers.
+- Web / client overview and edit-client modal: carried facility layout data through the admin UI.
+
+#### Task — design notes
+The admin production branch is named `master`, not `main`; this push fast-forwarded `origin/master` to the already-pulled `origin/bhavesh-dev` work. Local WIP edits were stashed before deployment so this push contains only the Bhavesh sync plus the deploy trigger.
+
+#### Files
+```text
+5 files changed, 709 insertions(+), 2 deletions(-)
+```
+
+#### Tests
+Covered by the batch checks: `npm run build` in `kadant-admin` passed; `vercel build --prod` passed; `vercel deploy --prebuilt --prod --yes` deployed `dpl_7ctbHbqA5XZpVF5sSzeMZRebJphV`; `curl -I -L https://kadant-admin.vercel.app` returned `HTTP/2 200`.
+
+#### Operator follow-up
+Smoke test facility image mapping and mapped hotspot editing in production.
+
+#### Related
+Sibling API deployment in this batch ended at `695d1e0`.
+
+### e2db086 — fix(forecasting): make pricing table header sticky on scroll
+
+- **Full SHA:** `e2db0866f89cabd9223259e13cb764e0c6e68dc3`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(forecasting): make pricing table header sticky on scroll
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: adjusted the forecasting pricing table and shared table styling so headers remain visible while scrolling.
+
+#### Task — design notes
+This keeps dense pricing rows scannable without changing the pricing data contract.
+
+#### Files
+```text
+2 files changed, 9 insertions(+), 5 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test the forecasting table scroll behavior in production.
+
+#### Related
+Forecasting UI sync commits in this batch: `08df888`, `1d9e225`, `6de2a0c`, `8aee133`, `57d0e3f`, `43f294e`.
+
+### 08df888 — fix(forecasting): stop component/machine names overflowing into adjacent columns
+
+- **Full SHA:** `08df8886da9e0cbd196765a80c1cbfeaeeb682db`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(forecasting): stop component/machine names overflowing into adjacent columns
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: tightened table cell wrapping and overflow handling for component and machine names.
+
+#### Task — design notes
+The change preserves the existing table structure while preventing long names from obscuring neighboring price columns.
+
+#### Files
+```text
+1 file changed, 14 insertions(+), 9 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test long part and machine names in `/forecasting`.
+
+#### Related
+Sibling sticky-header fix: `e2db086`.
+
+### 79ee63c — feat(facility-mapper): unify facility card UI and match button colour
+
+- **Full SHA:** `79ee63c4168b47537da32cf6429b4f4b29d99f4a`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(facility-mapper): unify facility card UI and match button colour
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / facility mapper: aligned facility card presentation and button color treatment with the newer admin UI.
+- Web / edit-client modal: carried the updated facility mapping controls through client editing.
+
+#### Task — design notes
+The UI polish is kept in existing admin surfaces and avoids introducing a separate facility-mapping screen.
+
+#### Files
+```text
+2 files changed, 48 insertions(+), 12 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test facility card edit flows in production.
+
+#### Related
+Facility polygon mapper commit: `f2be9c6`.
+
+### 1d9e225 — feat(forecasting): add EUR/INR currency toggle and default first category/machine
+
+- **Full SHA:** `1d9e22573d771bf55b7e8b2d8c9a6cb160aab322`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(forecasting): add EUR/INR currency toggle and default first category/machine
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: added currency-aware price display and improved default category/machine selection.
+- Web / shared app state: added currency context, changer, and conversion helpers.
+
+#### Task — design notes
+Currency is handled in shared client-side context so forecasting and future pricing surfaces can use the same conversion behavior.
+
+#### Files
+```text
+6 files changed, 338 insertions(+), 49 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Verify EUR/INR display on a production client with known pricing.
+
+#### Related
+Persistent currency settings commit: `011ea41`; API sibling includes matching client currency support.
+
+### 6de2a0c — perf(forecasting): lazy per-machine loading with row cache
+
+- **Full SHA:** `6de2a0c046ce939d87322e999aff6a58987c2bd3`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** perf
+- **Subject:** perf(forecasting): lazy per-machine loading with row cache
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: changed row loading to per-machine lazy loading with cache reuse.
+
+#### Task — design notes
+The page avoids loading every machine's spare parts up front, improving initial responsiveness for larger clients.
+
+#### Files
+```text
+1 file changed, 50 insertions(+), 40 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test category/machine switching on forecasting.
+
+#### Related
+Forecasting total aggregation commit: `8aee133`.
+
+### 8aee133 — feat(forecasting): true grand total via DB aggregation, delta update on save
+
+- **Full SHA:** `8aee133955f4aaf674a14b172dc434a2aba2e5b5`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(forecasting): true grand total via DB aggregation, delta update on save
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: integrated an aggregated forecasting total and updated totals after save deltas.
+- Actions / spare-parts inventory: added support for the forecasting total fetch.
+
+#### Task — design notes
+The grand total comes from backend aggregation instead of only currently loaded table rows, keeping client totals correct with lazy loading.
+
+#### Files
+```text
+2 files changed, 25 insertions(+), 12 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Verify forecasting totals against API aggregation in production.
+
+#### Related
+API sibling commits: `82b55d7`, `6e6f357`.
+
+### 57d0e3f — refactor(forecasting): rename ''New subtotal'' to ''New Unit Price Subtotal'' in footer
+
+- **Full SHA:** `57d0e3f7f35fbb636274fa7518af570f1a2fbd38`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** refactor
+- **Subject:** refactor(forecasting): rename ''New subtotal'' to ''New Unit Price Subtotal'' in footer
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: clarified the subtotal footer label.
+
+#### Task — design notes
+This is a copy-only refinement to reduce ambiguity in pricing totals.
+
+#### Files
+```text
+1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Forecasting pricing UI commits in this batch.
+
+### 011ea41 — feat(currency): persist EUR/INR setting per-client to DB
+
+- **Full SHA:** `011ea4181bdf11965a401e28a9e5d43ff486d0db`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(currency): persist EUR/INR setting per-client to DB
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / currency settings: added server action, wrapper, context updates, and user edit wiring for per-client currency persistence.
+
+#### Task — design notes
+Currency preference is stored against client context so admin and Machine Health can converge on one pricing display choice.
+
+#### Files
+```text
+8 files changed, 157 insertions(+), 32 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Verify saving currency preference in production.
+
+#### Related
+Forecasting currency UI commit: `1d9e225`.
+
+### 43f294e — fix(forecasting): cap Nb New forecast quantity at 1
+
+- **Full SHA:** `43f294ea8423d53c63cc72f207485c108c44c92a`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(forecasting): cap Nb New forecast quantity at 1
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / forecasting: capped the new forecast quantity input at one.
+
+#### Task — design notes
+The cap protects the forecast model from impossible duplicate-new quantities for a single spare part row.
+
+#### Files
+```text
+1 file changed, 10 insertions(+), 2 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Forecasting pricing commits in this batch.
+
+### c926993 — feat(notifications): live notification bell for client pages in admin panel
+
+- **Full SHA:** `c92699381fb4a0a65e3c2879587f7e7dfca324f6`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(notifications): live notification bell for client pages in admin panel
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / notifications: added notification fetch actions and a live notification bell to authenticated client pages.
+
+#### Task — design notes
+Notifications are integrated in the authenticated layout so client-specific alerts are visible without navigating away from the current admin task.
+
+#### Files
+```text
+3 files changed, 263 insertions(+), 100 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test notification bell count and dropdown on a production client.
+
+#### Related
+API sibling notifications endpoint: `4b6f036`.
+
+### af87cc0 — fix(notifications): fetch on mount so badge count shows on page load
+
+- **Full SHA:** `af87cc022be7d7c8938d33afabcbc4207905af46`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(notifications): fetch on mount so badge count shows on page load
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / notifications: fetches notification data when the component mounts so the badge is populated immediately.
+
+#### Task — design notes
+Initial badge state no longer depends on the user opening the dropdown first.
+
+#### Files
+```text
+1 file changed, 3 insertions(+), 1 deletion(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Base notification bell commit: `c926993`.
+
+### 03e31d1 — fix(notifications): hide past-due schedule alerts — only show upcoming/today
+
+- **Full SHA:** `03e31d143064bab8abbeccfcd0d2ad3aa7f74b81`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(notifications): hide past-due schedule alerts — only show upcoming/today
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Actions / notifications: filtered schedule notifications so only upcoming and today alerts appear.
+
+#### Task — design notes
+The admin bell prioritizes current actionable alerts rather than stale schedule notices.
+
+#### Files
+```text
+1 file changed, 14 insertions(+), 12 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Notification bell commit: `c926993`.
+
+### bf7a8de — fix(notifications): show full name on hover for truncated notification titles
+
+- **Full SHA:** `bf7a8de2c80010a019e060a229f5990776b8d33e`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(notifications): show full name on hover for truncated notification titles
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / notifications: added hover title behavior for truncated notification titles.
+
+#### Task — design notes
+The dropdown can remain compact while still exposing full names.
+
+#### Files
+```text
+1 file changed, 2 insertions(+), 2 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Notification card redesign commit: `78d9fb9`.
+
+### b60bdfc — feat(notifications): show KL code in notification row subtitles
+
+- **Full SHA:** `b60bdfc2b3849260f9188d0aa7dbcb898afcfc87`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(notifications): show KL code in notification row subtitles
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / notifications: displayed KL code context in notification subtitles.
+
+#### Task — design notes
+Adding KL code improves recognition of the affected spare part without expanding the notification card footprint.
+
+#### Files
+```text
+1 file changed, 2 insertions(+)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Notification redesign commit: `78d9fb9`.
+
+### 78d9fb9 — refactor(notifications): redesign notification cards — 3-row card layout (badge+time / part name wrapping / machine·KL·week), wider panel 380px, sticky header with active count, scrollable body
+
+- **Full SHA:** `78d9fb9dbc925e0e245ef1b15e13e4b6c47c781a`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** refactor
+- **Subject:** refactor(notifications): redesign notification cards — 3-row card layout (badge+time / part name wrapping / machine·KL·week), wider panel 380px, sticky header with active count, scrollable body
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / notifications: redesigned dropdown cards, widened the panel, added sticky header/count, and made the body scrollable.
+
+#### Task — design notes
+The layout favors scanability for repeated operations: status and time first, wrapped part identity second, machine/KL/week metadata third.
+
+#### Files
+```text
+1 file changed, 128 insertions(+), 77 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test the notification dropdown at production viewport sizes.
+
+#### Related
+Notification bell base commit: `c926993`.
+
+### 8d8c152 — refactor(inventory): redesign QueueTable columns for uniform width and better readability
+
+- **Full SHA:** `8d8c152f4b1e7b7cb6c09e2f4c971b499d5dc018`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** refactor
+- **Subject:** refactor(inventory): redesign QueueTable columns for uniform width and better readability
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / spare-parts inventory: redesigned queue table columns for more even widths and better readability.
+
+#### Task — design notes
+This change improves dense queue scanning without changing inventory queue API behavior.
+
+#### Files
+```text
+1 file changed, 214 insertions(+), 106 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test rebuild/order/replacement queue tables.
+
+#### Related
+Follow-up overflow fix: `347c658`.
+
+### 347c658 — fix(inventory): fix QueueTable text wrapping and column width overflow
+
+- **Full SHA:** `347c658fe982008f0adf76b9961ec42f7019101e`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(inventory): fix QueueTable text wrapping and column width overflow
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / spare-parts inventory: refined wrapping and overflow handling in the queue table.
+
+#### Task — design notes
+Long queue values should wrap inside their assigned table columns instead of pushing adjacent content.
+
+#### Files
+```text
+1 file changed, 94 insertions(+), 58 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+None.
+
+#### Related
+Queue table redesign commit: `8d8c152`.
+
+### 3d0e8f5 — feat(inventory): replacement screen, queue UI, and client overview improvements
+
+- **Full SHA:** `3d0e8f5d460e2ac64bc03c7f512229ff2004ffef`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(inventory): replacement screen, queue UI, and client overview improvements
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / inventory and client overview: added replacement workflow surfaces, queue UI updates, and client overview refinements.
+- Types/actions: extended spare-parts inventory contracts used by the UI.
+
+#### Task — design notes
+The replacement workflow remains attached to client-machine spare-part state, keeping admin and Machine Health aligned through the API.
+
+#### Files
+```text
+4 files changed, 468 insertions(+), 163 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test replacement queues and client overview replacement display.
+
+#### Related
+API sibling inventory row-swap commit: `255f0c2`.
+
+### 38dd0a4 — feat(inventory): Install button + dialog for rebuilt in-stock spare parts
+
+- **Full SHA:** `38dd0a4aae04d189dd66a2ad13241a3d7a538e73`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(inventory): Install button + dialog for rebuilt in-stock spare parts
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / inventory: added install flow controls for rebuilt in-stock spare parts.
+- Actions: connected the UI to install rebuilt spare-part behavior.
+
+#### Task — design notes
+The install action is separated from edit flows so rebuilt stock can be moved into active use deliberately.
+
+#### Files
+```text
+2 files changed, 304 insertions(+), 108 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test installing a rebuilt spare part on a safe production client.
+
+#### Related
+API sibling install flow commit: `29cbd10`.
+
+### 22b6c82 — fix(inventory): replacement modal picker + visit-data queue fix
+
+- **Full SHA:** `22b6c82a00e56a718f1ee2e87f0fd7ad1bd46921`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** fix
+- **Subject:** fix(inventory): replacement modal picker + visit-data queue fix
+
+#### Task — context
+Part of the requested `bhavesh-dev` sync/deploy batch.
+
+#### Task — what changed
+- Web / inventory: fixed replacement modal picker behavior.
+- Web / visit data: adjusted queue-related visit modal behavior.
+
+#### Task — design notes
+The replacement picker and visit-data queue handling are kept consistent so replacement state entered through visits and inventory does not diverge.
+
+#### Files
+```text
+3 files changed, 106 insertions(+), 14 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test replacement modal selection in inventory and visit-data flows.
+
+#### Related
+API sibling replacement tracking fix: `7c5e23c`.
+
+### b46e408 — feat(admin): facility-layout and reorder APIs, notifications improvements, visit-data modals, AddCategoryMachineFlow, and UI polish
+
+- **Full SHA:** `b46e408d49b92482f2126ae14fc8ed5d66d00c1f`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** Bhavesh <bhaveshbhanushali721@gmail.com>
+- **Type:** feat
+- **Subject:** feat(admin): facility-layout and reorder APIs, notifications improvements, visit-data modals, AddCategoryMachineFlow, and UI polish
+
+#### Task — context
+This was the `origin/bhavesh-dev` tip pulled into local `master` before the requested production push/deploy.
+
+#### Task — what changed
+- Web / facility layout: added admin proxy routes for facility layout and reorder operations.
+- Web / machine hierarchy: updated `AddCategoryMachineFlow` and related UI polish.
+- Web / notifications and visit modals: refined notification presentation and visit-data modal behavior.
+- Web / lifecycle helpers: added shared lifetime utility support.
+
+#### Task — design notes
+This commit ties together several admin workflow refinements at the branch tip. It depends on the sibling API deployment in this batch for reorder, facility-layout, notification, and lifecycle behavior.
+
+#### Files
+```text
+17 files changed, 737 insertions(+), 153 deletions(-)
+```
+
+#### Tests
+Covered by the batch admin build and Vercel production deployment checks.
+
+#### Operator follow-up
+Smoke test facility layout/reorder, notifications, and visit-data modals in production.
+
+#### Related
+`origin/bhavesh-dev` admin tip. Sibling API tip: `a4911bf`.
+
+### d3a4f15 — chore(deploy): trigger admin production deploy
+
+- **Full SHA:** `d3a4f159e5d04d43c692aa573ddd5f52e545564d`
+- **Branch:** master
+- **Pushed to:** origin/master
+- **Pushed at:** 2026-07-08T13:36:37Z
+- **Author:** jranjan <jranjan2017@gmail.com>
+- **Type:** chore
+- **Subject:** chore(deploy): trigger admin production deploy
+
+#### Task — context
+User explicitly requested a fake commit after merging/pulling Bhavesh's work. Verbatim instruction: "pull commits from kadant-api and kadant-admin from bhavesh-dev merge that to main, and create a fake commit on both proiject and then deploy"
+
+#### Task — what changed
+- Deploy / git metadata: created an empty commit on `master` after the `bhavesh-dev` fast-forward.
+- Deploy / Vercel production: deployed the pushed admin state to Vercel deployment `dpl_7ctbHbqA5XZpVF5sSzeMZRebJphV`.
+
+#### Task — design notes
+The commit intentionally changes no application files. It keeps the latest production branch author on an authorized local account while preserving Bhavesh's commits underneath it.
+
+#### Files
+```text
+0 files changed
+```
+
+#### Tests
+- `npm run build` in `kadant-admin` — passed from the clean merged state before push.
+- `vercel pull --yes --environment=production` — pulled current production env/project settings.
+- `vercel build --prod` — passed and produced `.vercel/output`.
+- `vercel deploy --prebuilt --prod --yes` — passed; deployment `dpl_7ctbHbqA5XZpVF5sSzeMZRebJphV` reached `READY`, production URL `https://kadant-admin-48p97uilo-jranjanbiswals-projects.vercel.app`, aliased to `https://kadant-admin.vercel.app`.
+- `curl -I -L --max-time 30 https://kadant-admin.vercel.app` — returned `HTTP/2 200`.
+
+#### Operator follow-up
+Smoke test the new admin production flows against the freshly deployed API.
+
+#### Related
+API deploy-trigger commit: `695d1e0`. API production redeploy completed against `https://13-203-129-207.nip.io`.
+
 ## 2026-06-30 — push to origin/master (1 commit)
 
 ### aaeceb0 — feat(inventory): sync admin spare part workflows
