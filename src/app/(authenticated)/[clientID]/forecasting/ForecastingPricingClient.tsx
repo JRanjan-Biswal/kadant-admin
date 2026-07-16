@@ -263,8 +263,8 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         setSavingKey(row.key);
         setError(null);
         const nextDraft = {
-            nbNew: Math.min(1, Math.max(0, toNumber(draft.nbNew))),
-            nbRepair: Math.max(0, toNumber(draft.nbRepair)),
+            nbNew: 1,
+            nbRepair: Math.min(1, Math.max(0, toNumber(draft.nbRepair))),
             unitPriceNew: Math.max(0, convertToEurFromContext(draft.unitPriceNew, currency)),
             priceRepairPerPc: Math.max(0, convertToEurFromContext(draft.priceRepairPerPc, currency)),
         };
@@ -491,21 +491,14 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {isEditing ? (
-                                                <NumberInput
-                                                    value={activeDraft.nbNew}
-                                                    onChange={(value) => setDraft({ ...activeDraft, nbNew: value })}
-                                                    max={1}
-                                                />
-                                            ) : (
-                                                <span className="font-medium text-gray-900">{math.nbNew}</span>
-                                            )}
+                                            <span className="font-medium text-gray-900">{math.nbNew}</span>
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {isEditing ? (
                                                 <NumberInput
                                                     value={activeDraft.nbRepair}
                                                     onChange={(value) => setDraft({ ...activeDraft, nbRepair: value })}
+                                                    max={1}
                                                 />
                                             ) : (
                                                 <span className="font-medium text-gray-900">{math.nbRepair}</span>
