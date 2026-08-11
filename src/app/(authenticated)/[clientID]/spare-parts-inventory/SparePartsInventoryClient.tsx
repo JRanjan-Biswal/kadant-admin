@@ -38,7 +38,9 @@ import {
     type ReplacementOption,
 } from "@/actions/spare-parts-inventory";
 import { isValidLifetimeText, LIFETIME_HINT } from "@/lib/lifetime";
+import { getStoredCategoryMachine, setStoredCategoryMachine } from "@/lib/lastCategoryMachineSelection";
 import MaintenanceScheduleEditor from "./MaintenanceScheduleEditor";
+import ReferenceRollupTable from "./ReferenceRollupTable";
 
 interface Props {
     clientID: string;
@@ -149,6 +151,7 @@ const lastUpdateAcross = (inventory: InventorySparePart[]): string | null => {
 
 export default function SparePartsInventoryClient({ clientID, machines }: Props) {
     const [activeTab, setActiveTab] = useState<InventoryTab>("all");
+    const [groupByReference, setGroupByReference] = useState(false);
     const categories = useMemo(() => {
         const map = new Map<string, string>();
         for (const m of machines) {
@@ -159,9 +162,13 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
         return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
     }, [machines]);
 
-    const [selectedCategory, setSelectedCategory] = useState<string>(
-        categories[0]?.id || ALL_CATEGORIES
-    );
+    const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+        const stored = getStoredCategoryMachine(clientID);
+        if (stored.categoryId && categories.some((c) => c.id === stored.categoryId)) {
+            return stored.categoryId;
+        }
+        return categories[0]?.id || ALL_CATEGORIES;
+    });
 
     const filteredMachines = useMemo(
         () =>
@@ -171,14 +178,19 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
         [machines, selectedCategory]
     );
 
-    const [selectedMachine, setSelectedMachine] = useState<string>(
-        filteredMachines[0]?._id || ""
-    );
+    const [selectedMachine, setSelectedMachine] = useState<string>(() => {
+        const stored = getStoredCategoryMachine(clientID);
+        if (stored.machineId && filteredMachines.some((m) => m._id === stored.machineId)) {
+            return stored.machineId;
+        }
+        return filteredMachines[0]?._id || "";
+    });
     const [trackedCategory, setTrackedCategory] = useState<string>(ALL_CATEGORIES);
     const [trackedMachine, setTrackedMachine] = useState<string>(ALL_MACHINES);
 
     // When category changes, pick the first machine in that category.
     useEffect(() => {
+        if (selectedMachine === ALL_MACHINES) return;
         if (filteredMachines.length === 0) {
             setSelectedMachine("");
             return;
@@ -187,6 +199,16 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             setSelectedMachine(filteredMachines[0]._id);
         }
     }, [filteredMachines, selectedMachine]);
+
+    // Remember the last Category/Machine picked here so other pages (e.g.
+    // Assign References) can default to the same machine instead of "All".
+    useEffect(() => {
+        if (!selectedMachine || selectedMachine === ALL_MACHINES) return;
+        setStoredCategoryMachine(clientID, {
+            categoryId: selectedCategory === ALL_CATEGORIES ? undefined : selectedCategory,
+            machineId: selectedMachine,
+        });
+    }, [clientID, selectedCategory, selectedMachine]);
 
     const machineInstallDate = useMemo(
         () => machines.find((m) => m._id === selectedMachine)?.installationDate ?? null,
@@ -256,6 +278,9 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const [saving, setSaving] = useState(false);
     const [activeSavingId, setActiveSavingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [editingReferenceId, setEditingReferenceId] = useState<string | null>(null);
+    const [referenceDraft, setReferenceDraft] = useState("");
+    const [savingReferenceId, setSavingReferenceId] = useState<string | null>(null);
     const [warningDialog, setWarningDialog] = useState<{
         title: string;
         message: string;
@@ -279,6 +304,35 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     const cancelEdit = () => {
         setEditingId(null);
         setDraft(null);
+    };
+
+    const startEditReference = (part: InventorySparePart) => {
+        setEditingReferenceId(part._id);
+        setReferenceDraft(part.reference || "");
+    };
+
+    const cancelEditReference = () => {
+        setEditingReferenceId(null);
+        setReferenceDraft("");
+    };
+
+    const saveReference = async (part: InventorySparePart) => {
+        const value = referenceDraft.trim();
+        setSavingReferenceId(part._id);
+        setError(null);
+        try {
+            const res = await saveSparePart(part._id, { reference: value || null });
+            if (!res.ok) {
+                setError(res.error || "Failed to save reference");
+                return;
+            }
+            cancelEditReference();
+            await reload();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to save reference");
+        } finally {
+            setSavingReferenceId(null);
+        }
     };
 
     const saveInline = async (part: InventorySparePart) => {
@@ -463,7 +517,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
     }, [clientID, trackedCategory, trackedMachine]);
 
     const reload = useCallback(async () => {
-        if (!selectedMachine) {
+        if (!selectedMachine || selectedMachine === ALL_MACHINES) {
             setInventory([]);
             return;
         }
@@ -629,7 +683,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     selectedReplacementPart?.klValue ||
                     replacementTarget.part.klValue ||
                     null,
-                replacementPartSerialNumber: data.serialNumber.trim() || null,
+                replacementPartSerialNumber: data.reference.trim() || null,
                 replacementNotes: data.notes.trim() || null,
                 replacementMediaUrls: data.mediaUrls,
                 sparePartInstallationDate: replacementDate,
@@ -648,7 +702,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                           // from the threshold, not the toggle.
                           rebuildsPossible: Math.max(0, Number(data.rebuildsPossible) || 0),
                           isRebuildable: Math.max(0, Number(data.rebuildsPossible) || 0) > 0,
-                          currentRebuildCount: data.isRebuildPart
+                          currentRebuildCount: data.isRebuildPart === true
                               ? Math.max(0, Number(data.currentRebuildCount) || 0)
                               : 0,
                       }),
@@ -804,6 +858,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                         <SelectValue placeholder="Select a machine" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value={ALL_MACHINES}>All machines</SelectItem>
                                         {filteredMachines.map((machine) => (
                                             <SelectItem key={machine._id} value={machine._id}>
                                                 {machine.name}
@@ -813,6 +868,15 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                     </SelectContent>
                                 </Select>
                             )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[13px] leading-[20px] text-[#6b7280] font-normal">
+                                Group by reference
+                            </label>
+                            <div className="h-11 flex items-center">
+                                <Switch checked={groupByReference} onCheckedChange={setGroupByReference} />
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -894,6 +958,13 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
             )}
 
             {/* ── Inventory Table ── */}
+            {activeTab === "all" && (groupByReference || selectedMachine === ALL_MACHINES) ? (
+                <ReferenceRollupTable
+                    clientID={clientID}
+                    categoryId={selectedCategory === ALL_CATEGORIES ? undefined : selectedCategory}
+                    machineId={selectedMachine === ALL_MACHINES ? undefined : selectedMachine}
+                />
+            ) : (
             <div className="rounded-[10px] border border-[#607797] bg-[#DFE6EC] overflow-hidden">
                 {activeTab === "all" ? (
                 <Table>
@@ -912,13 +983,16 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                 Part Type
                             </TableHead>
                             <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
-                                Rebuilds Possible
+                                Maximum No<br />of Rebuilds
+                            </TableHead>
+                            <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
+                                Reference
                             </TableHead>
                             <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
                                 Installed
                             </TableHead>
                             <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider">
-                                Active
+                                Running Status
                             </TableHead>
                             <TableHead className="text-gray-900 font-semibold text-xs uppercase tracking-wider text-center">
                                 Actions
@@ -928,13 +1002,13 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-12 text-gray-500">
+                                <TableCell colSpan={9} className="text-center py-12 text-gray-500">
                                     Loading…
                                 </TableCell>
                             </TableRow>
                         ) : inventory.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-12 text-gray-500">
+                                <TableCell colSpan={9} className="text-center py-12 text-gray-500">
                                     No spare parts found for this machine.
                                 </TableCell>
                             </TableRow>
@@ -1033,6 +1107,60 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                                                         <span className="font-normal text-gray-400">{" / "}{activeRebuildCount}</span>
                                                     </span>
                                                 )
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell className="text-gray-700 text-sm">
+                                            {editingReferenceId === part._id ? (
+                                                <div className="flex items-center gap-1">
+                                                    <Input
+                                                        autoFocus
+                                                        value={referenceDraft}
+                                                        onChange={(event) => setReferenceDraft(event.target.value)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter") saveReference(part);
+                                                            if (event.key === "Escape") cancelEditReference();
+                                                        }}
+                                                        placeholder="e.g. K-ROTOR"
+                                                        className="h-8 w-28 bg-white border-[#d1d5db] text-gray-900"
+                                                    />
+                                                    <button
+                                                        onClick={() => saveReference(part)}
+                                                        disabled={savingReferenceId === part._id}
+                                                        className="text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+                                                        title="Save reference"
+                                                    >
+                                                        {savingReferenceId === part._id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <Save className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={cancelEditReference}
+                                                        disabled={savingReferenceId === part._id}
+                                                        className="text-zinc-600 hover:text-zinc-800 disabled:opacity-50"
+                                                        title="Cancel"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ) : part.reference ? (
+                                                <button
+                                                    onClick={() => startEditReference(part)}
+                                                    className="inline-flex items-center gap-1.5 rounded-full bg-[#e5e7eb] hover:bg-[#d1d5db] px-2.5 py-1 text-xs font-medium text-gray-900 transition-colors cursor-pointer"
+                                                    title="Click to edit reference"
+                                                >
+                                                    {part.reference}
+                                                    <Pencil className="h-3 w-3 opacity-50" />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => startEditReference(part)}
+                                                    className="inline-flex items-center rounded-full border border-dashed border-[#9ca3af] px-2.5 py-1 text-xs text-[#6b7280] hover:border-[#607797] hover:text-gray-900 transition-colors cursor-pointer"
+                                                >
+                                                    + Add
+                                                </button>
                                             )}
                                         </TableCell>
 
@@ -1150,6 +1278,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     />
                 )}
             </div>
+            )}
 
             {/* ── Footer: Last Update ── */}
             {activeTab === "all" && !loading && inventory.length > 0 && (
@@ -1337,11 +1466,11 @@ interface ReplacementFormData {
     replacementSourceMachineID: string;
     partName: string;
     klValue: string;
-    serialNumber: string;
+    reference: string;
     lifetimeText: string;
     rotorType: "New" | "Rebuilt";
     // Manual-entry rebuild fields (a warehouse part may already be rebuilt N times).
-    isRebuildPart: boolean;
+    isRebuildPart: boolean | null;
     rebuildsPossible: number;
     currentRebuildCount: number;
     notes: string;
@@ -1728,10 +1857,10 @@ function ReplacementModal({
         replacementSourceMachineID: "",
         partName: "",
         klValue: "",
-        serialNumber: "",
+        reference: "",
         lifetimeText: "",
         rotorType: "New",
-        isRebuildPart: false,
+        isRebuildPart: null,
         rebuildsPossible: 0,
         currentRebuildCount: 0,
         notes: "",
@@ -1766,7 +1895,7 @@ function ReplacementModal({
             rotorType:
                 clientPart?.rotorType ||
                 (target.queueType === "rebuild" ? "Rebuilt" : "New"),
-            isRebuildPart: (clientPart?.rebuildsPossible ?? 0) > 0,
+            isRebuildPart: clientPart?.rebuildsPossible != null ? (clientPart.rebuildsPossible > 0) : null,
             rebuildsPossible: clientPart?.rebuildsPossible ?? 0,
             currentRebuildCount: clientPart?.rebuildCount ?? 0,
             notes: clientPart?.replacementNotes || "",
@@ -1836,14 +1965,14 @@ function ReplacementModal({
     // check against the loaded options; the API enforces it authoritatively.
     const checkManualKlDuplicate = (klValue: string): string | null => {
         const normalized = klValue.trim().toUpperCase();
-        if (!normalized) return null;
+        if (!normalized) return "KL code is required";
         const ownKl = (target.part.klValue || "").trim().toUpperCase();
         if (normalized === ownKl) return null;
         const duplicate = replacementOptions.find(
             (part) => (part.klValue || "").trim().toUpperCase() === normalized
         );
         return duplicate
-            ? `KL ${normalized} already exists in inventory (${duplicate.name}) — select it from inventory instead`
+            ? `KL code must be unique — ${normalized} already exists in inventory (${duplicate.name}); select it from inventory instead`
             : null;
     };
 
@@ -1869,9 +1998,11 @@ function ReplacementModal({
                 <div className="flex items-center justify-between border-b border-[#C5D1DC] px-5 py-4">
                     <div>
                         <h2 className="text-lg font-bold text-[#2D3E5C]">Replacement Details</h2>
-                        <p className="text-sm text-[#6b7280]">
-                            {target.part.name} · {target.machine.name} · {workflowLabel}
-                        </p>
+                        <div className="text-sm text-[#6b7280]">
+                            {target.machine.categoryName && <div>{target.machine.categoryName}</div>}
+                            <div>{target.machine.name}</div>
+                            <div>{target.part.name} · {workflowLabel}</div>
+                        </div>
                     </div>
                     <button
                         type="button"
@@ -1885,7 +2016,7 @@ function ReplacementModal({
 
                 <div className="grid max-h-[68vh] grid-cols-2 gap-4 overflow-y-auto px-5 py-4">
                     <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                        Replacement date
+                        Installation date
                         <Input
                             type="date"
                             value={form.replacementDate}
@@ -1945,7 +2076,7 @@ function ReplacementModal({
                             <Input
                                 value={search}
                                 onChange={(event) => onSearchChange(event.target.value)}
-                                placeholder="Search by name, KL code, or drawing"
+                                placeholder="Search by name or KL code"
                                 disabled={saving}
                             />
                         </label>
@@ -2128,7 +2259,7 @@ function ReplacementModal({
                             />
                         </label>
                         <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                            KL code
+                            <span>KL code <span className="text-red-500">*</span></span>
                             <Input
                                 value={form.klValue}
                                 onChange={(event) => {
@@ -2138,16 +2269,17 @@ function ReplacementModal({
                                 onBlur={() => setManualKlError(checkManualKlDuplicate(form.klValue))}
                                 className={`bg-white font-mono ${manualKlError ? "border-red-500" : ""}`}
                             />
-                            {manualKlError && (
-                                <span className="text-xs text-red-600">{manualKlError}</span>
-                            )}
+                            {manualKlError
+                                ? <span className="text-xs text-red-600">{manualKlError}</span>
+                                : <span className="text-xs text-[#9ca3af]">(must be unique)</span>
+                            }
                         </label>
                         <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
-                            Serial / reference
+                            Reference
                             <Input
-                                value={form.serialNumber}
-                                onChange={(event) => setForm({ ...form, serialNumber: event.target.value })}
-                                placeholder="Optional"
+                                value={form.reference}
+                                onChange={(event) => setForm({ ...form, reference: event.target.value })}
+                                placeholder="e.g. VOKAS_ROTOR"
                                 className="bg-white"
                             />
                         </label>
@@ -2160,23 +2292,28 @@ function ReplacementModal({
                                 className="bg-white"
                             />
                         </label>
-                        <div className="col-span-2 flex items-center justify-between rounded-md border border-[#e5c9bb] bg-white px-3 py-2">
-                            <p className="text-sm font-medium text-[#2D3E5C]">Is rebuild part?</p>
-                            <Switch
-                                checked={form.isRebuildPart}
-                                onCheckedChange={(checked) =>
+                        <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            <span>Part Type <span className="text-red-500">*</span></span>
+                            <Select
+                                value={form.isRebuildPart === null ? "" : form.isRebuildPart ? "rebuilt" : "new"}
+                                onValueChange={(value) =>
                                     setForm({
                                         ...form,
-                                        isRebuildPart: checked,
-                                        // Keep the user's threshold regardless of the toggle — it
-                                        // only governs whether a prior rebuild count is carried.
-                                        currentRebuildCount: checked ? form.currentRebuildCount : 0,
+                                        isRebuildPart: value === "rebuilt",
+                                        currentRebuildCount: value === "rebuilt" ? form.currentRebuildCount : 0,
                                     })
                                 }
                                 disabled={saving}
-                                className="data-[state=unchecked]:bg-gray-300"
-                            />
-                        </div>
+                            >
+                                <SelectTrigger className="bg-white">
+                                    <SelectValue placeholder="Select — New or Rebuilt" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="new">New</SelectItem>
+                                    <SelectItem value="rebuilt">Rebuilt</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </label>
                         <label className="flex flex-col gap-1.5 text-sm text-[#6b7280]">
                             Rebuild threshold (max rebuilds)
                             <Input
@@ -2303,6 +2440,10 @@ function ReplacementModal({
                             }
                             if (entryMode === "inventory" && !form.replacementOptionID) {
                                 setFormError("Select a spare part from inventory, or switch to manual entry.");
+                                return;
+                            }
+                            if (form.isRebuildPart === null) {
+                                setFormError("Please select a Part Type — New or Rebuilt.");
                                 return;
                             }
                             onSave(form);

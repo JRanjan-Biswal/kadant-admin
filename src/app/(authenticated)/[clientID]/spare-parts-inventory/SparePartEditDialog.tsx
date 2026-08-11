@@ -21,6 +21,7 @@ interface Props {
         catalog: {
             name: string;
             klValue: string;
+            reference: string;
             lifetimeText: string;
             itemOnSpareSketch: string;
             deliveryTimeText: string;
@@ -52,6 +53,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
     const [form, setForm] = useState({
         name: "",
         klValue: "",
+        reference: "",
         lifetimeText: "",
         itemOnSpareSketch: "",
         deliveryTimeText: "",
@@ -78,6 +80,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
             setForm({
                 name: sparePart.name || "",
                 klValue: sparePart.klValue || "",
+                reference: sparePart.reference || "",
                 lifetimeText: sparePart.lifetimeText || "",
                 itemOnSpareSketch: sparePart.itemOnSpareSketch || "",
                 deliveryTimeText: parseDeliveryWeeks(sparePart.deliveryTime),
@@ -107,6 +110,7 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                 catalog: {
                     name: form.name.trim(),
                     klValue: form.klValue.trim().toUpperCase(),
+                    reference: form.reference.trim().toUpperCase(),
                     lifetimeText: form.lifetimeText.trim(),
                     itemOnSpareSketch: form.itemOnSpareSketch.trim(),
                     deliveryTimeText: form.deliveryTimeText.trim(),
@@ -158,6 +162,13 @@ export default function SparePartEditDialog({ open, onOpenChange, sparePart, onS
                         <Input
                             value={form.klValue}
                             onChange={(e) => setForm({ ...form, klValue: e.target.value })}
+                        />
+                    </Field>
+                    <Field label="Reference (groups same-type parts, e.g. VOCAS_ROTOR)">
+                        <Input
+                            value={form.reference}
+                            onChange={(e) => setForm({ ...form, reference: e.target.value })}
+                            placeholder="e.g. VOCAS_ROTOR"
                         />
                     </Field>
                     <Field label="Lifetime (e.g. '3 Months', '1 to 2 Years')">

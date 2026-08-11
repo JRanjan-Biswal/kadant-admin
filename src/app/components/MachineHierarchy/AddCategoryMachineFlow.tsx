@@ -324,6 +324,7 @@ interface SparePartRow {
     id: string;
     name: string;
     klValue: string;
+    reference: string;
     lifetimeText: string;
     rotorType: "New" | "Rebuilt";
     rebuildsPossible: number;
@@ -426,6 +427,7 @@ export interface CategoryFullPayload {
             lifeTime?: { value?: number; unit?: string };
             lastServiceDate?: string | null;
             sparePartInstallationDate?: string | null;
+            reference?: string | null;
             imageUrl?: string | null;
             optimalStateVideoUrl?: string | null;
             parts?: Array<{ _id: string; name: string; imageUrl?: string | null; optimalStateVideoUrl?: string | null }>;
@@ -467,6 +469,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             id: sp._id,
             name: sp.name ?? "",
             klValue: sp.klValue ?? "",
+            reference: sp.reference ?? "",
             lifetimeText: sp.lifetimeText ?? "",
             rotorType: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New",
             rebuildsPossible: Math.max(0, Number(sp.rebuildsPossible) || 0),
@@ -514,7 +517,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 galleryImages: [],
                 deletedGalleryImageNames: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -532,7 +535,7 @@ const defaultMachineRow = (): MachineRow => ({
     galleryImages: [],
     deletedGalleryImageNames: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -580,7 +583,7 @@ export default function AddCategoryMachineFlow({
             galleryImages: [],
             deletedGalleryImageNames: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -596,7 +599,7 @@ export default function AddCategoryMachineFlow({
     // are unchanged and whose user hasn't picked a new image/video, so a
     // single image upload doesn't fan out into N spare-part PUTs.
     type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
-    type BaselineSparePart = { name: string; klValue: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string };
+    type BaselineSparePart = { name: string; klValue: string; reference: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string };
     type BaselinePart = { name: string };
     const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
     const sparePartBaselineRef = useRef<Map<string, BaselineSparePart>>(new Map());
@@ -622,6 +625,7 @@ export default function AddCategoryMachineFlow({
                     sparePartBaselineRef.current.set(sp.createdId, {
                         name: sp.name || "",
                         klValue: sp.klValue || "",
+                        reference: sp.reference || "",
                         lifetimeText: sp.lifetimeText || "",
                         rotorType: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New",
                         rebuildsPossible: Math.max(0, Number(sp.rebuildsPossible) || 0),
@@ -664,6 +668,7 @@ export default function AddCategoryMachineFlow({
         return (
             (sp.name || "") !== b.name ||
             (sp.klValue || "") !== b.klValue ||
+            (sp.reference || "") !== b.reference ||
             (sp.lifetimeText || "") !== b.lifetimeText ||
             (sp.rotorType || "New") !== b.rotorType ||
             Math.max(0, Number(sp.rebuildsPossible) || 0) !== b.rebuildsPossible ||
@@ -1547,7 +1552,7 @@ export default function AddCategoryMachineFlow({
         try {
             const baseline = sp.createdId ? sparePartBaselineRef.current.get(sp.createdId) : undefined;
             const lifetimeText = sp.lifetimeText.trim();
-            const payload: Record<string, unknown> = { name, klValue, isRebuildable: sp.isRebuildable !== false };
+            const payload: Record<string, unknown> = { name, klValue, isRebuildable: sp.isRebuildable !== false, reference: sp.reference?.trim().toUpperCase() || null };
             if (lifetimeText || (baseline && baseline.lifetimeText !== (sp.lifetimeText || ""))) {
                 payload.lifetimeText = lifetimeText;
             }
@@ -1755,7 +1760,7 @@ export default function AddCategoryMachineFlow({
                 const res = await fetch("/api/machines/spare-parts", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, klValue, lifetimeText: sp.lifetimeText.trim(), machineID: machine.createdId, isRebuildable: sp.isRebuildable !== false }),
+                    body: JSON.stringify({ name, klValue, lifetimeText: sp.lifetimeText.trim(), machineID: machine.createdId, isRebuildable: sp.isRebuildable !== false, reference: sp.reference?.trim().toUpperCase() || null }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -1805,6 +1810,7 @@ export default function AddCategoryMachineFlow({
                                       id: `sp_${Date.now()}`,
                                       name: "",
                                       klValue: "",
+                                      reference: "",
                                       lifetimeText: "",
                                       rotorType: "New",
                                       rebuildsPossible: 0,
@@ -2739,6 +2745,15 @@ export default function AddCategoryMachineFlow({
                                                         onChange={(e) => updateSparePart(m.id, sp.id, "lifetimeText", e.target.value)}
                                                         placeholder="e.g. 3 Months"
                                                         className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <Label className="text-[#6b7280] text-[11px]">Reference (e.g. VOCAS_ROTOR)</Label>
+                                                    <Input
+                                                        value={sp.reference}
+                                                        onChange={(e) => updateSparePart(m.id, sp.id, "reference", e.target.value.toUpperCase())}
+                                                        placeholder="e.g. VOCAS_ROTOR"
+                                                        className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] font-mono placeholder:normal-case placeholder:text-[#4b5563]"
                                                     />
                                                 </div>
                                                 {/* Row 2: Rebuild Part · Rebuilds Possible · Is Rebuildable · Active */}

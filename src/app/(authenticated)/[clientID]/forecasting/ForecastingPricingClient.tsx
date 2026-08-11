@@ -305,26 +305,20 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
         <div className="flex flex-col gap-6 p-4 pb-8 animate-fadeIn">
             <div>
                 <h1 className="text-[28px] leading-[42px] font-lato font-bold text-[#2D3E5C]">
-                    Cost Forecasting
+                    Forecasting
                 </h1>
                 <p className="mt-1 text-[16px] leading-[24px] font-lato font-normal text-[#6b7280]">
-                    Manage spare-part forecast quantities and pricing
+                    Manage spare-part pricing
                 </p>
             </div>
 
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
-                <StatCard
-                    label="All Category Forecast"
-                    value={grandTotal === null ? "..." : formatMoney(grandTotal)}
-                    accent
-                />
-                <StatCard label="Forecast Total" value={formatMoney(totals.totalCost)} accent />
-                <StatCard label="New Qty" value={formatNumber(totals.nbNew)} />
-                <StatCard label="Repair Qty" value={formatNumber(totals.nbRepair)} />
+            <div className="grid gap-3 grid-cols-1 md:grid-cols-3">
+                <StatCard label="Unit Price New" value={formatMoney(totals.newCost)} accent />
+                <StatCard label="Repair Price / Pc" value={formatMoney(totals.repairCost)} accent />
                 <StatCard
                     label="Missing Prices"
                     value={formatNumber(totals.missingPriceRows)}
-                    warning={totals.missingPriceRows > 0}
+                    accent
                 />
             </div>
 
@@ -414,10 +408,10 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                             <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-900">
                                 Machine
                             </TableHead>
-                            <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-gray-900">
+                            <TableHead className="hidden text-center text-xs font-semibold uppercase tracking-wider text-gray-900">
                                 Nb New
                             </TableHead>
-                            <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-gray-900">
+                            <TableHead className="hidden text-center text-xs font-semibold uppercase tracking-wider text-gray-900">
                                 Nb Repair
                             </TableHead>
                             <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-gray-900">
@@ -490,10 +484,10 @@ export default function ForecastingPricingClient({ clientID, machines }: Props) 
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-center">
+                                        <TableCell className="hidden text-center">
                                             <span className="font-medium text-gray-900">{math.nbNew}</span>
                                         </TableCell>
-                                        <TableCell className="text-center">
+                                        <TableCell className="hidden text-center">
                                             {isEditing ? (
                                                 <NumberInput
                                                     value={activeDraft.nbRepair}
@@ -664,14 +658,9 @@ function NumberInput({
 function PriceCell({ value, clientOverride }: { value: number; clientOverride: boolean }) {
     const currency = useCurrency();
     return (
-        <div className="flex flex-col items-end gap-0.5">
-            <span className="font-medium text-gray-900">
-                {convertAndFormatWithContext(value, currency)}
-            </span>
-            <span className="text-[11px] font-medium text-gray-500">
-                {clientOverride ? "Client" : "Catalog"}
-            </span>
-        </div>
+        <span className="font-medium text-gray-900">
+            {convertAndFormatWithContext(value, currency)}
+        </span>
     );
 }
 

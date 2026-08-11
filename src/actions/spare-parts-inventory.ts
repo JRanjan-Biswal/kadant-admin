@@ -92,10 +92,55 @@ export interface ReplacementOption {
     };
 }
 
+export interface SparePartCatalogMachine {
+    _id: string;
+    name: string;
+    categoryId: string | null;
+    categoryName: string | null;
+}
+
+export interface SparePartCatalogItem {
+    _id: string;
+    name: string;
+    klValue: string;
+    reference: string | null;
+    machines: SparePartCatalogMachine[];
+}
+
+export interface ReferenceOverviewItem {
+    reference: string;
+    total: number;
+    inUse: number;
+    inStock: number;
+    sentForRebuild: number;
+    active: number;
+    inactive: number;
+    retired: number;
+}
+
+export interface ReferenceDrilldownItem {
+    _id: string;
+    name: string;
+    klValue: string;
+    reference: string | null;
+    machineName: string | null;
+    clientMachineSparePart: {
+        _id?: string;
+        partType?: "New" | "Sent to Rebuild" | "Rebuilt" | "Retired";
+        isActive?: boolean;
+        stockQuantity?: number;
+        isSentToRebuild?: boolean;
+        totalRunningHours?: { value: number; unit: string };
+        lifetimeOfRotor?: { value: number; unit: string };
+        sparePartInstallationDate?: string | null;
+    } | null;
+}
+
 export interface InventorySparePart {
     _id: string;
     name: string;
     klValue: string;
+    reference?: string | null;
     itemOnSpareSketch: string | null;
     lifetimeText: string | null;
     lifeTime: { value: number; unit: string };
@@ -320,11 +365,95 @@ export async function fetchReplacementOptions(
     return res.json();
 }
 
+export async function fetchAllSpareParts(search = ""): Promise<SparePartCatalogItem[]> {
+    const token = await requireToken();
+    const url = search
+        ? `${API}/machines/spare-parts?search=${encodeURIComponent(search)}`
+        : `${API}/machines/spare-parts`;
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const parts = (await res.json()) as Array<{
+        _id: string;
+        name: string;
+        klValue: string;
+        reference: string | null;
+        machines?: Array<{
+            _id: string;
+            name?: string;
+            category?: { _id?: string; name?: string } | string | null;
+        }>;
+    }>;
+    return parts.map((part) => ({
+        _id: part._id,
+        name: part.name,
+        klValue: part.klValue,
+        reference: part.reference,
+        machines: (part.machines || []).map((m) => {
+            const cat = m.category;
+            const categoryId = typeof cat === "string" ? cat : cat?._id ?? null;
+            const categoryName = typeof cat === "string" ? null : cat?.name ?? null;
+            return {
+                _id: m._id,
+                name: m.name || "Unknown machine",
+                categoryId,
+                categoryName,
+            };
+        }),
+    }));
+}
+
+export async function fetchReferenceOverview(
+    clientID: string,
+    filters: { categoryId?: string; machineId?: string } = {}
+): Promise<ReferenceOverviewItem[]> {
+    const token = await requireToken();
+    const params = new URLSearchParams({ clientId: clientID });
+    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.machineId) params.set("machineId", filters.machineId);
+    const res = await fetch(`${API}/machines/spare-parts/references/overview?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return res.json();
+}
+
+export async function fetchReferenceDrilldown(
+    clientID: string,
+    reference: string,
+    filters: { categoryId?: string; machineId?: string } = {}
+): Promise<ReferenceDrilldownItem[]> {
+    const token = await requireToken();
+    const params = new URLSearchParams({ clientId: clientID });
+    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.machineId) params.set("machineId", filters.machineId);
+    const res = await fetch(
+        `${API}/machines/spare-parts/references/${encodeURIComponent(reference)}?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    return res.json();
+}
+
+export async function fetchReferenceList(): Promise<string[]> {
+    const token = await requireToken();
+    const res = await fetch(`${API}/machines/spare-parts/references/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return res.json();
+}
+
 export async function saveSparePart(
     sparePartID: string,
     updates: Partial<{
         name: string;
         klValue: string;
+        reference: string | null;
         lifetimeText: string;
         deliveryTime: { value: number; unit: string };
         itemOnSpareSketch: string | null;

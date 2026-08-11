@@ -353,6 +353,7 @@ interface AddSparePartFormModalProps {
 export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ open, onClose, machineId, clientId, existingKlValues = [], onCreated }) => {
     const [name, setName] = useState("");
     const [klValue, setKlValue] = useState("");
+    const [reference, setReference] = useState("");
     const [lifetimeText, setLifetimeText] = useState("");
     const [rotorType, setRotorType] = useState<"New" | "Rebuilt">("New");
     const [rebuildsPossible, setRebuildsPossible] = useState(0);
@@ -367,7 +368,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
     const partSeq = useRef(0);
 
     const reset = useCallback(() => {
-        setName(""); setKlValue(""); setLifetimeText(""); setRotorType("New"); setRebuildsPossible(0); setIsActive(true); setInstallationDate(""); setLastServiceDate(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
+        setName(""); setKlValue(""); setReference(""); setLifetimeText(""); setRotorType("New"); setRebuildsPossible(0); setIsActive(true); setInstallationDate(""); setLastServiceDate(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
     }, []);
 
     const close = useCallback(() => { if (!saving) { reset(); onClose(); } }, [saving, reset, onClose]);
@@ -386,7 +387,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
             const res = await fetch("/api/machines/spare-parts", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name.trim(), klValue: kl, lifetimeText: lifetimeText.trim(), machineID: machineId }),
+                body: JSON.stringify({ name: name.trim(), klValue: kl, reference: reference.trim().toUpperCase() || null, lifetimeText: lifetimeText.trim(), machineID: machineId }),
             });
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Failed to add spare part");
             const sp = await res.json();
@@ -432,7 +433,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
         } finally {
             setSaving(false);
         }
-    }, [canSubmit, klValue, existingKlValues, name, lifetimeText, rotorType, rebuildsPossible, isActive, machineId, clientId, installationDate, lastServiceDate, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
+    }, [canSubmit, klValue, existingKlValues, name, reference, lifetimeText, rotorType, rebuildsPossible, isActive, machineId, clientId, installationDate, lastServiceDate, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
 
     if (!open) return null;
 
@@ -447,6 +448,11 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                 <div className="flex flex-col gap-1.5">
                     <Label className="text-[#6b7280] text-[12px]">KL Value (Model Number) <span className="text-[#bf1e21]">*</span></Label>
                     <Input value={klValue} onChange={(e) => setKlValue(e.target.value)} placeholder="Unique ID"
+                        className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label className="text-[#6b7280] text-[12px]">Reference</Label>
+                    <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. VOCAS_ROTOR"
                         className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
                 </div>
                 <div className="flex flex-col gap-1.5">

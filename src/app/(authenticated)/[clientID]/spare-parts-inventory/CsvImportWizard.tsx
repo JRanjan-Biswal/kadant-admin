@@ -44,6 +44,7 @@ const TARGET_FIELDS = [
     { key: "rebuildStatus", label: "Rebuild status" },
     { key: "rebuildDeliveryTimeText", label: "Rebuild delivery time (e.g. '8 weeks')" },
     { key: "rebuildLifetimeText", label: "Rebuild lifetime (e.g. '3 Months')" },
+    { key: "reference", label: "Reference group (e.g. VOCAS_ROTOR)" },
     // Maintenance schedule columns are detected automatically (see WEEK_HEADER_REGEX).
 ];
 
@@ -200,6 +201,8 @@ export default function CsvImportWizard({ open, onOpenChange, clientID, onImport
                     setGuess("lastOrderRefKL");
                 else if (lower.includes("last order") && !lower.includes("kl"))
                     setGuess("lastOrderRefClient");
+                else if (lower === "reference" || lower.includes("ref group") || lower.includes("reference group"))
+                    setGuess("reference");
             });
             setMapping(guess);
             setStep("map");

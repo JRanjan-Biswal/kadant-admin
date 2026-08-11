@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, machineID, klValue, lifeTime, lifetimeText, parts } = body;
+        const { name, machineID, klValue, lifeTime, lifetimeText, parts, reference } = body;
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/machines/spare-parts`, {
             method: "POST",
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${currentUser.accessToken}`,
             },
-            body: JSON.stringify({ name, machineID, klValue, lifeTime, lifetimeText, parts }),
+            body: JSON.stringify({ name, machineID, klValue, lifeTime, lifetimeText, parts, reference: reference ?? null }),
         });
 
         if (!response.ok) {
