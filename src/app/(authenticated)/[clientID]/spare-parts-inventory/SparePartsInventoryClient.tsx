@@ -956,6 +956,7 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                     {error}
                 </div>
             )}
+            
 
             {/* ── Inventory Table ── */}
             {activeTab === "all" && (groupByReference || selectedMachine === ALL_MACHINES) ? (
