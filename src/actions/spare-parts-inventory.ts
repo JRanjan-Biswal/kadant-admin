@@ -250,6 +250,9 @@ export async function fetchInventoryMachines(clientID: string): Promise<Inventor
         _id: string;
         serialNumber?: string;
         installationDate?: string;
+        // Resolved by the API: the client's own date when genuine, else the
+        // catalogue date entered on the machine.
+        resolvedInstallationDate?: string | null;
         machine?: {
             _id: string;
             name: string;
@@ -271,7 +274,10 @@ export async function fetchInventoryMachines(clientID: string): Promise<Inventor
                 categoryId,
                 categoryName,
                 installationDate:
-                    cm.installationDate || cm.machine?.installationDate || null,
+                    cm.resolvedInstallationDate ||
+                    cm.installationDate ||
+                    cm.machine?.installationDate ||
+                    null,
             };
         })
         .filter((m) => m._id);
