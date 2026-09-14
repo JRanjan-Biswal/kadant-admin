@@ -120,13 +120,16 @@ export default async function ClientOverview({ params }: PageProps) {
     >();
     const clientMachineIds = new Set<string>();
     const clientCategoryIds = new Set<string>();
+    // Order ID lives on the client's own ClientMachines row, not the catalog machine.
+    const machineOrderIdMap = new Map<string, string | null>();
 
-    ((clientDetails as { machines?: Array<{ machine?: { _id?: string, category?: { _id?: string } | string }, status?: "healthy" | "warning" | "critical", healthPercentage?: number }> }).machines || [])
+    ((clientDetails as { machines?: Array<{ machine?: { _id?: string, category?: { _id?: string } | string }, status?: "healthy" | "warning" | "critical", healthPercentage?: number, orderIdNumber?: string | null }> }).machines || [])
         .forEach((clientMachine) => {
             const machineId = clientMachine?.machine?._id;
             if (!machineId) return;
             const machineIdStr = machineId.toString();
             clientMachineIds.add(machineIdStr);
+            machineOrderIdMap.set(machineIdStr, clientMachine?.orderIdNumber || null);
             machineHealthMap.set(machineIdStr, {
                 status: clientMachine?.status || "healthy",
                 healthPercentage:
@@ -151,6 +154,7 @@ export default async function ClientOverview({ params }: PageProps) {
                         ...machine,
                         status: health?.status || "healthy",
                         healthPercentage: health?.healthPercentage ?? 100,
+                        orderIdNumber: machineOrderIdMap.get(machine._id?.toString()) ?? null,
                     };
                 }),
         }));

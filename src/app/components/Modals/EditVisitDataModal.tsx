@@ -88,6 +88,24 @@ function WideUploadBox({ onTrigger, uploading, label = "Upload image/video", dis
     );
 }
 
+function IssueOrderIds({ orderIdNumber, rebuildOrderIdNumber }: { orderIdNumber?: string | null; rebuildOrderIdNumber?: string | null }) {
+    if (!orderIdNumber && !rebuildOrderIdNumber) return null;
+    return (
+        <div className="grid grid-cols-2 gap-6">
+            <div className="flex flex-col gap-1">
+                <p className="text-[#6b7280] text-xs">Order ID Number</p>
+                <p className="text-[#1f2937] text-sm font-medium">{orderIdNumber || "—"}</p>
+            </div>
+            {rebuildOrderIdNumber && (
+                <div className="flex flex-col gap-1">
+                    <p className="text-[#6b7280] text-xs">Rebuild Order ID Number</p>
+                    <p className="text-[#c2410c] text-sm font-medium">{rebuildOrderIdNumber}</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
 interface EditVisitDataModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -161,6 +179,10 @@ export default function EditVisitDataModal({
     const [uploadingSparePartId, setUploadingSparePartId] = useState<string | null>(null);
     // Map of sparePartId → optimalStateVideoUrl (shared with Client Overview / Stock Preparation)
     const [sparePartOptimalMap, setSparePartOptimalMap] = useState<Record<string, string | null>>({});
+    // Keyed `${machineId}:${sparePartId}` — order IDs live on the client's per-machine spare-part row.
+    const [sparePartOrderIdMap, setSparePartOrderIdMap] = useState<
+        Record<string, { orderIdNumber: string | null; rebuildOrderIdNumber: string | null }>
+    >({});
     // Map of sparePartId → sub-parts array (for displaying sub-parts on existing issues)
     const [issueSubPartsMap, setIssueSubPartsMap] = useState<Record<string, { _id: string; name: string; optimalStateVideoUrl?: string | null }[]>>({});
     const [uploadingOptimalNew, setUploadingOptimalNew] = useState(false);
@@ -338,6 +360,7 @@ export default function EditVisitDataModal({
         const uniqueMachineIds = [...new Set(issues.map((i) => i.machineId).filter(Boolean) as string[])];
         if (uniqueMachineIds.length === 0) return;
         const newMap: Record<string, string | null> = {};
+        const orderIdMap: Record<string, { orderIdNumber: string | null; rebuildOrderIdNumber: string | null }> = {};
         await Promise.all(
             uniqueMachineIds.map(async (machineId) => {
                 try {
@@ -345,13 +368,22 @@ export default function EditVisitDataModal({
                     if (!res.ok) return;
                     const data = await res.json();
                     const list = data.spareParts ?? (Array.isArray(data) ? data : []);
-                    for (const sp of list as { _id: string; optimalStateVideoUrl?: string | null }[]) {
+                    for (const sp of list as {
+                        _id: string;
+                        optimalStateVideoUrl?: string | null;
+                        clientMachineSparePart?: { orderIdNumber?: string | null; rebuildOrderIdNumber?: string | null } | null;
+                    }[]) {
                         newMap[sp._id] = sp.optimalStateVideoUrl ?? null;
+                        orderIdMap[`${machineId}:${sp._id}`] = {
+                            orderIdNumber: sp.clientMachineSparePart?.orderIdNumber || null,
+                            rebuildOrderIdNumber: sp.clientMachineSparePart?.rebuildOrderIdNumber || null,
+                        };
                     }
                 } catch { /* ignore */ }
             })
         );
         setSparePartOptimalMap(newMap);
+        setSparePartOrderIdMap(orderIdMap);
     }, [clientID]);
 
 
@@ -986,6 +1018,8 @@ export default function EditVisitDataModal({
                                             </div>
                                         )}
 
+                                        <IssueOrderIds {...sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]} />
+
                                         {((issue.optimalStateMediaUrls || []).length > 0 ||
                                             (issue.currentVisitMediaUrls || []).length > 0 ||
                                             sparePartOptimalMap[issue.sparePartId ?? ""] != null) && (
@@ -1396,6 +1430,7 @@ export default function EditVisitDataModal({
                                                 <span className="inline-block text-[#ff6900] text-[13px] font-medium border border-[#ff6900] rounded-full px-3 py-0.5">{issue.actionNeeded}</span>
                                             </div>
                                         )}
+                                        <IssueOrderIds {...sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]} />
                                         <div className="grid grid-cols-3 gap-4 items-end">
                                             <div className="flex flex-col gap-1.5 h-full">
                                                 <p className="text-[#6b7280] text-[12px]">Last Visit</p>

@@ -7,6 +7,8 @@ export interface Machine {
     healthPercentage?: number;
     description?: string;
     installationDate?: string | null;
+    // Per-client, from the client's ClientMachines row (not the catalog).
+    orderIdNumber?: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -16,6 +18,7 @@ export interface ClientMachine {
     machine: Machine;
     serialNumber: string;
     installationDate: string;
+    orderIdNumber?: string | null;
 }
 
 export interface SparePart {
@@ -167,6 +170,8 @@ export interface ClientMachineSparePart {
     rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
     isSentToRebuild?: boolean;
     rebuildSentDate?: string | null;
+    orderIdNumber?: string | null;
+    rebuildOrderIdNumber?: string | null;
     orderNewStatus?: "None" | "Ordered New" | "Received" | "In Stock";
     isOrderedNew?: boolean;
     orderNewRequestedDate?: string | null;

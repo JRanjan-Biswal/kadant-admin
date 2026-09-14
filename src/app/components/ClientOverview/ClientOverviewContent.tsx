@@ -290,6 +290,8 @@ interface SparePartWithStatus extends SparePart {
     rebuildStatus?: "None" | "Sent to Rebuild" | "Rebuilt" | "In Stock";
     isSentToRebuild?: boolean;
     rebuildSentDate?: string | null;
+    orderIdNumber?: string | null;
+    rebuildOrderIdNumber?: string | null;
     orderNewStatus?: "None" | "Ordered New" | "Received" | "In Stock";
     isOrderedNew?: boolean;
     orderNewRequestedDate?: string | null;
@@ -806,6 +808,8 @@ export default function ClientOverviewContent({
                     rebuildStatus: clientSparePart?.rebuildStatus,
                     isSentToRebuild: clientSparePart?.isSentToRebuild,
                     rebuildSentDate: clientSparePart?.rebuildSentDate || null,
+                    orderIdNumber: clientSparePart?.orderIdNumber || null,
+                    rebuildOrderIdNumber: clientSparePart?.rebuildOrderIdNumber || null,
                     orderNewStatus: clientSparePart?.orderNewStatus,
                     isOrderedNew: clientSparePart?.isOrderedNew,
                     orderNewRequestedDate: clientSparePart?.orderNewRequestedDate || null,
@@ -1267,7 +1271,12 @@ export default function ClientOverviewContent({
                                                                                     <span className="transition-transform duration-200 ease-out shrink-0" style={{ transform: isMachineOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
                                                                                         <HiOutlineChevronRight className="w-4 h-4 text-gray-900" />
                                                                                     </span>
-                                                                                    <span className="text-gray-900 text-[16px] font-semibold">{machine.name || "N/A"}</span>
+                                                                                    <div className="flex min-w-0 flex-col">
+                                                                                        <span className="text-gray-900 text-[16px] font-semibold">{machine.name || "N/A"}</span>
+                                                                                        {machine.orderIdNumber && (
+                                                                                            <span className="text-xs font-medium text-[#6b7280]">Order ID: {machine.orderIdNumber}</span>
+                                                                                        )}
+                                                                                    </div>
                                                                                     {isLoading && <Loader2 className="w-4 h-4 text-gray-900 animate-spin shrink-0" />}
                                                                                 </div>
                                                                             </td>
@@ -1366,6 +1375,12 @@ export default function ClientOverviewContent({
                                                                                                                                 <span className="whitespace-normal break-words text-sm font-semibold leading-5 text-[#111827]">{sparePart.customName || sparePart.name}</span>
                                                                                                                                 {sparePart.klValue && (
                                                                                                                                     <span className="text-xs font-medium text-[#6b7280]">KL: {sparePart.klValue}</span>
+                                                                                                                                )}
+                                                                                                                                {sparePart.orderIdNumber && (
+                                                                                                                                    <span className="text-xs font-medium text-[#6b7280]">Order ID: {sparePart.orderIdNumber}</span>
+                                                                                                                                )}
+                                                                                                                                {sparePart.rebuildOrderIdNumber && (
+                                                                                                                                    <span className="text-xs font-medium text-[#c2410c]">Rebuild Order ID: {sparePart.rebuildOrderIdNumber}</span>
                                                                                                                                 )}
                                                                                                                                 <div className="mt-1 flex flex-wrap gap-1.5">
                                                                                                                                     <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#334155]">

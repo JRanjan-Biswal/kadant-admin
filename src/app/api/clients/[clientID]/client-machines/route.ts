@@ -13,7 +13,7 @@ export async function POST(
 
         const { clientID } = await params;
         const body = await request.json();
-        const { machineIDs } = body;
+        const { machineIDs, orderIdNumber } = body;
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/client-machines/link`, {
             method: "POST",
@@ -21,7 +21,7 @@ export async function POST(
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${currentUser.accessToken}`,
             },
-            body: JSON.stringify({ clientID, machineIDs }),
+            body: JSON.stringify({ clientID, machineIDs, orderIdNumber }),
         });
 
         if (!response.ok) {
