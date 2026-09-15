@@ -1901,6 +1901,9 @@ function ReplacementModal({
         setManualKlError(null);
         setFormError(null);
         const clientPart = target.part.clientMachineSparePart;
+        // An ordered-new part arrives brand new: it must not inherit the
+        // outgoing part's rebuild type/count (only the rebuild cap carries over).
+        const isOrderedNew = target.queueType === "orderedNew";
         setForm({
             replacementDate: dateInputValue(clientPart?.replacementDate),
             replacementOptionID: "",
@@ -1914,12 +1917,15 @@ function ReplacementModal({
                 clientPart?.lifetimeText ||
                 target.part.lifetimeText ||
                 "",
-            rotorType:
-                clientPart?.rotorType ||
-                (target.queueType === "rebuild" ? "Rebuilt" : "New"),
-            isRebuildPart: clientPart?.rebuildsPossible != null ? (clientPart.rebuildsPossible > 0) : null,
+            rotorType: isOrderedNew
+                ? "New"
+                : clientPart?.rotorType ||
+                  (target.queueType === "rebuild" ? "Rebuilt" : "New"),
+            isRebuildPart: isOrderedNew
+                ? false
+                : clientPart?.rebuildsPossible != null ? (clientPart.rebuildsPossible > 0) : null,
             rebuildsPossible: clientPart?.rebuildsPossible ?? 0,
-            currentRebuildCount: clientPart?.rebuildCount ?? 0,
+            currentRebuildCount: isOrderedNew ? 0 : clientPart?.rebuildCount ?? 0,
             // Pre-filled from the Order ID entered when "Order New" was chosen.
             orderIdNumber: clientPart?.newPartOrderIdNumber || "",
             notes: clientPart?.replacementNotes || "",
