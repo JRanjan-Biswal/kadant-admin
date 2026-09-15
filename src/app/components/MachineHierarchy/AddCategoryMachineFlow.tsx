@@ -311,6 +311,8 @@ interface MachineRow {
     name: string;
     modelNumber: string;
     installationDate: string;
+    // Per-client order reference (lives on the client's machine link row).
+    orderIdNumber: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -461,6 +463,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
         name: m.name ?? "",
         modelNumber: m.modelNumber ?? "",
         installationDate: m.installationDate ? new Date(m.installationDate).toISOString().slice(0, 10) : "",
+        orderIdNumber: "",
         imageFile: null,
         createdId: m._id,
         imageUrl: m.imageUrl ?? null,
@@ -521,6 +524,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 name: "",
                 modelNumber: "",
                 installationDate: "",
+                orderIdNumber: "",
                 imageFile: null,
                 description: "",
                 galleryImages: [],
@@ -539,6 +543,7 @@ const defaultMachineRow = (): MachineRow => ({
     name: "",
     modelNumber: "",
     installationDate: "",
+    orderIdNumber: "",
     imageFile: null,
     description: "",
     galleryImages: [],
@@ -587,6 +592,7 @@ export default function AddCategoryMachineFlow({
             name: "",
             modelNumber: "",
             installationDate: "",
+            orderIdNumber: "",
             imageFile: null,
             description: "",
             galleryImages: [],
@@ -607,7 +613,7 @@ export default function AddCategoryMachineFlow({
     // Used by handleSaveAllEdits to skip PUT calls for rows whose text fields
     // are unchanged and whose user hasn't picked a new image/video, so a
     // single image upload doesn't fan out into N spare-part PUTs.
-    type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
+    type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string; orderIdNumber: string };
     type BaselineSparePart = { name: string; klValue: string; reference: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string; orderIdNumber: string; rebuildOrderIdNumber: string };
     type BaselinePart = { name: string };
     const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
@@ -627,6 +633,7 @@ export default function AddCategoryMachineFlow({
                     modelNumber: m.modelNumber || "",
                     description: m.description || "",
                     installationDate: m.installationDate || "",
+                    orderIdNumber: m.orderIdNumber || "",
                 });
             }
             for (const sp of m.spareParts) {
@@ -666,7 +673,8 @@ export default function AddCategoryMachineFlow({
             (m.name || "") !== b.name ||
             (m.modelNumber || "") !== b.modelNumber ||
             (m.description || "") !== b.description ||
-            (m.installationDate || "") !== b.installationDate
+            (m.installationDate || "") !== b.installationDate ||
+            (m.orderIdNumber || "") !== b.orderIdNumber
         );
     }, []);
 
@@ -829,6 +837,7 @@ export default function AddCategoryMachineFlow({
 
                     return {
                         ...machine,
+                        orderIdNumber: (responseData.machineById as { orderIdNumber?: string | null } | undefined)?.orderIdNumber || "",
                         spareParts: machine.spareParts.map((sp) => {
                             const detail = sp.createdId ? detailsById.get(sp.createdId) : null;
                             if (!detail) return sp;
@@ -985,6 +994,19 @@ export default function AddCategoryMachineFlow({
         const data = await res.json();
         return data as { optimalStateVideoUrl?: string };
     }, []);
+
+    const saveClientMachineOrderId = useCallback(async (machineId: string, orderIdNumber: string) => {
+        if (!clientID) return;
+        const res = await fetch(`/api/clients/${encodeURIComponent(clientID)}/client-machines`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineID: machineId, orderIdNumber: orderIdNumber.trim() || null }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to save machine Order ID");
+        }
+    }, [clientID]);
 
     const saveClientSparePartDetails = useCallback(async (machineId: string, sparePartId: string, sp: SparePartRow) => {
         if (!clientID) return;
@@ -1228,6 +1250,7 @@ export default function AddCategoryMachineFlow({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to update machine");
             }
+            await saveClientMachineOrderId(machine.createdId, machine.orderIdNumber);
             if (machine.imageFile) {
                 const uploaded = await uploadEntityImage("machine", machine.createdId, machine.imageFile);
                 if (uploaded?.imageUrl) {
@@ -1276,7 +1299,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, onSuccess]);
+    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, saveClientMachineOrderId, onSuccess]);
 
     const removeMachine = useCallback((id: string) => {
         setMachines((prev) => {
@@ -2062,6 +2085,14 @@ export default function AddCategoryMachineFlow({
             if (clientID) {
                 for (const m of machines) {
                     if (!m.createdId) continue;
+                    const machineBaseline = machineBaselineRef.current.get(m.createdId);
+                    if (!machineBaseline || (m.orderIdNumber || "") !== machineBaseline.orderIdNumber) {
+                        try {
+                            await saveClientMachineOrderId(m.createdId, m.orderIdNumber);
+                        } catch (e) {
+                            errors.push(`Machine ${m.name || m.id} Order ID: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
                     for (const sp of m.spareParts) {
                         if (!sp.createdId) continue;
                         const baseline = sparePartBaselineRef.current.get(sp.createdId);
@@ -2297,6 +2328,7 @@ export default function AddCategoryMachineFlow({
         uploadMachineGalleryImage,
         deleteMachineGalleryImage,
         saveClientSparePartDetails,
+        saveClientMachineOrderId,
         clientID,
     ]);
 
@@ -2543,6 +2575,17 @@ export default function AddCategoryMachineFlow({
                                             className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
                                         />
                                     </div>
+                                    {/* Per-client, so only for saved machines edited inside a client */}
+                                    {clientID && m.createdId && (
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
+                                            <Input
+                                                value={m.orderIdNumber}
+                                                onChange={(e) => updateMachine(m.id, "orderIdNumber", e.target.value)}
+                                                className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
+                                            />
+                                        </div>
+                                    )}
                                     <div className="flex flex-col gap-1.5">
                                         <Label className="text-[#6b7280] text-[12px]">Machine description</Label>
                                         <textarea
