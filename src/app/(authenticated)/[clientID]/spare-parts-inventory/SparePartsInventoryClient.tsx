@@ -1712,6 +1712,15 @@ function QueueTable({
                                                 );
                                             })()}
                                         </div>
+                                        {clientPart?.orderIdNumber && (
+                                            <span className="text-xs text-gray-600 break-all">Order ID: {clientPart.orderIdNumber}</span>
+                                        )}
+                                        {/* Always shown on the Rebuild tab so a missing rebuild order ID is visible */}
+                                        {(item.queueType === "rebuild" || clientPart?.rebuildOrderIdNumber) && (
+                                            <span className="text-xs font-medium text-orange-700 break-all">
+                                                Rebuild Order ID: {clientPart?.rebuildOrderIdNumber || "—"}
+                                            </span>
+                                        )}
                                     </div>
                                 </TableCell>
                                 )}
