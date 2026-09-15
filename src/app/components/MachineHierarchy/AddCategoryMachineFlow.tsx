@@ -2856,7 +2856,6 @@ export default function AddCategoryMachineFlow({
                                                         <Input
                                                             value={sp.orderIdNumber}
                                                             onChange={(e) => updateSparePart(m.id, sp.id, "orderIdNumber", e.target.value)}
-                                                            placeholder="e.g. PO-2024-118"
                                                             className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
                                                         />
                                                     </div>
@@ -2867,7 +2866,6 @@ export default function AddCategoryMachineFlow({
                                                         <Input
                                                             value={sp.rebuildOrderIdNumber}
                                                             onChange={(e) => updateSparePart(m.id, sp.id, "rebuildOrderIdNumber", e.target.value)}
-                                                            placeholder="e.g. RB-2024-042"
                                                             className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
                                                         />
                                                     </div>
