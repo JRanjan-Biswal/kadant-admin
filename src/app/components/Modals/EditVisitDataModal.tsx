@@ -149,6 +149,8 @@ export default function EditVisitDataModal({
         rebuildsPossible?: number;
         rebuildOrderIdNumber?: string | null;
         newPartOrderIdNumber?: string | null;
+        // Set when the part was replaced by another and is no longer installed.
+        replacedByName?: string | null;
     }[]>([]);
     const [loadingSpareParts, setLoadingSpareParts] = useState(false);
     const [newMachineIssue, setNewMachineIssue] = useState({
@@ -306,7 +308,7 @@ export default function EditVisitDataModal({
             }
             const data = await res.json();
             const list = data.spareParts ?? (Array.isArray(data) ? data : []);
-            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null; isRebuildable?: boolean; clientMachineSparePart?: { rebuildCount?: number; rebuildsPossible?: number; rebuildOrderIdNumber?: string | null; newPartOrderIdNumber?: string | null } | null }) => ({
+            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null; isRebuildable?: boolean; clientMachineSparePart?: { rebuildCount?: number; rebuildsPossible?: number; rebuildOrderIdNumber?: string | null; newPartOrderIdNumber?: string | null; isActive?: boolean; replacementSparePart?: string | null; replacementDate?: string | null; replacementPartName?: string | null; replacementPartSnapshot?: { name?: string | null } | null } | null }) => ({
                 _id: sp._id,
                 name: (sp.name ?? sp.originalName ?? "") as string,
                 originalName: sp.originalName ?? sp.name,
@@ -317,6 +319,12 @@ export default function EditVisitDataModal({
                 rebuildsPossible: sp.clientMachineSparePart?.rebuildsPossible ?? 0,
                 rebuildOrderIdNumber: sp.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
                 newPartOrderIdNumber: sp.clientMachineSparePart?.newPartOrderIdNumber ?? null,
+                // Replaced = a replacement was recorded and the part went inactive.
+                replacedByName:
+                    sp.clientMachineSparePart?.isActive === false &&
+                    (sp.clientMachineSparePart?.replacementSparePart || sp.clientMachineSparePart?.replacementDate)
+                        ? sp.clientMachineSparePart?.replacementPartName || sp.clientMachineSparePart?.replacementPartSnapshot?.name || "another part"
+                        : null,
             })));
         } catch {
             setSpareParts([]);
@@ -426,6 +434,11 @@ export default function EditVisitDataModal({
         if (addingIssue) return;
         if (!newMachineIssue.machineId || !newMachineIssue.sparePartId || !newMachineIssue.status || !newMachineIssue.actionNeeded) {
             toast.error("Please select machine, spare part, status, and action needed");
+            return;
+        }
+        const replacedBy = spareParts.find((p) => p._id === newMachineIssue.sparePartId)?.replacedByName;
+        if (replacedBy) {
+            toast.error(`This part was replaced by "${replacedBy}" — pick the part currently installed`);
             return;
         }
 
@@ -1616,8 +1629,9 @@ export default function EditVisitDataModal({
                                                     </SelectTrigger>
                                                     <SelectContent className="bg-[#e5e7eb] border-[#d1d5db]">
                                                         {spareParts.map((sp) => (
-                                                            <SelectItem key={sp._id} value={sp._id} className="text-gray-900 hover:bg-[#d1d5db]">
+                                                            <SelectItem key={sp._id} value={sp._id} disabled={!!sp.replacedByName} className="text-gray-900 hover:bg-[#d1d5db] data-[disabled]:opacity-50">
                                                                 {sp.name || sp.originalName || sp._id}
+                                                                {sp.replacedByName ? ` — replaced (now: ${sp.replacedByName})` : ""}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>

@@ -204,7 +204,25 @@ interface SparePartLite {
     rebuildsPossible?: number;
     rebuildOrderIdNumber?: string | null;
     newPartOrderIdNumber?: string | null;
+    // Set when this part was taken off the machine and replaced by another —
+    // it is no longer installed, so no visit action can target it.
+    replacedByName?: string | null;
 }
+
+// A part is "replaced" once a replacement was recorded and it went inactive:
+// the incoming part now sits in its position.
+const replacedByNameOf = (
+    cms?: {
+        isActive?: boolean;
+        replacementSparePart?: string | null;
+        replacementDate?: string | null;
+        replacementPartName?: string | null;
+        replacementPartSnapshot?: { name?: string | null } | null;
+    } | null
+): string | null =>
+    cms && cms.isActive === false && (cms.replacementSparePart || cms.replacementDate)
+        ? cms.replacementPartName || cms.replacementPartSnapshot?.name || "another part"
+        : null;
 
 interface NewMachineIssue {
     categoryId: string;
@@ -465,6 +483,11 @@ export default function AddVisitDataModal({
                                     rebuildsPossible?: number;
                                     rebuildOrderIdNumber?: string | null;
                                     newPartOrderIdNumber?: string | null;
+                                    isActive?: boolean;
+                                    replacementSparePart?: string | null;
+                                    replacementDate?: string | null;
+                                    replacementPartName?: string | null;
+                                    replacementPartSnapshot?: { name?: string | null } | null;
                                 } | null;
                             }
                         ) => ({
@@ -477,6 +500,7 @@ export default function AddVisitDataModal({
                             rebuildsPossible: p.clientMachineSparePart?.rebuildsPossible ?? 0,
                             rebuildOrderIdNumber: p.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
                             newPartOrderIdNumber: p.clientMachineSparePart?.newPartOrderIdNumber ?? null,
+                            replacedByName: replacedByNameOf(p.clientMachineSparePart),
                         })
                     )
                 );
@@ -847,6 +871,11 @@ export default function AddVisitDataModal({
         if (addingIssue) return;
         if (!newIssue.machineId || !newIssue.sparePartId || !newIssue.status || !newIssue.actionNeeded) {
             toast.error("Select machine, spare part, status, and action needed");
+            return;
+        }
+        const replacedBy = spareParts.find((p) => p._id === newIssue.sparePartId)?.replacedByName;
+        if (replacedBy) {
+            toast.error(`This part was replaced by "${replacedBy}" — pick the part currently installed`);
             return;
         }
         if (newIssue.actionNeeded === "Send to Rebuild") {
@@ -1935,10 +1964,12 @@ export default function AddVisitDataModal({
                                                     <SelectItem
                                                         key={sp._id}
                                                         value={sp._id}
-                                                        className="text-[#1f2937] hover:bg-[#f3f4f6]"
+                                                        disabled={!!sp.replacedByName}
+                                                        className="text-[#1f2937] hover:bg-[#f3f4f6] data-[disabled]:opacity-50"
                                                     >
                                                         {sp.name}
                                                         {sp.klValue ? ` — ${sp.klValue}` : ""}
+                                                        {sp.replacedByName ? ` — replaced (now: ${sp.replacedByName})` : ""}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
