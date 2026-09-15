@@ -88,8 +88,8 @@ function WideUploadBox({ onTrigger, uploading, label = "Upload image/video", dis
     );
 }
 
-function IssueOrderIds({ orderIdNumber, rebuildOrderIdNumber }: { orderIdNumber?: string | null; rebuildOrderIdNumber?: string | null }) {
-    if (!orderIdNumber && !rebuildOrderIdNumber) return null;
+function IssueOrderIds({ orderIdNumber, rebuildOrderIdNumber, newPartOrderIdNumber }: { orderIdNumber?: string | null; rebuildOrderIdNumber?: string | null; newPartOrderIdNumber?: string | null }) {
+    if (!orderIdNumber && !rebuildOrderIdNumber && !newPartOrderIdNumber) return null;
     return (
         <div className="grid grid-cols-2 gap-6">
             <div className="flex flex-col gap-1">
@@ -100,6 +100,12 @@ function IssueOrderIds({ orderIdNumber, rebuildOrderIdNumber }: { orderIdNumber?
                 <div className="flex flex-col gap-1">
                     <p className="text-[#6b7280] text-xs">Rebuild Order ID</p>
                     <p className="text-[#c2410c] text-sm font-medium">{rebuildOrderIdNumber}</p>
+                </div>
+            )}
+            {newPartOrderIdNumber && (
+                <div className="flex flex-col gap-1">
+                    <p className="text-[#6b7280] text-xs">Order ID (new part)</p>
+                    <p className="text-[#1f2937] text-sm font-medium">{newPartOrderIdNumber}</p>
                 </div>
             )}
         </div>
@@ -142,6 +148,7 @@ export default function EditVisitDataModal({
         rebuildCount?: number;
         rebuildsPossible?: number;
         rebuildOrderIdNumber?: string | null;
+        newPartOrderIdNumber?: string | null;
     }[]>([]);
     const [loadingSpareParts, setLoadingSpareParts] = useState(false);
     const [newMachineIssue, setNewMachineIssue] = useState({
@@ -153,6 +160,7 @@ export default function EditVisitDataModal({
         conditionAlert: "",
         actionNeeded: "",
         rebuildOrderIdNumber: "",
+        newPartOrderIdNumber: "",
         optimalStateMediaUrls: [] as string[],
         currentVisitMediaUrls: [] as string[],
         subPartPhotos: {} as { [partId: string]: string[] },
@@ -298,7 +306,7 @@ export default function EditVisitDataModal({
             }
             const data = await res.json();
             const list = data.spareParts ?? (Array.isArray(data) ? data : []);
-            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null; isRebuildable?: boolean; clientMachineSparePart?: { rebuildCount?: number; rebuildsPossible?: number; rebuildOrderIdNumber?: string | null } | null }) => ({
+            setSpareParts(list.map((sp: { _id: string; name?: string; originalName?: string; parts?: unknown[]; optimalStateVideoUrl?: string | null; isRebuildable?: boolean; clientMachineSparePart?: { rebuildCount?: number; rebuildsPossible?: number; rebuildOrderIdNumber?: string | null; newPartOrderIdNumber?: string | null } | null }) => ({
                 _id: sp._id,
                 name: (sp.name ?? sp.originalName ?? "") as string,
                 originalName: sp.originalName ?? sp.name,
@@ -308,6 +316,7 @@ export default function EditVisitDataModal({
                 rebuildCount: sp.clientMachineSparePart?.rebuildCount ?? 0,
                 rebuildsPossible: sp.clientMachineSparePart?.rebuildsPossible ?? 0,
                 rebuildOrderIdNumber: sp.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
+                newPartOrderIdNumber: sp.clientMachineSparePart?.newPartOrderIdNumber ?? null,
             })));
         } catch {
             setSpareParts([]);
@@ -468,6 +477,10 @@ export default function EditVisitDataModal({
                         newMachineIssue.rebuildOrderIdNumber.trim() && {
                             rebuildOrderIdNumber: newMachineIssue.rebuildOrderIdNumber.trim(),
                         }),
+                    ...(newMachineIssue.actionNeeded === "Order New" &&
+                        newMachineIssue.newPartOrderIdNumber.trim() && {
+                            newPartOrderIdNumber: newMachineIssue.newPartOrderIdNumber.trim(),
+                        }),
                     optimalStateMediaUrls: newMachineIssue.optimalStateMediaUrls ?? [],
                     currentVisitMediaUrls: newMachineIssue.currentVisitMediaUrls ?? [],
                     subPartLastVisitPhotos: newMachineIssue.subPartLastVisitPhotos,
@@ -483,6 +496,7 @@ export default function EditVisitDataModal({
                 conditionAlert: "",
                 actionNeeded: "",
                 rebuildOrderIdNumber: "",
+                newPartOrderIdNumber: "",
                 optimalStateMediaUrls: [],
                 currentVisitMediaUrls: [],
                 subPartPhotos: {},
@@ -1030,6 +1044,7 @@ export default function EditVisitDataModal({
                                             orderIdNumber={sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]?.orderIdNumber}
                                             // The ID recorded on this visit wins over the part's current one.
                                             rebuildOrderIdNumber={issue.rebuildOrderIdNumber || sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]?.rebuildOrderIdNumber}
+                                            newPartOrderIdNumber={issue.newPartOrderIdNumber}
                                         />
 
                                         {((issue.optimalStateMediaUrls || []).length > 0 ||
@@ -1446,6 +1461,7 @@ export default function EditVisitDataModal({
                                             orderIdNumber={sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]?.orderIdNumber}
                                             // The ID recorded on this visit wins over the part's current one.
                                             rebuildOrderIdNumber={issue.rebuildOrderIdNumber || sparePartOrderIdMap[`${issue.machineId}:${issue.sparePartId}`]?.rebuildOrderIdNumber}
+                                            newPartOrderIdNumber={issue.newPartOrderIdNumber}
                                         />
                                         <div className="grid grid-cols-3 gap-4 items-end">
                                             <div className="flex flex-col gap-1.5 h-full">
@@ -1580,6 +1596,7 @@ export default function EditVisitDataModal({
                                                             sparePartName: chosen?.name ?? "",
                                                             // Pre-fill with the part's saved rebuild order ID, if any.
                                                             rebuildOrderIdNumber: chosen?.rebuildOrderIdNumber || "",
+                                                            newPartOrderIdNumber: chosen?.newPartOrderIdNumber || "",
                                                             subPartPhotos: {},
                                                             sparePartMedia: [],
                                                         }));
@@ -1759,6 +1776,16 @@ export default function EditVisitDataModal({
                                                 />
                                             </div>
                                         )}
+                                        {newMachineIssue.actionNeeded === "Order New" && (
+                                            <div className="flex flex-col gap-2">
+                                                <Label className="text-gray-900 text-[14px]">Order ID (new part)</Label>
+                                                <Input
+                                                    value={newMachineIssue.newPartOrderIdNumber}
+                                                    onChange={(e) => setNewMachineIssue((p) => ({ ...p, newPartOrderIdNumber: e.target.value }))}
+                                                    className="bg-white border border-[#d1d5db] !h-[50px] rounded-[10px] px-4 text-gray-900 text-[14px] focus-visible:ring-0"
+                                                />
+                                            </div>
+                                        )}
                                         {/* Hidden file inputs */}
                                         <input ref={sparePartInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleNewSparePartMediaSelect} />
                                         {/* Selected spare part — Optimal State (read-only) | Current Visit State */}
@@ -1916,7 +1943,7 @@ export default function EditVisitDataModal({
                                                 variant="outline"
                                                 onClick={() => {
                                                     setShowAddMachineIssue(false);
-                                                    setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", conditionAlert: "", actionNeeded: "", rebuildOrderIdNumber: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [], subPartPhotos: {}, subPartLastVisitPhotos: {}, sparePartMedia: [] });
+                                                    setNewMachineIssue({ machineId: "", sparePartId: "", machineName: "", sparePartName: "", status: "", conditionAlert: "", actionNeeded: "", rebuildOrderIdNumber: "", newPartOrderIdNumber: "", optimalStateMediaUrls: [], currentVisitMediaUrls: [], subPartPhotos: {}, subPartLastVisitPhotos: {}, sparePartMedia: [] });
                                                     setSelectedSubPartIds([]);
                                                     setSpareParts([]);
                                                     setSubParts([]);

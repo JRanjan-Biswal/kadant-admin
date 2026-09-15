@@ -203,6 +203,7 @@ interface SparePartLite {
     rebuildCount?: number;
     rebuildsPossible?: number;
     rebuildOrderIdNumber?: string | null;
+    newPartOrderIdNumber?: string | null;
 }
 
 interface NewMachineIssue {
@@ -216,6 +217,7 @@ interface NewMachineIssue {
     conditionAlert: string;
     actionNeeded: string;
     rebuildOrderIdNumber: string;
+    newPartOrderIdNumber: string;
     optimalStateMediaUrls: string[];
     currentVisitMediaUrls: string[];
     sparePartMedia: SparePartMediaEntry[];
@@ -234,6 +236,7 @@ const EMPTY_ISSUE: NewMachineIssue = {
     conditionAlert: "",
     actionNeeded: "",
     rebuildOrderIdNumber: "",
+    newPartOrderIdNumber: "",
     optimalStateMediaUrls: [],
     currentVisitMediaUrls: [],
     sparePartMedia: [],
@@ -461,6 +464,7 @@ export default function AddVisitDataModal({
                                     rebuildCount?: number;
                                     rebuildsPossible?: number;
                                     rebuildOrderIdNumber?: string | null;
+                                    newPartOrderIdNumber?: string | null;
                                 } | null;
                             }
                         ) => ({
@@ -472,6 +476,7 @@ export default function AddVisitDataModal({
                             rebuildCount: p.clientMachineSparePart?.rebuildCount ?? 0,
                             rebuildsPossible: p.clientMachineSparePart?.rebuildsPossible ?? 0,
                             rebuildOrderIdNumber: p.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
+                            newPartOrderIdNumber: p.clientMachineSparePart?.newPartOrderIdNumber ?? null,
                         })
                     )
                 );
@@ -863,6 +868,7 @@ export default function AddVisitDataModal({
             const isSendToRebuild = newIssue.actionNeeded === "Send to Rebuild";
             const isRetire = newIssue.actionNeeded === "Retire";
             const rebuildOrderId = newIssue.rebuildOrderIdNumber.trim();
+            const newPartOrderId = newIssue.newPartOrderIdNumber.trim();
             fetch(`/api/clients/${clientID}/client-machines/spare-parts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -894,6 +900,7 @@ export default function AddVisitDataModal({
                               isOrderedNew: true,
                               orderNewStatus: "Ordered New",
                               orderNewRequestedDate: new Date().toISOString(),
+                              ...(newPartOrderId && { newPartOrderIdNumber: newPartOrderId }),
                           },
                 }),
             }).catch(() => {/* silent — visit flow continues regardless */});
@@ -942,6 +949,10 @@ export default function AddVisitDataModal({
                     ...(newIssue.actionNeeded === "Send to Rebuild" &&
                         newIssue.rebuildOrderIdNumber.trim() && {
                             rebuildOrderIdNumber: newIssue.rebuildOrderIdNumber.trim(),
+                        }),
+                    ...(newIssue.actionNeeded === "Order New" &&
+                        newIssue.newPartOrderIdNumber.trim() && {
+                            newPartOrderIdNumber: newIssue.newPartOrderIdNumber.trim(),
                         }),
                     optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
                     currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
@@ -1604,6 +1615,17 @@ export default function AddVisitDataModal({
                                         </div>
                                     )}
 
+                                    {issue.newPartOrderIdNumber && (
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
+                                                Order ID (new part)
+                                            </p>
+                                            <p className="text-[#1f2937] text-sm font-medium">
+                                                {issue.newPartOrderIdNumber}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="flex flex-col gap-1.5">
                                             <p className="text-[#6b7280] text-xs">Last Visit</p>
@@ -1860,6 +1882,7 @@ export default function AddVisitDataModal({
                                                     sparePartName: sp?.name || "",
                                                     // Pre-fill with the part's saved rebuild order ID, if any.
                                                     rebuildOrderIdNumber: sp?.rebuildOrderIdNumber || "",
+                                                    newPartOrderIdNumber: sp?.newPartOrderIdNumber || "",
                                                     subPartPhotos: {},
                                                     // Rebuild may not be allowed for the newly selected part,
                                                     // and a maxed part only offers "Retire" (a non-maxed part
@@ -2136,6 +2159,24 @@ export default function AddVisitDataModal({
                                                     setNewIssue((p) => ({
                                                         ...p,
                                                         rebuildOrderIdNumber: e.target.value,
+                                                    }))
+                                                }
+                                                className="bg-white border border-[#d1d5db] !h-[46px] rounded-[10px] px-4 text-[#1f2937] text-sm focus-visible:ring-0"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {newIssue.actionNeeded === "Order New" && (
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Order ID (new part)
+                                            </Label>
+                                            <Input
+                                                value={newIssue.newPartOrderIdNumber}
+                                                onChange={(e) =>
+                                                    setNewIssue((p) => ({
+                                                        ...p,
+                                                        newPartOrderIdNumber: e.target.value,
                                                     }))
                                                 }
                                                 className="bg-white border border-[#d1d5db] !h-[46px] rounded-[10px] px-4 text-[#1f2937] text-sm focus-visible:ring-0"

@@ -161,6 +161,7 @@ export interface InventorySparePart {
         lastOrderRefClient?: string | null;
         orderIdNumber?: string | null;
         rebuildOrderIdNumber?: string | null;
+        newPartOrderIdNumber?: string | null;
         stockQuantity?: number;
         nbNew?: number;
         nbRepair?: number;
