@@ -1895,7 +1895,7 @@ function ReplacementModal({
             replacementSourceMachineID: "",
             partName: clientPart?.replacementPartName || "",
             klValue: clientPart?.replacementPartKlValue || "",
-            serialNumber: clientPart?.replacementPartSerialNumber || "",
+            reference: clientPart?.replacementPartSerialNumber || "",
             lifetimeText:
                 clientPart?.replacementLifetimeText ||
                 clientPart?.lifetimeText ||
