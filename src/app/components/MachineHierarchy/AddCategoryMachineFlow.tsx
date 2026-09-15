@@ -2852,7 +2852,7 @@ export default function AddCategoryMachineFlow({
                                                 {/* Order IDs are per client, so only offered when editing inside a client */}
                                                 {clientID && (
                                                     <div className="flex flex-col gap-1">
-                                                        <Label className="text-[#6b7280] text-[11px]">Order ID Number</Label>
+                                                        <Label className="text-[#6b7280] text-[11px]">Order ID</Label>
                                                         <Input
                                                             value={sp.orderIdNumber}
                                                             onChange={(e) => updateSparePart(m.id, sp.id, "orderIdNumber", e.target.value)}
@@ -2862,7 +2862,7 @@ export default function AddCategoryMachineFlow({
                                                 )}
                                                 {clientID && sp.rotorType === "Rebuilt" && (
                                                     <div className="flex flex-col gap-1">
-                                                        <Label className="text-[#6b7280] text-[11px]">Rebuild Order ID Number</Label>
+                                                        <Label className="text-[#6b7280] text-[11px]">Rebuild Order ID</Label>
                                                         <Input
                                                             value={sp.rebuildOrderIdNumber}
                                                             onChange={(e) => updateSparePart(m.id, sp.id, "rebuildOrderIdNumber", e.target.value)}

@@ -93,12 +93,12 @@ function IssueOrderIds({ orderIdNumber, rebuildOrderIdNumber }: { orderIdNumber?
     return (
         <div className="grid grid-cols-2 gap-6">
             <div className="flex flex-col gap-1">
-                <p className="text-[#6b7280] text-xs">Order ID Number</p>
+                <p className="text-[#6b7280] text-xs">Order ID</p>
                 <p className="text-[#1f2937] text-sm font-medium">{orderIdNumber || "—"}</p>
             </div>
             {rebuildOrderIdNumber && (
                 <div className="flex flex-col gap-1">
-                    <p className="text-[#6b7280] text-xs">Rebuild Order ID Number</p>
+                    <p className="text-[#6b7280] text-xs">Rebuild Order ID</p>
                     <p className="text-[#c2410c] text-sm font-medium">{rebuildOrderIdNumber}</p>
                 </div>
             )}

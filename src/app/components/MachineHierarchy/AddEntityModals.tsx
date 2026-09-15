@@ -297,7 +297,7 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
                 </div>
                 {clientId && (
                     <div className="flex flex-col gap-1.5">
-                        <Label className="text-[#6b7280] text-[12px]">Order ID Number</Label>
+                        <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
                         <Input value={orderIdNumber} onChange={(e) => setOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
                     </div>
                 )}
@@ -516,13 +516,13 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                 </div>
                 {clientId && (
                     <div className="flex flex-col gap-1.5">
-                        <Label className="text-[#6b7280] text-[12px]">Order ID Number</Label>
+                        <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
                         <Input value={orderIdNumber} onChange={(e) => setOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
                     </div>
                 )}
                 {clientId && rotorType === "Rebuilt" && (
                     <div className="flex flex-col gap-1.5">
-                        <Label className="text-[#6b7280] text-[12px]">Rebuild Order ID Number</Label>
+                        <Label className="text-[#6b7280] text-[12px]">Rebuild Order ID</Label>
                         <Input value={rebuildOrderIdNumber} onChange={(e) => setRebuildOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
                     </div>
                 )}
