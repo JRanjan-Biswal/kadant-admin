@@ -202,6 +202,7 @@ interface SparePartLite {
     isRebuildable?: boolean;
     rebuildCount?: number;
     rebuildsPossible?: number;
+    rebuildOrderIdNumber?: string | null;
 }
 
 interface NewMachineIssue {
@@ -214,6 +215,7 @@ interface NewMachineIssue {
     status: string;
     conditionAlert: string;
     actionNeeded: string;
+    rebuildOrderIdNumber: string;
     optimalStateMediaUrls: string[];
     currentVisitMediaUrls: string[];
     sparePartMedia: SparePartMediaEntry[];
@@ -231,6 +233,7 @@ const EMPTY_ISSUE: NewMachineIssue = {
     status: "",
     conditionAlert: "",
     actionNeeded: "",
+    rebuildOrderIdNumber: "",
     optimalStateMediaUrls: [],
     currentVisitMediaUrls: [],
     sparePartMedia: [],
@@ -457,6 +460,7 @@ export default function AddVisitDataModal({
                                 clientMachineSparePart?: {
                                     rebuildCount?: number;
                                     rebuildsPossible?: number;
+                                    rebuildOrderIdNumber?: string | null;
                                 } | null;
                             }
                         ) => ({
@@ -467,6 +471,7 @@ export default function AddVisitDataModal({
                             isRebuildable: p.isRebuildable !== false,
                             rebuildCount: p.clientMachineSparePart?.rebuildCount ?? 0,
                             rebuildsPossible: p.clientMachineSparePart?.rebuildsPossible ?? 0,
+                            rebuildOrderIdNumber: p.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
                         })
                     )
                 );
@@ -857,6 +862,7 @@ export default function AddVisitDataModal({
         ) {
             const isSendToRebuild = newIssue.actionNeeded === "Send to Rebuild";
             const isRetire = newIssue.actionNeeded === "Retire";
+            const rebuildOrderId = newIssue.rebuildOrderIdNumber.trim();
             fetch(`/api/clients/${clientID}/client-machines/spare-parts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -881,6 +887,7 @@ export default function AddVisitDataModal({
                               rebuildStatus: "Sent to Rebuild",
                               partType: "Sent to Rebuild",
                               rebuildSentDate: new Date().toISOString(),
+                              ...(rebuildOrderId && { rebuildOrderIdNumber: rebuildOrderId }),
                           }
                         : {
                               isActive: false,
@@ -932,6 +939,10 @@ export default function AddVisitDataModal({
                     status: newIssue.status,
                     conditionAlert: newIssue.conditionAlert,
                     actionNeeded: newIssue.actionNeeded,
+                    ...(newIssue.actionNeeded === "Send to Rebuild" &&
+                        newIssue.rebuildOrderIdNumber.trim() && {
+                            rebuildOrderIdNumber: newIssue.rebuildOrderIdNumber.trim(),
+                        }),
                     optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
                     currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
                     sparePartMedia: newIssue.sparePartMedia,
@@ -1582,6 +1593,17 @@ export default function AddVisitDataModal({
                                         </div>
                                     )}
 
+                                    {issue.rebuildOrderIdNumber && (
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
+                                                Rebuild Order ID
+                                            </p>
+                                            <p className="text-[#c2410c] text-sm font-medium">
+                                                {issue.rebuildOrderIdNumber}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="flex flex-col gap-1.5">
                                             <p className="text-[#6b7280] text-xs">Last Visit</p>
@@ -1836,6 +1858,8 @@ export default function AddVisitDataModal({
                                                     ...p,
                                                     sparePartId: value,
                                                     sparePartName: sp?.name || "",
+                                                    // Pre-fill with the part's saved rebuild order ID, if any.
+                                                    rebuildOrderIdNumber: sp?.rebuildOrderIdNumber || "",
                                                     subPartPhotos: {},
                                                     // Rebuild may not be allowed for the newly selected part,
                                                     // and a maxed part only offers "Retire" (a non-maxed part
@@ -2100,6 +2124,24 @@ export default function AddVisitDataModal({
                                                 ) : null;
                                             })()}
                                     </div>
+
+                                    {newIssue.actionNeeded === "Send to Rebuild" && (
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Rebuild Order ID
+                                            </Label>
+                                            <Input
+                                                value={newIssue.rebuildOrderIdNumber}
+                                                onChange={(e) =>
+                                                    setNewIssue((p) => ({
+                                                        ...p,
+                                                        rebuildOrderIdNumber: e.target.value,
+                                                    }))
+                                                }
+                                                className="bg-white border border-[#d1d5db] !h-[46px] rounded-[10px] px-4 text-[#1f2937] text-sm focus-visible:ring-0"
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Hidden file inputs for sub-part photos */}
                                     <input
