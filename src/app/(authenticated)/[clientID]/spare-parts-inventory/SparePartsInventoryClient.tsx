@@ -709,6 +709,10 @@ export default function SparePartsInventoryClient({ clientID, machines }: Props)
                 totalRunningHours: { value: 0, unit: clientPart?.totalRunningHours?.unit || "Hrs" },
                 exceededLife: { value: 0, unit: "Hrs" },
                 statusOverride: null,
+                // Becomes the incoming part's own Order ID (the old part keeps its own).
+                ...(replacementTarget.queueType === "orderedNew" && data.orderIdNumber.trim()
+                    ? { replacementOrderIdNumber: data.orderIdNumber.trim() }
+                    : {}),
             };
             if (replacementLifetimeText) {
                 updates.replacementLifetimeText = replacementLifetimeText;
@@ -1474,6 +1478,8 @@ interface ReplacementFormData {
     isRebuildPart: boolean | null;
     rebuildsPossible: number;
     currentRebuildCount: number;
+    // Ordered New only: the incoming part's own order ID.
+    orderIdNumber: string;
     notes: string;
     mediaUrls: string[];
 }
@@ -1713,6 +1719,21 @@ function QueueTable({
                                                 );
                                             })()}
                                         </div>
+                                        {clientPart?.orderIdNumber && (
+                                            <span className="text-xs text-gray-600 break-all">Order ID: {clientPart.orderIdNumber}</span>
+                                        )}
+                                        {/* Always shown on the Rebuild tab so a missing rebuild order ID is visible */}
+                                        {(item.queueType === "rebuild" || clientPart?.rebuildOrderIdNumber) && (
+                                            <span className="text-xs font-medium text-orange-700 break-all">
+                                                Rebuild Order ID: {clientPart?.rebuildOrderIdNumber || "—"}
+                                            </span>
+                                        )}
+                                        {/* Ordered-but-not-arrived: the new part's order ID, waiting to be handed over */}
+                                        {item.queueType === "orderedNew" && clientPart?.newPartOrderIdNumber && (
+                                            <span className="text-xs font-medium text-blue-700 break-all">
+                                                Order ID (new part): {clientPart.newPartOrderIdNumber}
+                                            </span>
+                                        )}
                                     </div>
                                 </TableCell>
                                 )}
@@ -1864,6 +1885,7 @@ function ReplacementModal({
         isRebuildPart: null,
         rebuildsPossible: 0,
         currentRebuildCount: 0,
+        orderIdNumber: "",
         notes: "",
         mediaUrls: [],
     });
@@ -1880,6 +1902,9 @@ function ReplacementModal({
         setManualKlError(null);
         setFormError(null);
         const clientPart = target.part.clientMachineSparePart;
+        // An ordered-new part arrives brand new: it must not inherit the
+        // outgoing part's rebuild type/count (only the rebuild cap carries over).
+        const isOrderedNew = target.queueType === "orderedNew";
         setForm({
             replacementDate: dateInputValue(clientPart?.replacementDate),
             replacementOptionID: "",
@@ -1887,18 +1912,23 @@ function ReplacementModal({
             replacementSourceMachineID: "",
             partName: clientPart?.replacementPartName || "",
             klValue: clientPart?.replacementPartKlValue || "",
-            serialNumber: clientPart?.replacementPartSerialNumber || "",
+            reference: clientPart?.replacementPartSerialNumber || "",
             lifetimeText:
                 clientPart?.replacementLifetimeText ||
                 clientPart?.lifetimeText ||
                 target.part.lifetimeText ||
                 "",
-            rotorType:
-                clientPart?.rotorType ||
-                (target.queueType === "rebuild" ? "Rebuilt" : "New"),
-            isRebuildPart: clientPart?.rebuildsPossible != null ? (clientPart.rebuildsPossible > 0) : null,
+            rotorType: isOrderedNew
+                ? "New"
+                : clientPart?.rotorType ||
+                  (target.queueType === "rebuild" ? "Rebuilt" : "New"),
+            isRebuildPart: isOrderedNew
+                ? false
+                : clientPart?.rebuildsPossible != null ? (clientPart.rebuildsPossible > 0) : null,
             rebuildsPossible: clientPart?.rebuildsPossible ?? 0,
-            currentRebuildCount: clientPart?.rebuildCount ?? 0,
+            currentRebuildCount: isOrderedNew ? 0 : clientPart?.rebuildCount ?? 0,
+            // Pre-filled from the Order ID entered when "Order New" was chosen.
+            orderIdNumber: clientPart?.newPartOrderIdNumber || "",
             notes: clientPart?.replacementNotes || "",
             mediaUrls: clientPart?.replacementMediaUrls || [],
         });
@@ -2024,6 +2054,16 @@ function ReplacementModal({
                             onChange={(event) => setForm({ ...form, replacementDate: event.target.value })}
                         />
                     </label>
+                    {/* The ordered part arrives with its own order ID — saved on the NEW part. */}
+                    {target.queueType === "orderedNew" && (
+                        <label className="col-span-2 flex flex-col gap-1.5 text-sm text-[#6b7280]">
+                            Order ID (new part)
+                            <Input
+                                value={form.orderIdNumber}
+                                onChange={(event) => setForm({ ...form, orderIdNumber: event.target.value })}
+                            />
+                        </label>
+                    )}
                     <div className="col-span-2 flex rounded-md border border-[#C5D1DC] p-1">
                         <button
                             type="button"

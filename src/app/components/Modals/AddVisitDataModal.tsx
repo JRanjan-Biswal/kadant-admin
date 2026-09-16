@@ -202,7 +202,27 @@ interface SparePartLite {
     isRebuildable?: boolean;
     rebuildCount?: number;
     rebuildsPossible?: number;
+    rebuildOrderIdNumber?: string | null;
+    newPartOrderIdNumber?: string | null;
+    // Set when this part was taken off the machine and replaced by another —
+    // it is no longer installed, so no visit action can target it.
+    replacedByName?: string | null;
 }
+
+// A part is "replaced" once a replacement was recorded and it went inactive:
+// the incoming part now sits in its position.
+const replacedByNameOf = (
+    cms?: {
+        isActive?: boolean;
+        replacementSparePart?: string | null;
+        replacementDate?: string | null;
+        replacementPartName?: string | null;
+        replacementPartSnapshot?: { name?: string | null } | null;
+    } | null
+): string | null =>
+    cms && cms.isActive === false && (cms.replacementSparePart || cms.replacementDate)
+        ? cms.replacementPartName || cms.replacementPartSnapshot?.name || "another part"
+        : null;
 
 interface NewMachineIssue {
     categoryId: string;
@@ -214,6 +234,8 @@ interface NewMachineIssue {
     status: string;
     conditionAlert: string;
     actionNeeded: string;
+    rebuildOrderIdNumber: string;
+    newPartOrderIdNumber: string;
     optimalStateMediaUrls: string[];
     currentVisitMediaUrls: string[];
     sparePartMedia: SparePartMediaEntry[];
@@ -231,6 +253,8 @@ const EMPTY_ISSUE: NewMachineIssue = {
     status: "",
     conditionAlert: "",
     actionNeeded: "",
+    rebuildOrderIdNumber: "",
+    newPartOrderIdNumber: "",
     optimalStateMediaUrls: [],
     currentVisitMediaUrls: [],
     sparePartMedia: [],
@@ -457,6 +481,13 @@ export default function AddVisitDataModal({
                                 clientMachineSparePart?: {
                                     rebuildCount?: number;
                                     rebuildsPossible?: number;
+                                    rebuildOrderIdNumber?: string | null;
+                                    newPartOrderIdNumber?: string | null;
+                                    isActive?: boolean;
+                                    replacementSparePart?: string | null;
+                                    replacementDate?: string | null;
+                                    replacementPartName?: string | null;
+                                    replacementPartSnapshot?: { name?: string | null } | null;
                                 } | null;
                             }
                         ) => ({
@@ -467,6 +498,9 @@ export default function AddVisitDataModal({
                             isRebuildable: p.isRebuildable !== false,
                             rebuildCount: p.clientMachineSparePart?.rebuildCount ?? 0,
                             rebuildsPossible: p.clientMachineSparePart?.rebuildsPossible ?? 0,
+                            rebuildOrderIdNumber: p.clientMachineSparePart?.rebuildOrderIdNumber ?? null,
+                            newPartOrderIdNumber: p.clientMachineSparePart?.newPartOrderIdNumber ?? null,
+                            replacedByName: replacedByNameOf(p.clientMachineSparePart),
                         })
                     )
                 );
@@ -839,6 +873,11 @@ export default function AddVisitDataModal({
             toast.error("Select machine, spare part, status, and action needed");
             return;
         }
+        const replacedBy = spareParts.find((p) => p._id === newIssue.sparePartId)?.replacedByName;
+        if (replacedBy) {
+            toast.error(`This part was replaced by "${replacedBy}" — pick the part currently installed`);
+            return;
+        }
         if (newIssue.actionNeeded === "Send to Rebuild") {
             const blockReason = getRebuildBlockReason(newIssue.sparePartId);
             if (blockReason) {
@@ -857,6 +896,8 @@ export default function AddVisitDataModal({
         ) {
             const isSendToRebuild = newIssue.actionNeeded === "Send to Rebuild";
             const isRetire = newIssue.actionNeeded === "Retire";
+            const rebuildOrderId = newIssue.rebuildOrderIdNumber.trim();
+            const newPartOrderId = newIssue.newPartOrderIdNumber.trim();
             fetch(`/api/clients/${clientID}/client-machines/spare-parts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -881,12 +922,14 @@ export default function AddVisitDataModal({
                               rebuildStatus: "Sent to Rebuild",
                               partType: "Sent to Rebuild",
                               rebuildSentDate: new Date().toISOString(),
+                              ...(rebuildOrderId && { rebuildOrderIdNumber: rebuildOrderId }),
                           }
                         : {
                               isActive: false,
                               isOrderedNew: true,
                               orderNewStatus: "Ordered New",
                               orderNewRequestedDate: new Date().toISOString(),
+                              ...(newPartOrderId && { newPartOrderIdNumber: newPartOrderId }),
                           },
                 }),
             }).catch(() => {/* silent — visit flow continues regardless */});
@@ -932,6 +975,14 @@ export default function AddVisitDataModal({
                     status: newIssue.status,
                     conditionAlert: newIssue.conditionAlert,
                     actionNeeded: newIssue.actionNeeded,
+                    ...(newIssue.actionNeeded === "Send to Rebuild" &&
+                        newIssue.rebuildOrderIdNumber.trim() && {
+                            rebuildOrderIdNumber: newIssue.rebuildOrderIdNumber.trim(),
+                        }),
+                    ...(newIssue.actionNeeded === "Order New" &&
+                        newIssue.newPartOrderIdNumber.trim() && {
+                            newPartOrderIdNumber: newIssue.newPartOrderIdNumber.trim(),
+                        }),
                     optimalStateMediaUrls: newIssue.optimalStateMediaUrls,
                     currentVisitMediaUrls: newIssue.currentVisitMediaUrls,
                     sparePartMedia: newIssue.sparePartMedia,
@@ -1582,6 +1633,28 @@ export default function AddVisitDataModal({
                                         </div>
                                     )}
 
+                                    {issue.rebuildOrderIdNumber && (
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
+                                                Rebuild Order ID
+                                            </p>
+                                            <p className="text-[#c2410c] text-sm font-medium">
+                                                {issue.rebuildOrderIdNumber}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {issue.newPartOrderIdNumber && (
+                                        <div className="flex flex-col gap-1">
+                                            <p className="text-[#6b7280] text-xs">
+                                                Order ID (new part)
+                                            </p>
+                                            <p className="text-[#1f2937] text-sm font-medium">
+                                                {issue.newPartOrderIdNumber}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="flex flex-col gap-1.5">
                                             <p className="text-[#6b7280] text-xs">Last Visit</p>
@@ -1836,6 +1909,9 @@ export default function AddVisitDataModal({
                                                     ...p,
                                                     sparePartId: value,
                                                     sparePartName: sp?.name || "",
+                                                    // Pre-fill with the part's saved rebuild order ID, if any.
+                                                    rebuildOrderIdNumber: sp?.rebuildOrderIdNumber || "",
+                                                    newPartOrderIdNumber: sp?.newPartOrderIdNumber || "",
                                                     subPartPhotos: {},
                                                     // Rebuild may not be allowed for the newly selected part,
                                                     // and a maxed part only offers "Retire" (a non-maxed part
@@ -1888,10 +1964,12 @@ export default function AddVisitDataModal({
                                                     <SelectItem
                                                         key={sp._id}
                                                         value={sp._id}
-                                                        className="text-[#1f2937] hover:bg-[#f3f4f6]"
+                                                        disabled={!!sp.replacedByName}
+                                                        className="text-[#1f2937] hover:bg-[#f3f4f6] data-[disabled]:opacity-50"
                                                     >
                                                         {sp.name}
                                                         {sp.klValue ? ` — ${sp.klValue}` : ""}
+                                                        {sp.replacedByName ? ` — replaced (now: ${sp.replacedByName})` : ""}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -2100,6 +2178,42 @@ export default function AddVisitDataModal({
                                                 ) : null;
                                             })()}
                                     </div>
+
+                                    {newIssue.actionNeeded === "Send to Rebuild" && (
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Rebuild Order ID
+                                            </Label>
+                                            <Input
+                                                value={newIssue.rebuildOrderIdNumber}
+                                                onChange={(e) =>
+                                                    setNewIssue((p) => ({
+                                                        ...p,
+                                                        rebuildOrderIdNumber: e.target.value,
+                                                    }))
+                                                }
+                                                className="bg-white border border-[#d1d5db] !h-[46px] rounded-[10px] px-4 text-[#1f2937] text-sm focus-visible:ring-0"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {newIssue.actionNeeded === "Order New" && (
+                                        <div className="flex flex-col gap-2">
+                                            <Label className="text-[#6b7280] text-sm">
+                                                Order ID (new part)
+                                            </Label>
+                                            <Input
+                                                value={newIssue.newPartOrderIdNumber}
+                                                onChange={(e) =>
+                                                    setNewIssue((p) => ({
+                                                        ...p,
+                                                        newPartOrderIdNumber: e.target.value,
+                                                    }))
+                                                }
+                                                className="bg-white border border-[#d1d5db] !h-[46px] rounded-[10px] px-4 text-[#1f2937] text-sm focus-visible:ring-0"
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Hidden file inputs for sub-part photos */}
                                     <input

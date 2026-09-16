@@ -29,6 +29,10 @@ export interface MachineIssue {
     status?: string;
     conditionAlert?: string;
     actionNeeded?: string;
+    // Entered when actionNeeded is "Send to Rebuild"; saved onto the spare part.
+    rebuildOrderIdNumber?: string;
+    // Entered when actionNeeded is "Order New"; becomes the new part's Order ID.
+    newPartOrderIdNumber?: string;
     optimalStateMediaUrls?: string[];
     currentVisitMediaUrls?: string[];
     sparePartMedia?: SparePartMediaEntry[];

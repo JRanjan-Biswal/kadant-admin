@@ -219,13 +219,14 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
     const [name, setName] = useState("");
     const [modelNumber, setModelNumber] = useState("");
     const [installationDate, setInstallationDate] = useState("");
+    const [orderIdNumber, setOrderIdNumber] = useState("");
     const [description, setDescription] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
     const [saving, setSaving] = useState(false);
 
     const reset = useCallback(() => {
-        setName(""); setModelNumber(""); setInstallationDate(""); setDescription("");
+        setName(""); setModelNumber(""); setInstallationDate(""); setOrderIdNumber(""); setDescription("");
         setImageFile(null); setGalleryFiles([]);
     }, []);
 
@@ -259,7 +260,7 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
                 const linkRes = await fetch(`/api/clients/${clientId}/client-machines`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ machineIDs: [machineId] }),
+                    body: JSON.stringify({ machineIDs: [machineId], orderIdNumber: orderIdNumber.trim() || null }),
                 });
                 if (!linkRes.ok) throw new Error((await linkRes.json().catch(() => ({}))).error || "Machine created but failed to link to client");
             }
@@ -272,7 +273,7 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
         } finally {
             setSaving(false);
         }
-    }, [canSubmit, name, categoryId, description, installationDate, modelNumber, imageFile, galleryFiles, clientId, reset, onCreated, onClose]);
+    }, [canSubmit, name, categoryId, description, installationDate, modelNumber, orderIdNumber, imageFile, galleryFiles, clientId, reset, onCreated, onClose]);
 
     if (!open) return null;
 
@@ -294,6 +295,12 @@ export const AddMachineFormModal: React.FC<AddMachineFormModalProps> = ({ open, 
                     <Input type="date" value={installationDate} onChange={(e) => setInstallationDate(e.target.value)}
                         className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]" />
                 </div>
+                {clientId && (
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
+                        <Input value={orderIdNumber} onChange={(e) => setOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                    </div>
+                )}
                 <div className="flex flex-col gap-1.5">
                     <Label className="text-[#6b7280] text-[12px]">Machine Image <span className="text-[#bf1e21]">*</span></Label>
                     <ImageZone label="Machine Image" file={imageFile} onChange={setImageFile} className="min-h-[100px]" />
@@ -360,6 +367,8 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
     const [isActive, setIsActive] = useState(true);
     const [installationDate, setInstallationDate] = useState("");
     const [lastServiceDate, setLastServiceDate] = useState("");
+    const [orderIdNumber, setOrderIdNumber] = useState("");
+    const [rebuildOrderIdNumber, setRebuildOrderIdNumber] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -368,7 +377,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
     const partSeq = useRef(0);
 
     const reset = useCallback(() => {
-        setName(""); setKlValue(""); setReference(""); setLifetimeText(""); setRotorType("New"); setRebuildsPossible(0); setIsActive(true); setInstallationDate(""); setLastServiceDate(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
+        setName(""); setKlValue(""); setReference(""); setLifetimeText(""); setRotorType("New"); setRebuildsPossible(0); setIsActive(true); setInstallationDate(""); setLastServiceDate(""); setOrderIdNumber(""); setRebuildOrderIdNumber(""); setImageFile(null); setAdditionalFiles([]); setVideoFile(null); setParts([]);
     }, []);
 
     const close = useCallback(() => { if (!saving) { reset(); onClose(); } }, [saving, reset, onClose]);
@@ -400,6 +409,9 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                     rotorType,
                     rebuildsPossible: Math.max(0, Number(rebuildsPossible) || 0),
                     isActive,
+                    orderIdNumber: orderIdNumber.trim() || null,
+                    // Only a rebuild part carries a rebuild order reference.
+                    rebuildOrderIdNumber: rotorType === "Rebuilt" ? rebuildOrderIdNumber.trim() || null : null,
                 };
                 if (lifetimeText.trim()) detailsBody.lifetimeText = lifetimeText.trim();
                 if (rotorType === "Rebuilt") detailsBody.rebuildLifetimeText = lifetimeText.trim();
@@ -433,7 +445,7 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
         } finally {
             setSaving(false);
         }
-    }, [canSubmit, klValue, existingKlValues, name, reference, lifetimeText, rotorType, rebuildsPossible, isActive, machineId, clientId, installationDate, lastServiceDate, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
+    }, [canSubmit, klValue, existingKlValues, name, reference, lifetimeText, rotorType, rebuildsPossible, isActive, machineId, clientId, installationDate, lastServiceDate, orderIdNumber, rebuildOrderIdNumber, imageFile, additionalFiles, videoFile, parts, reset, onCreated, onClose]);
 
     if (!open) return null;
 
@@ -502,6 +514,18 @@ export const AddSparePartFormModal: React.FC<AddSparePartFormModalProps> = ({ op
                     <Input type="date" value={lastServiceDate} onChange={(e) => setLastServiceDate(e.target.value)}
                         className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]" />
                 </div>
+                {clientId && (
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
+                        <Input value={orderIdNumber} onChange={(e) => setOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                    </div>
+                )}
+                {clientId && rotorType === "Rebuilt" && (
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[#6b7280] text-[12px]">Rebuild Order ID</Label>
+                        <Input value={rebuildOrderIdNumber} onChange={(e) => setRebuildOrderIdNumber(e.target.value)}                            className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px] placeholder:text-[#4b5563]" />
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-1.5">

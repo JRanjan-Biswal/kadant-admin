@@ -311,6 +311,8 @@ interface MachineRow {
     name: string;
     modelNumber: string;
     installationDate: string;
+    // Per-client order reference (lives on the client's machine link row).
+    orderIdNumber: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -332,6 +334,9 @@ interface SparePartRow {
     isActive: boolean;
     lastServiceDate: string;
     sparePartInstallationDate: string;
+    // Per-client order references (hydrated from the client's spare-part row).
+    orderIdNumber: string;
+    rebuildOrderIdNumber: string;
     imageFile: File | null;
     createdId?: string;
     imageUrl?: string | null;
@@ -353,6 +358,8 @@ interface ClientSparePartDetails {
     isActive?: boolean;
     rebuildLifetimeText?: string | null;
     rebuildLifetime?: { value?: number; unit?: string };
+    orderIdNumber?: string | null;
+    rebuildOrderIdNumber?: string | null;
 }
 
 interface ClientSparePartHydrationItem extends ClientSparePartDetails {
@@ -385,6 +392,8 @@ const isBlankSparePartRow = (sp: SparePartRow): boolean =>
     sp.isActive === true &&
     !sp.lastServiceDate &&
     !sp.sparePartInstallationDate &&
+    !sp.orderIdNumber.trim() &&
+    !sp.rebuildOrderIdNumber.trim() &&
     !sp.imageFile &&
     sp.pendingImageFiles.length === 0 &&
     !sp.optimalStateVideoFile &&
@@ -454,6 +463,7 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
         name: m.name ?? "",
         modelNumber: m.modelNumber ?? "",
         installationDate: m.installationDate ? new Date(m.installationDate).toISOString().slice(0, 10) : "",
+        orderIdNumber: "",
         imageFile: null,
         createdId: m._id,
         imageUrl: m.imageUrl ?? null,
@@ -477,6 +487,8 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
             isActive: sp.isActive !== false,
             lastServiceDate: toDateInputValue(sp.lastServiceDate),
             sparePartInstallationDate: toDateInputValue(sp.sparePartInstallationDate),
+            orderIdNumber: "",
+            rebuildOrderIdNumber: "",
             imageFile: null,
             createdId: sp._id,
             imageUrl: sp.imageUrl ?? null,
@@ -512,12 +524,13 @@ function mapCategoryFullToState(payload: CategoryFullPayload): {
                 name: "",
                 modelNumber: "",
                 installationDate: "",
+                orderIdNumber: "",
                 imageFile: null,
                 description: "",
                 galleryImages: [],
                 deletedGalleryImageNames: [],
                 spareParts: [
-                    { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                    { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", orderIdNumber: "", rebuildOrderIdNumber: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
                 ],
             },
         ],
@@ -530,12 +543,13 @@ const defaultMachineRow = (): MachineRow => ({
     name: "",
     modelNumber: "",
     installationDate: "",
+    orderIdNumber: "",
     imageFile: null,
     description: "",
     galleryImages: [],
     deletedGalleryImageNames: [],
     spareParts: [
-        { id: `sp_${Date.now()}`, name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
+        { id: `sp_${Date.now()}`, name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", orderIdNumber: "", rebuildOrderIdNumber: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: `p_${Date.now()}`, name: "", imageFile: null, optimalStateVideoFile: null }] },
     ],
 });
 
@@ -578,12 +592,13 @@ export default function AddCategoryMachineFlow({
             name: "",
             modelNumber: "",
             installationDate: "",
+            orderIdNumber: "",
             imageFile: null,
             description: "",
             galleryImages: [],
             deletedGalleryImageNames: [],
             spareParts: [
-                { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
+                { id: "sp1", name: "", klValue: "", reference: "", lifetimeText: "", rotorType: "New", rebuildsPossible: 0, isRebuildable: true, isActive: true, lastServiceDate: "", sparePartInstallationDate: "", orderIdNumber: "", rebuildOrderIdNumber: "", imageFile: null, imageUrls: [], pendingImageFiles: [], optimalStateVideoFile: null, parts: [{ id: "p1", name: "", imageFile: null, optimalStateVideoFile: null }] },
             ],
         },
     ]);
@@ -598,8 +613,8 @@ export default function AddCategoryMachineFlow({
     // Used by handleSaveAllEdits to skip PUT calls for rows whose text fields
     // are unchanged and whose user hasn't picked a new image/video, so a
     // single image upload doesn't fan out into N spare-part PUTs.
-    type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string };
-    type BaselineSparePart = { name: string; klValue: string; reference: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string };
+    type BaselineMachine = { name: string; modelNumber: string; description: string; installationDate: string; orderIdNumber: string };
+    type BaselineSparePart = { name: string; klValue: string; reference: string; lifetimeText: string; rotorType: "New" | "Rebuilt"; rebuildsPossible: number; isRebuildable: boolean; isActive: boolean; lastServiceDate: string; sparePartInstallationDate: string; orderIdNumber: string; rebuildOrderIdNumber: string };
     type BaselinePart = { name: string };
     const machineBaselineRef = useRef<Map<string, BaselineMachine>>(new Map());
     const sparePartBaselineRef = useRef<Map<string, BaselineSparePart>>(new Map());
@@ -618,6 +633,7 @@ export default function AddCategoryMachineFlow({
                     modelNumber: m.modelNumber || "",
                     description: m.description || "",
                     installationDate: m.installationDate || "",
+                    orderIdNumber: m.orderIdNumber || "",
                 });
             }
             for (const sp of m.spareParts) {
@@ -633,6 +649,8 @@ export default function AddCategoryMachineFlow({
                         isActive: sp.isActive !== false,
                         lastServiceDate: sp.lastServiceDate || "",
                         sparePartInstallationDate: sp.sparePartInstallationDate || "",
+                        orderIdNumber: sp.orderIdNumber || "",
+                        rebuildOrderIdNumber: sp.rebuildOrderIdNumber || "",
                     });
                 }
                 for (const pt of sp.parts) {
@@ -655,7 +673,8 @@ export default function AddCategoryMachineFlow({
             (m.name || "") !== b.name ||
             (m.modelNumber || "") !== b.modelNumber ||
             (m.description || "") !== b.description ||
-            (m.installationDate || "") !== b.installationDate
+            (m.installationDate || "") !== b.installationDate ||
+            (m.orderIdNumber || "") !== b.orderIdNumber
         );
     }, []);
 
@@ -675,7 +694,9 @@ export default function AddCategoryMachineFlow({
             (sp.isRebuildable !== false) !== b.isRebuildable ||
             (sp.isActive !== false) !== b.isActive ||
             (sp.lastServiceDate || "") !== b.lastServiceDate ||
-            (sp.sparePartInstallationDate || "") !== b.sparePartInstallationDate
+            (sp.sparePartInstallationDate || "") !== b.sparePartInstallationDate ||
+            (sp.orderIdNumber || "") !== b.orderIdNumber ||
+            (sp.rebuildOrderIdNumber || "") !== b.rebuildOrderIdNumber
         );
     }, []);
 
@@ -816,6 +837,7 @@ export default function AddCategoryMachineFlow({
 
                     return {
                         ...machine,
+                        orderIdNumber: (responseData.machineById as { orderIdNumber?: string | null } | undefined)?.orderIdNumber || "",
                         spareParts: machine.spareParts.map((sp) => {
                             const detail = sp.createdId ? detailsById.get(sp.createdId) : null;
                             if (!detail) return sp;
@@ -829,6 +851,8 @@ export default function AddCategoryMachineFlow({
                                 isActive: detail.isActive !== false,
                                 lastServiceDate: toDateInputValue(detail.lastServiceDate),
                                 sparePartInstallationDate: toDateInputValue(detail.sparePartInstallationDate),
+                                orderIdNumber: detail.orderIdNumber || "",
+                                rebuildOrderIdNumber: detail.rebuildOrderIdNumber || "",
                             };
                         }),
                     };
@@ -971,6 +995,19 @@ export default function AddCategoryMachineFlow({
         return data as { optimalStateVideoUrl?: string };
     }, []);
 
+    const saveClientMachineOrderId = useCallback(async (machineId: string, orderIdNumber: string) => {
+        if (!clientID) return;
+        const res = await fetch(`/api/clients/${encodeURIComponent(clientID)}/client-machines`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineID: machineId, orderIdNumber: orderIdNumber.trim() || null }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to save machine Order ID");
+        }
+    }, [clientID]);
+
     const saveClientSparePartDetails = useCallback(async (machineId: string, sparePartId: string, sp: SparePartRow) => {
         if (!clientID) return;
         if (!isValidLifetimeText(sp.lifetimeText)) {
@@ -984,9 +1021,13 @@ export default function AddCategoryMachineFlow({
             rotorType: sp.rotorType === "Rebuilt" ? "Rebuilt" : "New",
             rebuildsPossible: Math.max(0, Number(sp.rebuildsPossible) || 0),
             isActive: sp.isActive !== false,
+            orderIdNumber: sp.orderIdNumber.trim() || null,
         };
         if (sp.lifetimeText.trim()) body.lifetimeText = sp.lifetimeText.trim();
         if (sp.rotorType === "Rebuilt") body.rebuildLifetimeText = sp.lifetimeText.trim();
+        // The rebuild field is hidden for non-rebuild parts, so only send it
+        // when visible — a hidden field must never silently wipe a stored value.
+        if (sp.rotorType === "Rebuilt") body.rebuildOrderIdNumber = sp.rebuildOrderIdNumber.trim() || null;
 
         const res = await fetch(`/api/clients/${encodeURIComponent(clientID)}/machines/${encodeURIComponent(machineId)}/spare-parts`, {
             method: "PUT",
@@ -1209,6 +1250,7 @@ export default function AddCategoryMachineFlow({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to update machine");
             }
+            await saveClientMachineOrderId(machine.createdId, machine.orderIdNumber);
             if (machine.imageFile) {
                 const uploaded = await uploadEntityImage("machine", machine.createdId, machine.imageFile);
                 if (uploaded?.imageUrl) {
@@ -1257,7 +1299,7 @@ export default function AddCategoryMachineFlow({
         } finally {
             setLoading(null);
         }
-    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, onSuccess]);
+    }, [machines, uploadEntityImage, uploadMachineGalleryImage, deleteMachineGalleryImage, saveClientMachineOrderId, onSuccess]);
 
     const removeMachine = useCallback((id: string) => {
         setMachines((prev) => {
@@ -1818,6 +1860,8 @@ export default function AddCategoryMachineFlow({
                                       isActive: true,
                                       lastServiceDate: "",
                                       sparePartInstallationDate: "",
+                                      orderIdNumber: "",
+                                      rebuildOrderIdNumber: "",
                                       imageFile: null,
                                       imageUrls: [],
                                       pendingImageFiles: [],
@@ -2041,6 +2085,14 @@ export default function AddCategoryMachineFlow({
             if (clientID) {
                 for (const m of machines) {
                     if (!m.createdId) continue;
+                    const machineBaseline = machineBaselineRef.current.get(m.createdId);
+                    if (!machineBaseline || (m.orderIdNumber || "") !== machineBaseline.orderIdNumber) {
+                        try {
+                            await saveClientMachineOrderId(m.createdId, m.orderIdNumber);
+                        } catch (e) {
+                            errors.push(`Machine ${m.name || m.id} Order ID: ${e instanceof Error ? e.message : "failed"}`);
+                        }
+                    }
                     for (const sp of m.spareParts) {
                         if (!sp.createdId) continue;
                         const baseline = sparePartBaselineRef.current.get(sp.createdId);
@@ -2053,7 +2105,10 @@ export default function AddCategoryMachineFlow({
                         const rebuildsDirty = !baseline ||
                             Math.max(0, Number(sp.rebuildsPossible) || 0) !== baseline.rebuildsPossible;
                         const activeDirty = !baseline || (sp.isActive !== false) !== baseline.isActive;
-                        if (!datesDirty && !lifetimeDirty && !typeDirty && !rebuildsDirty && !activeDirty) continue;
+                        const orderIdDirty = !baseline ||
+                            (sp.orderIdNumber || "") !== baseline.orderIdNumber ||
+                            (sp.rebuildOrderIdNumber || "") !== baseline.rebuildOrderIdNumber;
+                        if (!datesDirty && !lifetimeDirty && !typeDirty && !rebuildsDirty && !activeDirty && !orderIdDirty) continue;
                         try {
                             await saveClientSparePartDetails(m.createdId, sp.createdId, sp);
                         } catch (e) {
@@ -2273,6 +2328,7 @@ export default function AddCategoryMachineFlow({
         uploadMachineGalleryImage,
         deleteMachineGalleryImage,
         saveClientSparePartDetails,
+        saveClientMachineOrderId,
         clientID,
     ]);
 
@@ -2519,6 +2575,17 @@ export default function AddCategoryMachineFlow({
                                             className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
                                         />
                                     </div>
+                                    {/* Per-client, so only for saved machines edited inside a client */}
+                                    {clientID && m.createdId && (
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-[#6b7280] text-[12px]">Order ID</Label>
+                                            <Input
+                                                value={m.orderIdNumber}
+                                                onChange={(e) => updateMachine(m.id, "orderIdNumber", e.target.value)}
+                                                className="bg-white border-[#d1d5db] h-[40px] rounded-[8px] px-3 text-gray-900 text-[13px]"
+                                            />
+                                        </div>
+                                    )}
                                     <div className="flex flex-col gap-1.5">
                                         <Label className="text-[#6b7280] text-[12px]">Machine description</Label>
                                         <textarea
@@ -2825,6 +2892,27 @@ export default function AddCategoryMachineFlow({
                                                         className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px]"
                                                     />
                                                 </div>
+                                                {/* Order IDs are per client, so only offered when editing inside a client */}
+                                                {clientID && (
+                                                    <div className="flex flex-col gap-1">
+                                                        <Label className="text-[#6b7280] text-[11px]">Order ID</Label>
+                                                        <Input
+                                                            value={sp.orderIdNumber}
+                                                            onChange={(e) => updateSparePart(m.id, sp.id, "orderIdNumber", e.target.value)}
+                                                            className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
+                                                        />
+                                                    </div>
+                                                )}
+                                                {clientID && sp.rotorType === "Rebuilt" && (
+                                                    <div className="flex flex-col gap-1">
+                                                        <Label className="text-[#6b7280] text-[11px]">Rebuild Order ID</Label>
+                                                        <Input
+                                                            value={sp.rebuildOrderIdNumber}
+                                                            onChange={(e) => updateSparePart(m.id, sp.id, "rebuildOrderIdNumber", e.target.value)}
+                                                            className="bg-white border-[#d1d5db] h-[36px] rounded-[6px] px-2 text-gray-900 text-[12px] placeholder:text-[#4b5563]"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                             {/* Spare Part Images + Optimal-state video — side by side */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
