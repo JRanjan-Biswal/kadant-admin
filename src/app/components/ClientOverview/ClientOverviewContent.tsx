@@ -1326,11 +1326,13 @@ export default function ClientOverviewContent({
                                                                                                 </div>
                                                                                             ) : spareParts.length > 0 ? (
                                                                                                 <div className="overflow-x-auto">
-                                                                                                    <table className="w-full min-w-[920px] table-fixed border-collapse">
+                                                                                                    <table className="w-full min-w-[1180px] table-fixed border-collapse">
                                                                                                         <thead>
                                                                                                             <tr className="border-b border-[#d4dde8] bg-[#f9fafb]">
                                                                                                                 <th className="w-14 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">#</th>
                                                                                                                 <th className="w-[220px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Spare Part</th>
+                                                                                                                <th className="w-[130px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Order ID</th>
+                                                                                                                <th className="w-[150px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Rebuild Order ID</th>
                                                                                                                 <th className="w-[120px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Health</th>
                                                                                                                 <th className="w-[140px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Installed On</th>
                                                                                                                 <th className="w-[150px] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-[#607797]">Last Service On</th>
@@ -1375,12 +1377,6 @@ export default function ClientOverviewContent({
                                                                                                                                 <span className="whitespace-normal break-words text-sm font-semibold leading-5 text-[#111827]">{sparePart.customName || sparePart.name}</span>
                                                                                                                                 {sparePart.klValue && (
                                                                                                                                     <span className="text-xs font-medium text-[#6b7280]">KL: {sparePart.klValue}</span>
-                                                                                                                                )}
-                                                                                                                                {sparePart.orderIdNumber && (
-                                                                                                                                    <span className="text-xs font-medium text-[#6b7280]">Order ID: {sparePart.orderIdNumber}</span>
-                                                                                                                                )}
-                                                                                                                                {sparePart.rebuildOrderIdNumber && (
-                                                                                                                                    <span className="text-xs font-medium text-[#c2410c]">Rebuild Order ID: {sparePart.rebuildOrderIdNumber}</span>
                                                                                                                                 )}
                                                                                                                                 <div className="mt-1 flex flex-wrap gap-1.5">
                                                                                                                                     <Badge className="w-fit rounded-full border border-[#64748b]/30 bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#334155]">
@@ -1436,6 +1432,14 @@ export default function ClientOverviewContent({
                                                                                                                                 )}
 	                                                                                                                            </div>
 	                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3 text-sm font-medium text-[#374151]">
+                                                                                                                            <span className="block break-words">{sparePart.orderIdNumber || "—"}</span>
+                                                                                                                        </td>
+                                                                                                                        <td className="px-4 py-3 text-sm font-medium">
+                                                                                                                            <span className={`block break-words ${sparePart.rebuildOrderIdNumber ? "text-[#c2410c]" : "text-[#374151]"}`}>
+                                                                                                                                {sparePart.rebuildOrderIdNumber || "—"}
+                                                                                                                            </span>
+                                                                                                                        </td>
                                                                                                                         <td className="px-4 py-3">
                                                                                                                             <div className="flex items-center">
                                                                                                                                 <Badge className={`${getStatusColor(sparePart.status)} rounded-full border text-xs font-medium`}>
